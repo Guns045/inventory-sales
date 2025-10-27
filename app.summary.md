@@ -73,8 +73,7 @@ Berikut adalah rincian fitur utama yang akan dibangun:
     Laporan Penjualan: Laporan penjualan per produk, per pelanggan, atau per sales.
 
 6. Notifikasi & Log Aktivitas
-    Noti
-    fikasi Real-time: Pemberitahuan di dalam aplikasi atau via email ketika ada perubahan status penting (misal: "Penawaran #123 telah disetujui", "Stok Part-ABC hampir habis").
+    Notifikasi Real-time: Pemberitahuan di dalam aplikasi atau via email ketika ada perubahan status penting (misal: "Penawaran #123 telah disetujui", "Stok Part-ABC hampir habis").
     Log Aktivitas: Mencatat semua aktivitas penting pengguna (misal: "User A mengubah stok Part-XYZ", "User B membuat Invoice #456"). Ini penting untuk audit dan pelacakan.
 
 7. Manajemen Pengguna (Hak Akses)

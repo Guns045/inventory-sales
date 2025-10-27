@@ -19,7 +19,8 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'], // In production, be more specific about allowed origins
+    'allowed_origins' => ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    'supports_credentials' => true,
 
     'allowed_origins_patterns' => [],
 
@@ -29,6 +30,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

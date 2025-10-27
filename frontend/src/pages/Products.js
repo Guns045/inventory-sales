@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useAPI } from '../contexts/APIContext';
-import './Products.css';
+import {
+  Card,
+  Row,
+  Col,
+  Button,
+  Form,
+  Table,
+  Modal,
+  Spinner,
+  InputGroup,
+  Badge
+} from 'react-bootstrap';
 
 const Products = () => {
-  const { get, post, put, delete: deleteReq } = useAPI();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+
   const [formData, setFormData] = useState({
     sku: '',
     name: '',
@@ -16,107 +27,174 @@ const Products = () => {
     supplier_id: '',
     buy_price: '',
     sell_price: '',
-    min_stock_level: 0
+    min_stock_level: ''
   });
-  const [categories, setCategories] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
 
-  // Fetch data from API
   useEffect(() => {
-    fetchData();
+    fetchProducts();
   }, []);
 
-  const fetchData = async () => {
+  const fetchProducts = async () => {
     try {
-      const [productsRes, categoriesRes, suppliersRes] = await Promise.all([
-        get('/products'),
-        get('/categories'),
-        get('/suppliers')
-      ]);
-      
-      setProducts(productsRes.data.data || productsRes.data);
-      setCategories(categoriesRes.data);
-      setSuppliers(suppliersRes.data);
-      setLoading(false);
+      // Mock data untuk saat ini
+      setTimeout(() => {
+        const mockProducts = [
+          {
+            id: 1,
+            sku: 'PART-ENG-001',
+            name: 'Filter Oli Engine',
+            description: 'Filter oli untuk mesin heavy duty',
+            category: 'Engine Parts',
+            supplier: 'PT. Heavy Equipment Parts',
+            buy_price: 250000,
+            sell_price: 350000,
+            min_stock_level: 10,
+            current_stock: 25
+          },
+          {
+            id: 2,
+            sku: 'PART-ENG-002',
+            name: 'Oil Seal 50x65x8',
+            description: 'Oil seal ukuran 50x65x8',
+            category: 'Engine Parts',
+            supplier: 'PT. Heavy Equipment Parts',
+            buy_price: 75000,
+            sell_price: 120000,
+            min_stock_level: 20,
+            current_stock: 15
+          },
+          {
+            id: 3,
+            sku: 'PART-FIL-001',
+            name: 'Filter Solar',
+            description: 'Filter solar untuk alat berat',
+            category: 'Filters',
+            supplier: 'CV. Teknik Maju',
+            buy_price: 180000,
+            sell_price: 275000,
+            min_stock_level: 15,
+            current_stock: 30
+          },
+          {
+            id: 4,
+            sku: 'PART-HYD-001',
+            name: 'Hydraulic Pump',
+            description: 'Pompa hidrolik untuk excavator',
+            category: 'Hydraulics',
+            supplier: 'PT. Sumber Parts Indonesia',
+            buy_price: 2500000,
+            sell_price: 3250000,
+            min_stock_level: 5,
+            current_stock: 3
+          },
+          {
+            id: 5,
+            sku: 'PART-HYD-002',
+            name: 'Hydraulic Hose 1/2"',
+            description: 'Selang hidrolik diameter 1/2 inch',
+            category: 'Hydraulics',
+            supplier: 'CV. Teknik Maju',
+            buy_price: 125000,
+            sell_price: 185000,
+            min_stock_level: 30,
+            current_stock: 45
+          },
+          {
+            id: 6,
+            sku: 'PART-TRA-001',
+            name: 'Clutch Plate',
+            description: 'Kopling untuk transmisi',
+            category: 'Transmission',
+            supplier: 'PT. Heavy Equipment Parts',
+            buy_price: 850000,
+            sell_price: 1200000,
+            min_stock_level: 8,
+            current_stock: 12
+          },
+          {
+            id: 7,
+            sku: 'PART-ELE-001',
+            name: 'Alternator 24V',
+            description: 'Alternator 24 Volt untuk alat berat',
+            category: 'Electrical',
+            supplier: 'PT. Sumber Parts Indonesia',
+            buy_price: 1500000,
+            sell_price: 2100000,
+            min_stock_level: 6,
+            current_stock: 6
+          },
+          {
+            id: 8,
+            sku: 'PART-BRA-001',
+            name: 'Brake Pad',
+            description: 'Kampas rem untuk alat berat',
+            category: 'Brakes',
+            supplier: 'CV. Teknik Maju',
+            buy_price: 320000,
+            sell_price: 485000,
+            min_stock_level: 12,
+            current_stock: 10
+          }
+        ];
+        setProducts(mockProducts);
+        setLoading(false);
+      }, 1000);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching products:', error);
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     try {
       if (editingProduct) {
-        await put(`/products/${editingProduct}`, formData);
-        setProducts(products.map(p => p.id === editingProduct ? { ...formData, id: editingProduct } : p));
+        // Update product
+        setProducts(products.map(p =>
+          p.id === editingProduct.id
+            ? { ...p, ...formData }
+            : p
+        ));
       } else {
-        const response = await post('/products', formData);
-        setProducts([...products, response.data]);
+        // Add new product
+        const newProduct = {
+          id: products.length + 1,
+          ...formData,
+          category: 'Category Name',
+          supplier: 'Supplier Name',
+          current_stock: 0
+        };
+        setProducts([...products, newProduct]);
       }
-      
-      // Reset form and close
-      setFormData({
-        sku: '',
-        name: '',
-        description: '',
-        category_id: '',
-        supplier_id: '',
-        buy_price: '',
-        sell_price: '',
-        min_stock_level: 0
-      });
-      setShowForm(false);
-      setEditingProduct(null);
+      setShowModal(false);
+      resetForm();
     } catch (error) {
       console.error('Error saving product:', error);
     }
   };
 
-  const handleEdit = async (product) => {
-    // Fetch product details for editing
-    try {
-      const response = await get(`/products/${product.id}`);
-      const productData = response.data;
-      
-      setFormData({
-        sku: productData.sku,
-        name: productData.name,
-        description: productData.description,
-        category_id: productData.category_id,
-        supplier_id: productData.supplier_id,
-        buy_price: productData.buy_price,
-        sell_price: productData.sell_price,
-        min_stock_level: productData.min_stock_level
-      });
-      setEditingProduct(productData.id);
-      setShowForm(true);
-    } catch (error) {
-      console.error('Error fetching product for edit:', error);
+  const handleEdit = (product) => {
+    setEditingProduct(product);
+    setFormData({
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      category_id: '',
+      supplier_id: '',
+      buy_price: product.buy_price,
+      sell_price: product.sell_price,
+      min_stock_level: product.min_stock_level
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+      setProducts(products.filter(p => p.id !== id));
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        await deleteReq(`/products/${id}`);
-        setProducts(products.filter(product => product.id !== id));
-      } catch (error) {
-        console.error('Error deleting product:', error);
-      }
-    }
-  };
-
-  const openForm = () => {
+  const resetForm = () => {
     setFormData({
       sku: '',
       name: '',
@@ -125,192 +203,298 @@ const Products = () => {
       supplier_id: '',
       buy_price: '',
       sell_price: '',
-      min_stock_level: 0
+      min_stock_level: ''
     });
     setEditingProduct(null);
-    setShowForm(true);
   };
 
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
-    return <div className="loading">Loading products...</div>;
+    return (
+      <div className="loading">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    );
   }
 
   return (
-    <div className="products">
-      <div className="header">
-        <h1>Products</h1>
-        <button className="btn btn-primary" onClick={openForm}>Add Product</button>
-      </div>
-
-      {showForm && (
-        <div className="form-container">
-          <h2>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="sku">SKU:</label>
-                <input
-                  type="text"
-                  id="sku"
-                  name="sku"
-                  value={formData.sku}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="name">Name:</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="description">Description:</label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="category_id">Category:</label>
-                <select
-                  id="category_id"
-                  name="category_id"
-                  value={formData.category_id}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="supplier_id">Supplier:</label>
-                <select
-                  id="supplier_id"
-                  name="supplier_id"
-                  value={formData.supplier_id}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select Supplier</option>
-                  {suppliers.map(sup => (
-                    <option key={sup.id} value={sup.id}>{sup.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="buy_price">Buy Price:</label>
-                <input
-                  type="number"
-                  id="buy_price"
-                  name="buy_price"
-                  value={formData.buy_price}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  min="0"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="sell_price">Sell Price:</label>
-                <input
-                  type="number"
-                  id="sell_price"
-                  name="sell_price"
-                  value={formData.sell_price}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  min="0"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="min_stock_level">Min Stock Level:</label>
-              <input
-                type="number"
-                id="min_stock_level"
-                name="min_stock_level"
-                value={formData.min_stock_level}
-                onChange={handleInputChange}
-                min="0"
-                required
-              />
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" className="btn btn-success">
-                {editingProduct ? 'Update' : 'Create'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
+    <div>
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="mb-1">Manajemen Produk</h2>
+          <p className="text-muted mb-0">Kelola data produk dan inventaris</p>
         </div>
-      )}
-
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Supplier</th>
-              <th>Buy Price</th>
-              <th>Sell Price</th>
-              <th>Min Stock</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map(product => (
-              <tr key={product.id}>
-                <td>{product.sku}</td>
-                <td>{product.name}</td>
-                <td>{product.category?.name || 'N/A'}</td>
-                <td>{product.supplier?.name || 'N/A'}</td>
-                <td>${product.buy_price}</td>
-                <td>${product.sell_price}</td>
-                <td>{product.min_stock_level}</td>
-                <td>
-                  <button 
-                    className="btn btn-sm btn-primary" 
-                    onClick={() => handleEdit(product)}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-danger" 
-                    onClick={() => handleDelete(product.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Button variant="primary" onClick={() => setShowModal(true)}>
+          <i className="bi bi-plus-circle me-2"></i>
+          Tambah Produk
+        </Button>
       </div>
+
+      {/* Stats Cards */}
+      <Row className="mb-4">
+        <Col md={3} className="mb-3">
+          <Card className="border-0 bg-primary text-white">
+            <Card.Body className="text-center">
+              <h3 className="mb-1">{products.length}</h3>
+              <p className="mb-0">Total Produk</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3} className="mb-3">
+          <Card className="border-0 bg-warning text-dark">
+            <Card.Body className="text-center">
+              <h3 className="mb-1">{products.filter(p => p.current_stock <= p.min_stock_level).length}</h3>
+              <p className="mb-0">Stok Menipis</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3} className="mb-3">
+          <Card className="border-0 bg-success text-white">
+            <Card.Body className="text-center">
+              <h3 className="mb-1">{products.filter(p => p.current_stock > p.min_stock_level).length}</h3>
+              <p className="mb-0">Stok Normal</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3} className="mb-3">
+          <Card className="border-0 bg-info text-white">
+            <Card.Body className="text-center">
+              <h3 className="mb-1">
+                Rp {products.reduce((sum, p) => sum + (p.sell_price * p.current_stock), 0).toLocaleString()}
+              </h3>
+              <p className="mb-0">Nilai Inventaris</p>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Search and Filters */}
+      <Card className="mb-4">
+        <Card.Body>
+          <Row className="align-items-center">
+            <Col md={6}>
+              <InputGroup>
+                <Form.Control
+                  placeholder="Cari produk berdasarkan nama, SKU, atau kategori..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <InputGroup.Text>
+                  <i className="bi bi-search"></i>
+                </InputGroup.Text>
+              </InputGroup>
+            </Col>
+            <Col md={6} className="text-md-end mt-3 mt-md-0">
+              <Button variant="outline-secondary" className="me-2">
+                <i className="bi bi-funnel me-2"></i>
+                Filter
+              </Button>
+              <Button variant="outline-secondary">
+                <i className="bi bi-download me-2"></i>
+                Export
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Products Table */}
+      <Card className="table-container">
+        <Card.Body className="p-0">
+          <div className="table-responsive">
+            <Table hover className="mb-0">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Nama Produk</th>
+                  <th>Kategori</th>
+                  <th>Supplier</th>
+                  <th>Harga Beli</th>
+                  <th>Harga Jual</th>
+                  <th>Stok</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map(product => (
+                  <tr key={product.id}>
+                    <td>
+                      <code className="text-secondary">{product.sku}</code>
+                    </td>
+                    <td>
+                      <div>
+                        <strong>{product.name}</strong>
+                        <br />
+                        <small className="text-muted">{product.description}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <Badge bg="light" text="dark" className="text-capitalize">
+                        {product.category}
+                      </Badge>
+                    </td>
+                    <td>
+                      <small>{product.supplier}</small>
+                    </td>
+                    <td>
+                      <span className="text-muted">Rp </span>
+                      {product.buy_price.toLocaleString()}
+                    </td>
+                    <td>
+                      <span className="text-primary fw-semibold">Rp </span>
+                      {product.sell_price.toLocaleString()}
+                    </td>
+                    <td>
+                      <span className={`stock-badge ${product.current_stock <= product.min_stock_level ? 'low' : 'normal'}`}>
+                        {product.current_stock}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${product.current_stock <= product.min_stock_level ? 'warning' : 'normal'}`}>
+                        {product.current_stock <= product.min_stock_level ? 'Stok Menipis' : 'Normal'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="btn-group" role="group">
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => handleEdit(product)}
+                        >
+                          <i className="bi bi-pencil"></i>
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDelete(product.id)}
+                        >
+                          <i className="bi bi-trash"></i>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-5">
+              <i className="bi bi-search fs-1 text-muted mb-3"></i>
+              <h5 className="text-muted">Tidak ada produk ditemukan</h5>
+              <p className="text-muted">Coba ubah kata kunci pencarian atau tambah produk baru</p>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+
+      {/* Add/Edit Modal */}
+      <Modal show={showModal} onHide={() => {
+        setShowModal(false);
+        resetForm();
+      }} centered>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>
+            <i className="bi bi-box me-2"></i>
+            {editingProduct ? 'Edit Produk' : 'Tambah Produk Baru'}
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSubmit}>
+          <Modal.Body>
+            <Row>
+              <Col md={6} className="mb-3">
+                <Form.Label>SKU</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Masukkan SKU"
+                  value={formData.sku}
+                  onChange={(e) => setFormData({...formData, sku: e.target.value})}
+                  required
+                />
+              </Col>
+              <Col md={6} className="mb-3">
+                <Form.Label>Nama Produk</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Masukkan nama produk"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  required
+                />
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Deskripsi</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                placeholder="Masukkan deskripsi produk"
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+              />
+            </Form.Group>
+
+            <Row>
+              <Col md={4} className="mb-3">
+                <Form.Label>Harga Beli</Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="0"
+                  value={formData.buy_price}
+                  onChange={(e) => setFormData({...formData, buy_price: e.target.value})}
+                  required
+                />
+              </Col>
+              <Col md={4} className="mb-3">
+                <Form.Label>Harga Jual</Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="0"
+                  value={formData.sell_price}
+                  onChange={(e) => setFormData({...formData, sell_price: e.target.value})}
+                  required
+                />
+              </Col>
+              <Col md={4} className="mb-3">
+                <Form.Label>Stok Minimum</Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="0"
+                  value={formData.min_stock_level}
+                  onChange={(e) => setFormData({...formData, min_stock_level: e.target.value})}
+                  required
+                />
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowModal(false);
+                resetForm();
+              }}
+            >
+              <i className="bi bi-x-circle me-2"></i>
+              Batal
+            </Button>
+            <Button type="submit" variant="primary">
+              <i className="bi bi-check-circle me-2"></i>
+              {editingProduct ? 'Update' : 'Simpan'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </div>
   );
 };

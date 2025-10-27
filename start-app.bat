@@ -3,7 +3,7 @@ echo Starting Inventory Management System...
 echo.
 
 REM Start Laravel server in a new window
-start "Laravel Server" cmd /k "cd /d C:\xampp\htdocs\jinan-inventory && php artisan serve --host=127.0.0.1 --port=8000"
+start "Laravel Server" cmd /k "cd /d C:\xampp\htdocs\jinan-inventory && php artisan serve --host=localhost --port=8000"
 
 REM Wait a bit for Laravel to start
 timeout /t 5 /nobreak >nul
@@ -19,7 +19,7 @@ start http://localhost:3000
 
 echo.
 echo Servers started successfully!
-echo - Laravel backend: http://127.0.0.1:8000
+echo - Laravel backend: http://localhost:8000
 echo - React frontend: http://localhost:3000
 echo - Login page will open in your default browser
 echo.

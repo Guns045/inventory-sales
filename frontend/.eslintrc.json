@@ -1,0 +1,12 @@
+{
+  "extends": ["react-app"],
+  "rules": {
+    "no-restricted-globals": "off",
+    "no-unused-vars": "warn"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+}

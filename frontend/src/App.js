@@ -1,25 +1,30 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { APIProvider } from './contexts/APIContext';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import './App.css';
+
+// Layout Components
+import Layout from './components/Layout';
+
+// Page Components
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Layout from './components/Layout';
 import Products from './pages/Products';
 import Categories from './pages/Categories';
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import Warehouses from './pages/Warehouses';
+import ProductStock from './pages/ProductStock';
 import Quotations from './pages/Quotations';
 import SalesOrders from './pages/SalesOrders';
 import DeliveryOrders from './pages/DeliveryOrders';
-import Invoices from './pages/Invoices';
-import Payments from './pages/Payments';
 import PurchaseOrders from './pages/PurchaseOrders';
 import GoodsReceipts from './pages/GoodsReceipts';
-import ProductStock from './pages/ProductStock';
-import ProtectedRoute from './components/ProtectedRoute';
-import './App.css';
+import Invoices from './pages/Invoices';
+import Payments from './pages/Payments';
 
 function App() {
   return (
@@ -29,104 +34,24 @@ function App() {
           <div className="App">
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/products" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Products />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/categories" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Categories />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/suppliers" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Suppliers />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/customers" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Customers />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/warehouses" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Warehouses />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/product-stock" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ProductStock />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/quotations" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Quotations />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/sales-orders" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <SalesOrders />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/delivery-orders" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <DeliveryOrders />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/invoices" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Invoices />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/payments" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Payments />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/purchase-orders" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <PurchaseOrders />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/goods-receipts" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <GoodsReceipts />
-                  </Layout>
-                </ProtectedRoute>
-              } />
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<Products />} />
+                <Route path="categories" element={<Categories />} />
+                <Route path="suppliers" element={<Suppliers />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="warehouses" element={<Warehouses />} />
+                <Route path="product-stock" element={<ProductStock />} />
+                <Route path="quotations" element={<Quotations />} />
+                <Route path="sales-orders" element={<SalesOrders />} />
+                <Route path="delivery-orders" element={<DeliveryOrders />} />
+                <Route path="purchase-orders" element={<PurchaseOrders />} />
+                <Route path="goods-receipts" element={<GoodsReceipts />} />
+                <Route path="invoices" element={<Invoices />} />
+                <Route path="payments" element={<Payments />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>
         </Router>
