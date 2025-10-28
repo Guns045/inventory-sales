@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { useAPI } from '../contexts/APIContext';
 import './Quotations.css';
 
 const Quotations = () => {
+  const { get, post, put, delete: deleteApi } = useAPI();
   const [quotations, setQuotations] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState(null);
   const [formData, setFormData] = useState({
-    quotation_number: '',
     customer_id: '',
     status: 'DRAFT',
     valid_until: '',
-    subtotal: 0,
-    discount: 0,
-    tax: 0,
-    total_amount: 0
+    items: []
   });
-  
-  const [items, setItems] = useState([]);
+
   const [newItem, setNewItem] = useState({
     product_id: '',
     quantity: 1,
@@ -25,25 +26,31 @@ const Quotations = () => {
     tax_rate: 0
   });
 
-  // Mock data
-  const customers = [
-    { id: 1, company_name: 'Customer A' },
-    { id: 2, company_name: 'Customer B' }
-  ];
-  
-  const products = [
-    { id: 1, name: 'Engine Oil Filter', sell_price: 25.00 },
-    { id: 2, name: 'Hydraulic Pump', sell_price: 350.00 }
-  ];
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
-    // In a real app, fetch quotations from the API
-    // For now, using mock data
-    setQuotations([
-      { id: 1, quotation_number: 'Q-2024-10-001', customer: { company_name: 'Customer A' }, status: 'APPROVED', valid_until: '2024-12-31', total_amount: 375.00 },
-      { id: 2, quotation_number: 'Q-2024-10-002', customer: { company_name: 'Customer B' }, status: 'DRAFT', valid_until: '2024-11-30', total_amount: 25.00 }
-    ]);
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [quotationsRes, customersRes, productsRes] = await Promise.all([
+        get('/quotations'),
+        get('/customers'),
+        get('/products')
+      ]);
+
+      setQuotations(quotationsRes.data.data || []);
+      setCustomers(customersRes.data || []);
+      setProducts(productsRes.data.data || []);
+    } catch (err) {
+      setError('Failed to fetch data');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -63,17 +70,17 @@ const Quotations = () => {
 
   const addItem = () => {
     if (!newItem.product_id || newItem.quantity <= 0) return;
-    
+
     const product = products.find(p => p.id === parseInt(newItem.product_id, 10));
     if (!product) return;
-    
+
     const itemTotal = newItem.quantity * product.sell_price;
     const discountAmount = itemTotal * (newItem.discount_percentage / 100);
     const taxAmount = (itemTotal - discountAmount) * (newItem.tax_rate / 100);
     const total = itemTotal - discountAmount + taxAmount;
-    
+
     const item = {
-      id: items.length + 1,
+      id: Date.now(), // Use timestamp for unique ID
       product_id: parseInt(newItem.product_id, 10),
       product_name: product.name,
       quantity: newItem.quantity,
@@ -82,9 +89,9 @@ const Quotations = () => {
       tax_rate: newItem.tax_rate,
       total_price: total
     };
-    
+
     setItems([...items, item]);
-    
+
     // Reset form
     setNewItem({
       product_id: '',
@@ -116,72 +123,231 @@ const Quotations = () => {
     calculateTotals();
   }, [items]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (editingQuotation) {
-      // Update quotation in a real app
-      console.log('Updating quotation:', { ...formData, items });
-    } else {
-      // Create quotation in a real app
-      console.log('Creating quotation:', { ...formData, items });
+
+    // Validate items before submission
+    if (items.length === 0) {
+      setError('Quotation must have at least one item');
+      return;
     }
-    
-    // Reset form and close
-    setFormData({
-      quotation_number: '',
-      customer_id: '',
-      status: 'DRAFT',
-      valid_until: '',
-      subtotal: 0,
-      discount: 0,
-      tax: 0,
-      total_amount: 0
-    });
-    setItems([]);
-    setShowForm(false);
-    setEditingQuotation(null);
+
+    // Validate items data
+    const invalidItem = items.find(item =>
+      !item.product_id || !item.quantity || !item.unit_price ||
+      item.quantity <= 0 || item.unit_price <= 0
+    );
+
+    if (invalidItem) {
+      setError('Please ensure all items have valid product, quantity, and price information');
+      return;
+    }
+
+    try {
+      const quotationData = {
+        customer_id: formData.customer_id,
+        status: formData.status,
+        valid_until: formData.valid_until,
+        items: items.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          tax_rate: item.tax_rate || 0
+        }))
+      };
+
+      if (editingQuotation) {
+        await put(`/quotations/${editingQuotation}`, quotationData);
+      } else {
+        await post('/quotations', quotationData);
+      }
+
+      // Refresh data
+      await fetchData();
+
+      // Reset form and close
+      setFormData({
+        customer_id: '',
+        status: 'DRAFT',
+        valid_until: '',
+        items: []
+      });
+      setItems([]);
+      setShowForm(false);
+      setEditingQuotation(null);
+    } catch (err) {
+      let errorMessage = editingQuotation ? 'Failed to update quotation' : 'Failed to create quotation';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        // Handle Laravel validation errors
+        const validationErrors = Object.values(err.response.data.errors).flat();
+        errorMessage = validationErrors.join(', ');
+      }
+      setError(errorMessage);
+      console.error('Error saving quotation:', err);
+    }
   };
 
-  const handleEdit = (quotation) => {
-    // In a real app, fetch quotation details and items
-    setFormData({
-      quotation_number: quotation.quotation_number,
-      customer_id: quotation.customer_id || '',
-      status: quotation.status,
-      valid_until: quotation.valid_until,
-      subtotal: quotation.total_amount, // Simplified for demo
-      discount: 0,
-      tax: 0,
-      total_amount: quotation.total_amount
-    });
-    setItems([]); // Would fetch items in real app
-    setEditingQuotation(quotation.id);
-    setShowForm(true);
+  const handleEdit = async (quotation) => {
+    // Check if quotation can be edited (only DRAFT status can be edited)
+    if (quotation.status !== 'DRAFT') {
+      setError(`Cannot edit quotation with status "${quotation.status}". Only DRAFT quotations can be edited.`);
+      return;
+    }
+
+    try {
+      const response = await get(`/quotations/${quotation.id}`);
+      const quotationDetails = response.data;
+
+      setFormData({
+        customer_id: quotationDetails.customer_id,
+        status: quotationDetails.status,
+        valid_until: quotationDetails.valid_until ? quotationDetails.valid_until.split('T')[0] : '',
+        items: []
+      });
+
+      // Set items from quotation details
+      const quotationItems = quotationDetails.quotation_items || [];
+      setItems(quotationItems.map(item => ({
+        id: Date.now() + item.id,
+        product_id: item.product_id,
+        product_name: item.product?.name || 'Product',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage,
+        tax_rate: item.tax_rate,
+        total_price: item.total_price
+      })));
+
+      setEditingQuotation(quotation.id);
+      setShowForm(true);
+    } catch (err) {
+      setError('Failed to fetch quotation details');
+      console.error('Error fetching quotation:', err);
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this quotation?')) {
-      // Delete quotation in a real app
-      setQuotations(quotations.filter(q => q.id !== id));
+      try {
+        await deleteApi(`/quotations/${id}`);
+        await fetchData();
+      } catch (err) {
+        setError('Failed to delete quotation');
+        console.error('Error deleting quotation:', err);
+      }
+    }
+  };
+
+  const handleApprove = async (id) => {
+    if (window.confirm('Are you sure you want to approve this quotation?')) {
+      try {
+        // Send notes field (even if empty) to match backend validation
+        await post(`/quotations/${id}/approve`, { notes: '' });
+        await fetchData();
+      } catch (err) {
+        let errorMessage = 'Failed to approve quotation';
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.data?.errors) {
+          // Handle Laravel validation errors
+          const validationErrors = Object.values(err.response.data.errors).flat();
+          errorMessage = validationErrors.join(', ');
+        }
+        setError(errorMessage);
+        console.error('Error approving quotation:', err);
+      }
+    }
+  };
+
+  const handleReject = async (id) => {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (reason) {
+      try {
+        await post(`/quotations/${id}/reject`, { notes: reason });
+        await fetchData();
+      } catch (err) {
+        let errorMessage = 'Failed to reject quotation';
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.data?.errors) {
+          // Handle Laravel validation errors
+          const validationErrors = Object.values(err.response.data.errors).flat();
+          errorMessage = validationErrors.join(', ');
+        }
+        setError(errorMessage);
+        console.error('Error rejecting quotation:', err);
+      }
+    }
+  };
+
+  const handleConvertToSO = async (quotation) => {
+    if (window.confirm('Convert this quotation to Sales Order?')) {
+      try {
+        const soData = {
+          quotation_id: quotation.id,
+          customer_id: quotation.customer_id,
+          status: 'PENDING',
+          notes: `Converted from Quotation ${quotation.quotation_number}`
+        };
+        await post('/sales-orders', soData);
+        alert('Quotation converted to Sales Order successfully!');
+        await fetchData();
+      } catch (err) {
+        setError('Failed to convert quotation to Sales Order');
+        console.error('Error converting to SO:', err);
+      }
+    }
+  };
+
+  const handleSubmitForApproval = async (quotation) => {
+    if (window.confirm('Submit this quotation for approval?')) {
+      try {
+        await post(`/quotations/${quotation.id}/submit`, {
+          notes: 'Please review this quotation for approval'
+        });
+        alert('Quotation submitted for approval successfully!');
+        await fetchData();
+      } catch (err) {
+        let errorMessage = 'Failed to submit quotation for approval';
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.data?.errors) {
+          // Handle Laravel validation errors
+          const validationErrors = Object.values(err.response.data.errors).flat();
+          errorMessage = validationErrors.join(', ');
+        }
+        setError(errorMessage);
+        console.error('Error submitting for approval:', err);
+      }
     }
   };
 
   const openForm = () => {
     setFormData({
-      quotation_number: '',
       customer_id: '',
       status: 'DRAFT',
       valid_until: '',
-      subtotal: 0,
-      discount: 0,
-      tax: 0,
-      total_amount: 0
+      items: []
     });
     setItems([]);
     setEditingQuotation(null);
     setShowForm(true);
   };
+
+  if (loading) {
+    return (
+      <div className="quotations">
+        <div className="text-center py-4">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="quotations">
@@ -190,22 +356,17 @@ const Quotations = () => {
         <button className="btn btn-primary" onClick={openForm}>Add Quotation</button>
       </div>
 
+      {error && (
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      )}
+
       {showForm && (
         <div className="form-container">
           <h2>{editingQuotation ? 'Edit Quotation' : 'Add New Quotation'}</h2>
           <form onSubmit={handleSubmit}>
             <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="quotation_number">Quotation Number:</label>
-                <input
-                  type="text"
-                  id="quotation_number"
-                  name="quotation_number"
-                  value={formData.quotation_number}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
               <div className="form-group">
                 <label htmlFor="customer_id">Customer:</label>
                 <select
@@ -252,35 +413,7 @@ const Quotations = () => {
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="discount">Discount (%):</label>
-                <input
-                  type="number"
-                  id="discount"
-                  name="discount"
-                  value={formData.discount}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  min="0"
-                  max="100"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="tax">Tax (%):</label>
-                <input
-                  type="number"
-                  id="tax"
-                  name="tax"
-                  value={formData.tax}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  min="0"
-                  max="100"
-                />
-              </div>
-            </div>
-
+            
             <div className="form-group">
               <h3>Quotation Items</h3>
               <div className="form-row">
@@ -294,7 +427,9 @@ const Quotations = () => {
                   >
                     <option value="">Select Product</option>
                     {products.map(prod => (
-                      <option key={prod.id} value={prod.id}>{prod.name} - ${prod.sell_price}</option>
+                      <option key={prod.id} value={prod.id}>
+                        {prod.sku} - {prod.name} - Rp {(prod.sell_price).toLocaleString()}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -358,10 +493,10 @@ const Quotations = () => {
                       <tr key={item.id}>
                         <td>{item.product_name}</td>
                         <td>{item.quantity}</td>
-                        <td>${item.unit_price.toFixed(2)}</td>
+                        <td>Rp {(item.unit_price).toLocaleString()}</td>
                         <td>{item.discount_percentage}%</td>
                         <td>{item.tax_rate}%</td>
-                        <td>${item.total_price.toFixed(2)}</td>
+                        <td>Rp {(item.total_price).toLocaleString()}</td>
                         <td>
                           <button 
                             className="btn btn-sm btn-danger" 
@@ -410,19 +545,56 @@ const Quotations = () => {
                   <span className={`status status-${quotation.status.toLowerCase()}`}>
                     {quotation.status}
                   </span>
+                  {quotation.status === 'SUBMITTED' && (
+                    <small className="text-muted ms-2">(Pending Approval)</small>
+                  )}
                 </td>
                 <td>{quotation.valid_until}</td>
-                <td>${quotation.total_amount.toFixed(2)}</td>
+                <td>Rp {(quotation.total_amount || 0).toLocaleString()}</td>
                 <td>
-                  <button 
-                    className="btn btn-sm btn-primary" 
+                  <button
+                    className="btn btn-sm btn-primary me-1"
                     onClick={() => handleEdit(quotation)}
+                    disabled={quotation.status !== 'DRAFT'}
                   >
                     Edit
                   </button>
-                  <button 
-                    className="btn btn-sm btn-danger" 
+                  {quotation.status === 'DRAFT' && (
+                    <button
+                      className="btn btn-sm btn-warning me-1"
+                      onClick={() => handleSubmitForApproval(quotation)}
+                    >
+                      Submit for Approval
+                    </button>
+                  )}
+                  {quotation.status === 'SUBMITTED' && (
+                    <>
+                      <button
+                        className="btn btn-sm btn-success me-1"
+                        onClick={() => handleApprove(quotation.id)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger me-1"
+                        onClick={() => handleReject(quotation.id)}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {quotation.status === 'APPROVED' && (
+                    <button
+                      className="btn btn-sm btn-info me-1"
+                      onClick={() => handleConvertToSO(quotation)}
+                    >
+                      Convert to SO
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-sm btn-danger"
                     onClick={() => handleDelete(quotation.id)}
+                    disabled={quotation.status === 'APPROVED' || quotation.status === 'SUBMITTED'}
                   >
                     Delete
                   </button>
@@ -431,6 +603,11 @@ const Quotations = () => {
             ))}
           </tbody>
         </table>
+      {quotations.length === 0 && (
+        <div className="text-center py-4">
+          <p className="text-muted">No quotations found. Create your first quotation!</p>
+        </div>
+      )}
       </div>
     </div>
   );

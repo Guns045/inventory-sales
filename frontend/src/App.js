@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { APIProvider } from './contexts/APIContext';
+import { PermissionProvider } from './contexts/PermissionContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './App.css';
@@ -30,31 +31,37 @@ function App() {
   return (
     <AuthProvider>
       <APIProvider>
-        <Router>
-          <div className="App">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="products" element={<Products />} />
-                <Route path="categories" element={<Categories />} />
-                <Route path="suppliers" element={<Suppliers />} />
-                <Route path="customers" element={<Customers />} />
-                <Route path="warehouses" element={<Warehouses />} />
-                <Route path="product-stock" element={<ProductStock />} />
-                <Route path="quotations" element={<Quotations />} />
-                <Route path="sales-orders" element={<SalesOrders />} />
-                <Route path="delivery-orders" element={<DeliveryOrders />} />
-                <Route path="purchase-orders" element={<PurchaseOrders />} />
-                <Route path="goods-receipts" element={<GoodsReceipts />} />
-                <Route path="invoices" element={<Invoices />} />
-                <Route path="payments" element={<Payments />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </div>
-        </Router>
+        <PermissionProvider>
+          <Router>
+            <div className="App">
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="dashboard/sales" element={<Dashboard />} />
+                  <Route path="dashboard/warehouse" element={<Dashboard />} />
+                  <Route path="dashboard/finance" element={<Dashboard />} />
+                  <Route path="products" element={<Products />} />
+                  <Route path="categories" element={<Categories />} />
+                  <Route path="suppliers" element={<Suppliers />} />
+                  <Route path="customers" element={<Customers />} />
+                  <Route path="warehouses" element={<Warehouses />} />
+                  <Route path="stock" element={<ProductStock />} />
+                  <Route path="product-stock" element={<ProductStock />} />
+                  <Route path="quotations" element={<Quotations />} />
+                  <Route path="sales-orders" element={<SalesOrders />} />
+                  <Route path="delivery-orders" element={<DeliveryOrders />} />
+                  <Route path="purchase-orders" element={<PurchaseOrders />} />
+                  <Route path="goods-receipts" element={<GoodsReceipts />} />
+                  <Route path="invoices" element={<Invoices />} />
+                  <Route path="payments" element={<Payments />} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </div>
+          </Router>
+        </PermissionProvider>
       </APIProvider>
     </AuthProvider>
   );

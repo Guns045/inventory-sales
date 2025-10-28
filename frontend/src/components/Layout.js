@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Container, Row, Col, Nav, Button } from 'react-bootstrap';
+import { usePermissions } from '../contexts/PermissionContext';
+import { Container, Row, Col, Nav, Button, Spinner } from 'react-bootstrap';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { logout } = useAuth();
+  const { user, visibleMenuItems, loading } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,43 +16,51 @@ const Layout = () => {
     navigate('/login');
   };
 
-  const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
-    { path: '/products', label: 'Products', icon: 'bi-box' },
-    { path: '/categories', label: 'Categories', icon: 'bi-tags' },
-    { path: '/suppliers', label: 'Suppliers', icon: 'bi-truck' },
-    { path: '/customers', label: 'Customers', icon: 'bi-people' },
-    { path: '/warehouses', label: 'Warehouses', icon: 'bi-building' },
-    { path: '/product-stock', label: 'Stock', icon: 'bi-graph-up' },
-    { path: '/quotations', label: 'Quotations', icon: 'bi-file-text' },
-    { path: '/sales-orders', label: 'Sales Orders', icon: 'bi-cart' },
-    { path: '/delivery-orders', label: 'Delivery Orders', icon: 'bi-truck-flatbed' },
-    { path: '/purchase-orders', label: 'Purchase Orders', icon: 'bi-box-arrow-in-down' },
-    { path: '/goods-receipts', label: 'Goods Receipts', icon: 'bi-receipt' },
-    { path: '/invoices', label: 'Invoices', icon: 'bi-file-earmark-text' },
-    { path: '/payments', label: 'Payments', icon: 'bi-credit-card' },
-  ];
+  // Show loading spinner while permissions are loading
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+        <div className="text-center">
+          <Spinner animation="border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </Spinner>
+          <p className="mt-3">Loading permissions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar */}
       <div className={`sidebar d-none d-lg-block ${sidebarOpen ? 'show' : ''}`} style={{ width: '280px' }}>
         <div className="sidebar-header">
-          <h3>
+          <h4>
             <i className="bi bi-box-seam me-2"></i>
             Inventory System
-          </h3>
+          </h4>
+          <small className="text-muted d-block mt-1">
+            Role: {user?.role || 'Unknown'}
+          </small>
         </div>
         <Nav className="flex-column p-3">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <Nav.Link
               key={item.path}
               as={Link}
               to={item.path}
               className={`mb-1 ${location.pathname === item.path ? 'active' : ''}`}
+              title={item.description}
             >
               <i className={`bi ${item.icon} me-3`}></i>
-              {item.label}
+              <div>
+                {item.title}
+                {item.description && (
+                  <small className="d-block text-muted small-desc">
+                    {item.description}
+                  </small>
+                )}
+              </div>
             </Nav.Link>
           ))}
           <div className="mt-auto pt-3 border-top border-white-50">
@@ -74,10 +84,15 @@ const Layout = () => {
       {/* Mobile Sidebar */}
       <div className={`sidebar d-lg-none position-fixed top-0 start-0 h-100 ${sidebarOpen ? 'show' : ''}`} style={{ zIndex: 1045 }}>
         <div className="sidebar-header d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">
-            <i className="bi bi-box-seam me-2"></i>
-            Inventory
-          </h5>
+          <div>
+            <h5 className="mb-0">
+              <i className="bi bi-box-seam me-2"></i>
+              Inventory
+            </h5>
+            <small className="text-muted">
+              Role: {user?.role || 'Unknown'}
+            </small>
+          </div>
           <Button
             variant="link"
             className="text-white p-0"
@@ -87,16 +102,24 @@ const Layout = () => {
           </Button>
         </div>
         <Nav className="flex-column p-3">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <Nav.Link
               key={item.path}
               as={Link}
               to={item.path}
               className={`mb-1 text-white ${location.pathname === item.path ? 'active' : ''}`}
               onClick={() => setSidebarOpen(false)}
+              title={item.description}
             >
               <i className={`bi ${item.icon} me-3`}></i>
-              {item.label}
+              <div>
+                {item.title}
+                {item.description && (
+                  <small className="d-block text-muted small-desc">
+                    {item.description}
+                  </small>
+                )}
+              </div>
             </Nav.Link>
           ))}
           <div className="mt-auto pt-3 border-top border-white-50">
@@ -132,7 +155,8 @@ const Layout = () => {
               <div className="d-flex align-items-center">
                 <div className="me-3">
                   <i className="bi bi-person-circle me-2"></i>
-                  <span className="text-muted">Welcome, Admin</span>
+                  <span className="text-muted">Welcome, {user?.name || 'User'}</span>
+                  <span className={`badge role-badge ${(user?.role || '').toLowerCase()} ms-2`}>{user?.role || 'Unknown'}</span>
                 </div>
                 <Button variant="outline-secondary" size="sm" onClick={handleLogout} className="d-none d-md-inline-block">
                   <i className="bi bi-box-arrow-right me-1"></i>

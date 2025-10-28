@@ -25,8 +25,8 @@ const Login = () => {
         password
       });
 
-      if (response.data.token) {
-        login(response.data.token);
+      if (response.data.token && response.data.user) {
+        login(response.data.token, response.data.user);
         navigate('/dashboard');
       }
     } catch (err) {

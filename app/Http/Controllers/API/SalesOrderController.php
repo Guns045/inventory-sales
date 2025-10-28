@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Quotation;
+use App\Models\ActivityLog;
+use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
 
 class SalesOrderController extends Controller
@@ -32,7 +34,19 @@ class SalesOrderController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        // Validate quotation if provided
+        if ($request->quotation_id) {
+            $quotation = Quotation::findOrFail($request->quotation_id);
+            if ($quotation->status !== 'APPROVED') {
+                return response()->json([
+                    'message' => 'Only approved quotations can be converted to Sales Order'
+                ], 422);
+            }
+        }
+
         $salesOrder = DB::transaction(function () use ($request) {
+            $quotation = null;
+
             // Create the sales order
             $salesOrder = SalesOrder::create([
                 'sales_order_number' => 'SO-' . date('Y-m') . '-' . str_pad(SalesOrder::count() + 1, 4, '0', STR_PAD_LEFT),
@@ -47,7 +61,7 @@ class SalesOrderController extends Controller
             if ($request->quotation_id) {
                 $quotation = Quotation::findOrFail($request->quotation_id);
                 $quotationItems = $quotation->quotationItems;
-                
+
                 foreach ($quotationItems as $item) {
                     SalesOrderItem::create([
                         'sales_order_id' => $salesOrder->id,
@@ -80,8 +94,40 @@ class SalesOrderController extends Controller
                 }
             }
 
-            return $salesOrder->refresh();
+            return [$salesOrder, $quotation];
         });
+
+        [$salesOrder, $quotation] = $salesOrder;
+
+        // Log activity
+        $description = $request->quotation_id
+            ? "User converted quotation {$quotation->quotation_number} to Sales Order {$salesOrder->sales_order_number}"
+            : "User created Sales Order {$salesOrder->sales_order_number} for {$salesOrder->customer->company_name}";
+
+        ActivityLog::log(
+            'CREATE_SALES_ORDER',
+            $description,
+            $salesOrder
+        );
+
+        // Create notifications
+        if ($request->quotation_id) {
+            // Notify warehouse staff about new SO
+            Notification::createForRole(
+                'Gudang',
+                "New Sales Order created: {$salesOrder->sales_order_number} (from quotation)",
+                'info',
+                '/sales-orders'
+            );
+        }
+
+        // Notify admin
+        Notification::createForRole(
+            'Admin',
+            "New Sales Order created: {$salesOrder->sales_order_number}",
+            'info',
+            '/sales-orders'
+        );
 
         return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product']), 201);
     }
@@ -169,8 +215,42 @@ class SalesOrderController extends Controller
         ]);
 
         $salesOrder = SalesOrder::findOrFail($id);
+        $oldStatus = $salesOrder->status;
         $salesOrder->update(['status' => $request->status]);
-        
+
+        // Log activity
+        ActivityLog::log(
+            'UPDATE_SALES_ORDER_STATUS',
+            "User updated Sales Order {$salesOrder->sales_order_number} status from {$oldStatus} to {$request->status}",
+            $salesOrder,
+            ['status' => $oldStatus],
+            ['status' => $request->status]
+        );
+
+        // Create notifications based on status
+        if ($request->status === 'READY_TO_SHIP') {
+            Notification::createForRole(
+                'Gudang',
+                "Sales Order {$salesOrder->sales_order_number} is ready to ship",
+                'info',
+                '/sales-orders'
+            );
+        } elseif ($request->status === 'SHIPPED') {
+            Notification::createForRole(
+                'Finance',
+                "Sales Order {$salesOrder->sales_order_number} has been shipped. Ready for invoicing.",
+                'info',
+                '/sales-orders'
+            );
+        } elseif ($request->status === 'COMPLETED') {
+            Notification::createForRole(
+                'Finance',
+                "Sales Order {$salesOrder->sales_order_number} completed. Please ensure invoice is created.",
+                'success',
+                '/sales-orders'
+            );
+        }
+
         return response()->json($salesOrder);
     }
 }

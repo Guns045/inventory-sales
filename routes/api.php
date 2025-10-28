@@ -17,6 +17,8 @@ use App\Http\Controllers\API\InvoiceController;
 use App\Http\Controllers\API\PaymentController;
 use App\Http\Controllers\API\PurchaseOrderController;
 use App\Http\Controllers\API\GoodsReceiptController;
+use App\Http\Controllers\API\ApprovalController;
+use App\Http\Controllers\API\DashboardController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -25,8 +27,10 @@ Route::post('/register', [AuthController::class, 'register']);
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    
-    // User and Role management
+
+    // User and Role Management
+    Route::get('/user/permissions', [RoleController::class, 'getUserPermissions']);
+    Route::post('/check-permission/{permission}', [RoleController::class, 'checkPermission']);
     Route::apiResource('users', UserController::class);
     Route::apiResource('roles', RoleController::class);
     
@@ -47,8 +51,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Sales management
     Route::apiResource('quotations', QuotationController::class);
     Route::get('/quotations/{id}/items', [QuotationController::class, 'getQuotationItems']);
+    Route::post('/quotations/{id}/submit', [QuotationController::class, 'submit']);
     Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve']);
     Route::post('/quotations/{id}/reject', [QuotationController::class, 'reject']);
+    Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
     
     Route::apiResource('sales-orders', SalesOrderController::class);
     Route::get('/sales-orders/{id}/items', [SalesOrderController::class, 'getSalesOrderItems']);
@@ -70,4 +76,24 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::apiResource('goods-receipts', GoodsReceiptController::class);
     Route::get('/goods-receipts/{id}/items', [GoodsReceiptController::class, 'getGoodsReceiptItems']);
+
+    // Approval management
+    Route::apiResource('approvals', ApprovalController::class)->only(['index', 'show']);
+    Route::get('/approvals/type/{type}', [ApprovalController::class, 'getByType']);
+    Route::post('/approvals/{id}/approve', [ApprovalController::class, 'approve']);
+    Route::post('/approvals/{id}/reject', [ApprovalController::class, 'reject']);
+    Route::post('/quotations/{id}/submit-for-approval', [ApprovalController::class, 'submitQuotation']);
+    Route::get('/my-approval-requests', [ApprovalController::class, 'myRequests']);
+    Route::get('/pending-approvals', [ApprovalController::class, 'pendingForMe']);
+
+    // Export routes
+    Route::get('/quotations/{id}/export-pdf', [QuotationController::class, 'exportPDF']);
+    Route::get('/quotations/{id}/export-excel', [QuotationController::class, 'exportExcel']);
+
+    // Dashboard routes
+    Route::get('/dashboard', [DashboardController::class, 'getDashboardData']);
+    Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard']);
+    Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard']);
+    Route::get('/dashboard/warehouse', [DashboardController::class, 'warehouseDashboard']);
+    Route::get('/dashboard/finance', [DashboardController::class, 'financeDashboard']);
 });

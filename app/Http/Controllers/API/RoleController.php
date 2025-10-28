@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Role;
+use App\Models\User;
 
 class RoleController extends Controller
 {
@@ -67,5 +68,274 @@ class RoleController extends Controller
         $role->delete();
 
         return response()->json(['message' => 'Role deleted successfully']);
+    }
+
+    /**
+     * Get user permissions and menu items based on role
+     */
+    public function getUserPermissions(Request $request)
+    {
+        $user = $request->user();
+
+        // Get role name - handle both string and object
+        $roleName = is_string($user->role) ? $user->role : $user->role->name;
+
+        $permissions = $this->getRolePermissions($roleName);
+
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $roleName,
+            ],
+            'permissions' => $permissions,
+            'menu_items' => $permissions['menu_items']
+        ]);
+    }
+
+    /**
+     * Get role-based permissions
+     */
+    private function getRolePermissions($role)
+    {
+        $roles = [
+            'Admin' => [
+                'dashboard' => ['read', 'create', 'update', 'delete'],
+                'users' => ['read', 'create', 'update', 'delete'],
+                'customers' => ['read', 'create', 'update', 'delete'],
+                'suppliers' => ['read', 'create', 'update', 'delete'],
+                'products' => ['read', 'create', 'update', 'delete'],
+                'categories' => ['read', 'create', 'update', 'delete'],
+                'stock' => ['read', 'create', 'update', 'delete'],
+                'quotations' => ['read', 'create', 'update', 'delete', 'approve', 'reject'],
+                'sales_orders' => ['read', 'create', 'update', 'delete'],
+                'invoices' => ['read', 'create', 'update', 'delete'],
+                'approvals' => ['read', 'approve', 'reject'],
+                'reports' => ['read'],
+                'settings' => ['read', 'update'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.read'
+                    ],
+                    [
+                        'title' => 'Manajemen User',
+                        'path' => '/users',
+                        'icon' => 'bi-people',
+                        'permission' => 'users.read'
+                    ],
+                    [
+                        'title' => 'Customers',
+                        'path' => '/customers',
+                        'icon' => 'bi-building',
+                        'permission' => 'customers.read'
+                    ],
+                    [
+                        'title' => 'Suppliers',
+                        'path' => '/suppliers',
+                        'icon' => 'bi-truck',
+                        'permission' => 'suppliers.read'
+                    ],
+                    [
+                        'title' => 'Products',
+                        'path' => '/products',
+                        'icon' => 'bi-box',
+                        'permission' => 'products.read'
+                    ],
+                    [
+                        'title' => 'Stock',
+                        'path' => '/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'stock.read'
+                    ],
+                    [
+                        'title' => 'Quotations',
+                        'path' => '/quotations',
+                        'icon' => 'bi-file-text',
+                        'permission' => 'quotations.read'
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read'
+                    ],
+                    [
+                        'title' => 'Invoices',
+                        'path' => '/invoices',
+                        'icon' => 'bi-receipt',
+                        'permission' => 'invoices.read'
+                    ],
+                    [
+                        'title' => 'Approvals',
+                        'path' => '/approvals',
+                        'icon' => 'bi-check-square',
+                        'permission' => 'approvals.read'
+                    ],
+                    [
+                        'title' => 'Laporan',
+                        'path' => '/reports',
+                        'icon' => 'bi-graph-up',
+                        'permission' => 'reports.read'
+                    ],
+                    [
+                        'title' => 'Settings',
+                        'path' => '/settings',
+                        'icon' => 'bi-gear',
+                        'permission' => 'settings.read'
+                    ]
+                ]
+            ],
+            'Sales' => [
+                'dashboard' => ['read'],
+                'customers' => ['read', 'create'],
+                'products' => ['read'],
+                'stock' => ['read'],
+                'quotations' => ['read', 'create', 'update', 'submit'],
+                'sales_orders' => ['read', 'create', 'update'],
+                'invoices' => ['read'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/sales',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.read'
+                    ],
+                    [
+                        'title' => 'Stock',
+                        'path' => '/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'stock.read',
+                        'description' => 'Lihat stok produk'
+                    ],
+                    [
+                        'title' => 'Quotations',
+                        'path' => '/quotations',
+                        'icon' => 'bi-file-text',
+                        'permission' => 'quotations.read',
+                        'description' => 'Buat dan kelola penawaran'
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read',
+                        'description' => 'Kelola pesanan penjualan'
+                    ],
+                    [
+                        'title' => 'Invoices',
+                        'path' => '/invoices',
+                        'icon' => 'bi-receipt',
+                        'permission' => 'invoices.read',
+                        'description' => 'Lihat status invoice'
+                    ]
+                ]
+            ],
+            'Gudang' => [
+                'dashboard' => ['read'],
+                'products' => ['read'],
+                'stock' => ['read', 'update'],
+                'sales_orders' => ['read', 'update'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/warehouse',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.read'
+                    ],
+                    [
+                        'title' => 'Stock',
+                        'path' => '/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'stock.read'
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read'
+                    ]
+                ]
+            ],
+            'Finance' => [
+                'dashboard' => ['read'],
+                'customers' => ['read'],
+                'sales_orders' => ['read'],
+                'invoices' => ['read', 'create', 'update'],
+                'reports' => ['read'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/finance',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.read'
+                    ],
+                    [
+                        'title' => 'Customers',
+                        'path' => '/customers',
+                        'icon' => 'bi-building',
+                        'permission' => 'customers.read'
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read'
+                    ],
+                    [
+                        'title' => 'Invoices',
+                        'path' => '/invoices',
+                        'icon' => 'bi-receipt',
+                        'permission' => 'invoices.read'
+                    ],
+                    [
+                        'title' => 'Laporan',
+                        'path' => '/reports',
+                        'icon' => 'bi-graph-up',
+                        'permission' => 'reports.read'
+                    ]
+                ]
+            ]
+        ];
+
+        return $roles[$role] ?? $roles['Sales']; // Default to Sales if role not found
+    }
+
+    /**
+     * Check if user has specific permission
+     */
+    public function checkPermission(Request $request, $permission)
+    {
+        $user = $request->user();
+
+        // Get role name - handle both string and object
+        $roleName = is_string($user->role) ? $user->role : $user->role->name;
+
+        $permissions = $this->getRolePermissions($roleName);
+
+        $hasPermission = $this->hasPermission($permission, $permissions);
+
+        return response()->json([
+            'has_permission' => $hasPermission
+        ]);
+    }
+
+    /**
+     * Check permission helper
+     */
+    private function hasPermission($permission, $permissions)
+    {
+        $parts = explode('.', $permission);
+        if (count($parts) < 2) {
+            return false;
+        }
+
+        $resource = $parts[0];
+        $action = $parts[1];
+
+        return isset($permissions[$resource]) && in_array($action, $permissions[$resource]);
     }
 }

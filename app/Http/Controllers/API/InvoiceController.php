@@ -35,16 +35,7 @@ class InvoiceController extends Controller
         ]);
 
         $invoice = DB::transaction(function () use ($request) {
-            $invoice = Invoice::create([
-                'invoice_number' => 'INV-' . date('Y-m') . '-' . str_pad(Invoice::count() + 1, 4, '0', STR_PAD_LEFT),
-                'sales_order_id' => $request->sales_order_id,
-                'customer_id' => $request->customer_id,
-                'issue_date' => $request->issue_date,
-                'due_date' => $request->due_date,
-                'status' => $request->status,
-            ]);
-
-            // Create invoice items from the sales order items
+            // Create invoice items from the sales order items first to calculate total
             $salesOrder = SalesOrder::findOrFail($request->sales_order_id);
             $salesOrderItems = $salesOrder->salesOrderItems;
 
@@ -54,7 +45,26 @@ class InvoiceController extends Controller
                 $discountAmount = $totalPrice * ($item->discount_percentage / 100);
                 $taxAmount = ($totalPrice - $discountAmount) * ($item->tax_rate / 100);
                 $totalPrice = $totalPrice - $discountAmount + $taxAmount;
-                
+                $totalAmount += $totalPrice;
+            }
+
+            $invoice = Invoice::create([
+                'invoice_number' => 'INV-' . date('Y-m') . '-' . str_pad(Invoice::count() + 1, 4, '0', STR_PAD_LEFT),
+                'sales_order_id' => $request->sales_order_id,
+                'customer_id' => $request->customer_id,
+                'issue_date' => $request->issue_date,
+                'due_date' => $request->due_date,
+                'status' => $request->status,
+                'total_amount' => $totalAmount,
+            ]);
+
+            // Create invoice items from the sales order items
+            foreach ($salesOrderItems as $item) {
+                $totalPrice = $item->quantity * $item->unit_price;
+                $discountAmount = $totalPrice * ($item->discount_percentage / 100);
+                $taxAmount = ($totalPrice - $discountAmount) * ($item->tax_rate / 100);
+                $totalPrice = $totalPrice - $discountAmount + $taxAmount;
+
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item->product_id,
@@ -65,17 +75,12 @@ class InvoiceController extends Controller
                     'tax_rate' => $item->tax_rate,
                     'total_price' => $totalPrice,
                 ]);
-
-                $totalAmount += $totalPrice;
             }
-
-            // Update the invoice with the calculated total
-            $invoice->update(['total_amount' => $totalAmount]);
 
             // Update the sales order status to completed/invoiced
             $salesOrder->update(['status' => 'COMPLETED']);
 
-            return $invoice->refresh();
+            return $invoice;
         });
 
         return response()->json($invoice->load(['customer', 'salesOrder', 'invoiceItems.product']), 201);

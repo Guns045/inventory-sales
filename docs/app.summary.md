@@ -16,6 +16,7 @@ Berikut adalah alur kerja utama (workflow) dari proses penjualan, mulai dari pen
     Manajer menerima notifikasi (via email atau dashboard) bahwa ada penawaran yang perlu ditinjau.
     Manajer bisa APPROVE (Menyetujui) atau REJECT (Menolak) penawaran tersebut.
     Status: APPROVED / REJECTED.
+    
 3. Sales/Admin: Konversi ke Sales Order (SO)
     Setelah penawaran APPROVED dan dikonfirmasi oleh pelanggan, Sales/Admin mengubah penawaran tersebut menjadi Sales Order (SO).
     Saat SO dibuat, sistem secara otomatis "mengunci" atau "memesan" stok barang di inventaris agar tidak bisa dijual ke pelanggan lain.

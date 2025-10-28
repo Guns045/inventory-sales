@@ -446,3 +446,158 @@ body {
   font-size: 0.9rem;
   margin: 0;
 }
+
+/* Dashboard Specific Styles */
+.stats-icon.draft { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; }
+.stats-icon.submitted { background: linear-gradient(135deg, #ffc107, #e0a800); color: #333; }
+.stats-icon.approved { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+.stats-icon.rejected { background: linear-gradient(135deg, #dc3545, #c82333); color: white; }
+.stats-icon.pending { background: linear-gradient(135deg, #ffc107, #e0a800); color: #333; }
+.stats-icon.processing { background: linear-gradient(135deg, #17a2b8, #138496); color: white; }
+.stats-icon.ready { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+.stats-icon.total { background: linear-gradient(135deg, #343a40, #23272b); color: white; }
+.stats-icon.receivable { background: linear-gradient(135deg, #6610f2, #520dc2); color: white; }
+.stats-icon.revenue { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+.stats-icon.pending-invoices { background: linear-gradient(135deg, #fd7e14, #dc6502); color: white; }
+.stats-icon.approved-today { background: linear-gradient(135deg, #20c997, #12b886); color: white; }
+.stats-icon.rejected-today { background: linear-gradient(135deg, #e83e8c, #d91a72); color: white; }
+.stats-icon.total-approved { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+
+.quotations {
+  color: #667eea;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.quotations .stats-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* Role-Based Sidebar Enhancements */
+.sidebar .nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  padding: 12px 20px;
+  margin: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar .nav-link i {
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sidebar .nav-link div {
+  flex-grow: 1;
+}
+
+.sidebar .nav-link .small-desc {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.sidebar .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: translateX(5px);
+}
+
+.sidebar .nav-link:hover .small-desc {
+  opacity: 1;
+}
+
+.sidebar .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.sidebar .nav-link.active .small-desc {
+  opacity: 1;
+}
+
+.sidebar .sidebar-header h4 {
+  color: white;
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.sidebar .sidebar-header .text-muted {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.85rem;
+}
+
+/* Role Badge Styling */
+.role-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.role-badge.admin {
+  background: rgba(220, 53, 69, 0.8);
+}
+
+.role-badge.sales {
+  background: rgba(23, 162, 184, 0.8);
+}
+
+.role-badge.gudang {
+  background: rgba(40, 167, 69, 0.8);
+}
+
+.role-badge.finance {
+  background: rgba(255, 193, 7, 0.8);
+}
+
+/* Mobile Sidebar Enhancements */
+@media (max-width: 768px) {
+  .sidebar .nav-link {
+    padding: 16px 20px;
+    margin: 2px 8px;
+  }
+
+  .sidebar .nav-link .small-desc {
+    font-size: 0.7rem;
+  }
+
+  .sidebar .sidebar-header {
+    padding: 16px 20px;
+  }
+}
+
+/* Permission-Based Component Visibility */
+.permission-protected {
+  position: relative;
+}
+
+.permission-protected.permission-denied {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.permission-protected.permission-denied::after {
+  content: "No Access";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  z-index: 10;
+}
