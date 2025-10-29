@@ -1,250 +1,490 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Table, Badge, Alert } from 'react-bootstrap';
+import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const DashboardWarehouse = () => {
   const { api } = useAPI();
-  const [dashboardData, setDashboardData] = useState({
-    salesOrders: { pending: 0, processing: 0, ready: 0 },
-    deliveryOrders: { preparing: 0, shipped: 0, delivered: 0 },
-    lowStockItems: [],
-    pendingPickings: [],
-    recentDeliveries: []
+  const { user } = useAuth();
+  const [warehouseData, setWarehouseData] = useState({
+    tasks: {
+      pending_orders: 0,
+      processing_orders: 0,
+      ready_to_ship: 0,
+      completed_today: 0,
+    },
+    inventory: {
+      total_reserved: 0,
+      today_movements: {
+        goods_in: 0,
+        goods_out: 0,
+      },
+      low_stock_count: 0,
+    },
+    pendingOrders: [],
+    recentMovements: [],
+    loading: true,
+    error: null
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchWarehouseDashboard();
+    fetchWarehouseData();
+    // Set up real-time updates every 30 seconds
+    const interval = setInterval(fetchWarehouseData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchWarehouseDashboard = async () => {
+  const fetchWarehouseData = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get('/dashboard/warehouse');
+      const [tasksResponse, inventoryResponse, ordersResponse, movementsResponse] = await Promise.all([
+        api.get('/dashboard/warehouse'),
+        api.get('/product-stock'),
+        api.get('/sales-orders'),
+        api.get('/activity-logs')
+      ]);
 
-      // Ensure we have default values if data is missing
-      const data = response.data || {};
-      setDashboardData({
-        salesOrders: data.sales_orders || { pending: 0, processing: 0, ready: 0 },
-        deliveryOrders: data.delivery_orders || { preparing: 0, shipped: 0, delivered: 0 },
-        lowStockItems: data.low_stock_items || [],
-        pendingPickings: data.pending_pickings || [],
-        recentDeliveries: data.recent_deliveries || []
+      setWarehouseData({
+        tasks: tasksResponse.data,
+        inventory: inventoryResponse.data,
+        pendingOrders: ordersResponse.data.slice(0, 10), // Top 10 pending orders
+        recentMovements: movementsResponse.data.slice(0, 5), // Latest 5 movements
+        loading: false,
+        error: null
       });
     } catch (error) {
-      console.error('Error fetching warehouse dashboard:', error);
-      setError('Failed to load warehouse dashboard data. Please try again later.');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching warehouse data:', error);
+      setWarehouseData(prev => ({ ...prev, loading: false, error: error.message }));
     }
   };
 
-  if (loading) {
-    return (
-      <div className="text-center p-5">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <p className="mt-3">Loading warehouse dashboard...</p>
-      </div>
-    );
-  }
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
-  if (error) {
+  const getOrderPriorityColor = (orderDate) => {
+    const daysDiff = Math.ceil((new Date() - new Date(orderDate)) / (1000 * 60 * 60 * 24));
+    if (daysDiff >= 3) return 'danger';
+    if (daysDiff >= 1) return 'warning';
+    return 'success';
+  };
+
+  const getOrderPriorityText = (orderDate) => {
+    const daysDiff = Math.ceil((new Date() - new Date(orderDate)) / (1000 * 60 * 60 * 24));
+    if (daysDiff >= 3) return 'High';
+    if (daysDiff >= 1) return 'Medium';
+    return 'Low';
+  };
+
+  // Only allow Gudang role to access this dashboard
+  if (user?.role?.name !== 'Gudang') {
     return (
-      <div className="p-5">
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
-          <Alert.Heading>Error Loading Dashboard</Alert.Heading>
-          <p>{error}</p>
-          <Button variant="outline-danger" onClick={fetchWarehouseDashboard}>
-            Try Again
-          </Button>
+          <Alert.Heading>Access Denied</Alert.Heading>
+          <p>You don't have permission to access this dashboard.</p>
         </Alert>
       </div>
     );
   }
 
+  if (warehouseData.loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3">Memuat data dashboard gudang...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (warehouseData.error) {
+    return (
+      <Alert variant="danger">
+        <Alert.Heading>Error Loading Dashboard</Alert.Heading>
+        <p>{warehouseData.error}</p>
+      </Alert>
+    );
+  }
+
   return (
     <div>
+      {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Warehouse Dashboard</h2>
-        <Button variant="primary">
-          <i className="bi bi-truck me-2"></i>
-          New Delivery Order
-        </Button>
+        <div>
+          <h2 className="mb-1">Dashboard Gudang</h2>
+          <p className="text-muted mb-0">Selamat datang, {user?.name || 'Tim Gudang'} - Manajemen Inventaris & Pengiriman</p>
+        </div>
+        <div>
+          <Button variant="success" className="me-2">
+            <i className="bi bi-truck me-1"></i>
+            Buat Surat Jalan
+          </Button>
+          <Button variant="outline-primary" size="sm">
+            <i className="bi bi-arrow-clockwise me-1"></i>
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Task Cards */}
       <Row className="mb-4">
-        <Col md={3} className="mb-3">
-          <Card className="text-center">
-            <Card.Body>
-              <Card.Title>
-                <i className="bi bi-clock-history text-warning fs-3"></i>
-              </Card.Title>
-              <h4 className="mb-2">{dashboardData.salesOrders.pending}</h4>
-              <Card.Text className="text-muted">Pending SO</Card.Text>
+        <Col lg={3} md={6} className="mb-3">
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Body className="d-flex align-items-center">
+              <div className="flex-grow-1">
+                <h6 className="text-muted mb-2">SO Pending</h6>
+                <h3 className="mb-0 text-warning">{warehouseData.tasks.pending_orders}</h3>
+                <small className="text-muted">Perlu diproses</small>
+              </div>
+              <div className="ms-3">
+                <div className="bg-warning bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-clock-history text-warning fs-4"></i>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3} className="mb-3">
-          <Card className="text-center">
-            <Card.Body>
-              <Card.Title>
-                <i className="bi bi-gear text-primary fs-3"></i>
-              </Card.Title>
-              <h4 className="mb-2">{dashboardData.salesOrders.processing}</h4>
-              <Card.Text className="text-muted">Processing</Card.Text>
+
+        <Col lg={3} md={6} className="mb-3">
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Body className="d-flex align-items-center">
+              <div className="flex-grow-1">
+                <h6 className="text-muted mb-2">Sedang Proses</h6>
+                <h3 className="mb-0 text-primary">{warehouseData.tasks.processing_orders}</h3>
+                <small className="text-muted">Sedang disiapkan</small>
+              </div>
+              <div className="ms-3">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-gear text-primary fs-4"></i>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3} className="mb-3">
-          <Card className="text-center">
-            <Card.Body>
-              <Card.Title>
-                <i className="bi bi-truck text-success fs-3"></i>
-              </Card.Title>
-              <h4 className="mb-2">{dashboardData.deliveryOrders.preparing}</h4>
-              <Card.Text className="text-muted">Ready to Ship</Card.Text>
+
+        <Col lg={3} md={6} className="mb-3">
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Body className="d-flex align-items-center">
+              <div className="flex-grow-1">
+                <h6 className="text-muted mb-2">Siap Kirim</h6>
+                <h3 className="mb-0 text-success">{warehouseData.tasks.ready_to_ship}</h3>
+                <small className="text-muted">Siap dikirim</small>
+              </div>
+              <div className="ms-3">
+                <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-check2-circle text-success fs-4"></i>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3} className="mb-3">
-          <Card className="text-center">
-            <Card.Body>
-              <Card.Title>
-                <i className="bi bi-exclamation-triangle text-danger fs-3"></i>
-              </Card.Title>
-              <h4 className="mb-2">{dashboardData.lowStockItems.length}</h4>
-              <Card.Text className="text-muted">Low Stock Items</Card.Text>
+
+        <Col lg={3} md={6} className="mb-3">
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Body className="d-flex align-items-center">
+              <div className="flex-grow-1">
+                <h6 className="text-muted mb-2">Selesai Hari Ini</h6>
+                <h3 className="mb-0 text-info">{warehouseData.tasks.completed_today}</h3>
+                <small className="text-muted">Telah selesai</small>
+              </div>
+              <div className="ms-3">
+                <div className="bg-info bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-check-circle text-info fs-4"></i>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Quick Actions */}
-      <Card className="mb-4">
-        <Card.Header>
-          <Card.Title className="mb-0">Quick Actions</Card.Title>
-        </Card.Header>
-        <Card.Body>
-          <div className="d-flex gap-3 flex-wrap">
-            <Button variant="primary" href="/sales-orders?status=pending">
-              <i className="bi bi-list-check me-2"></i>
-              Process Pending SO
-            </Button>
-            <Button variant="outline-primary" href="/delivery-orders?action=new">
-              <i className="bi bi-truck me-2"></i>
-              Create Delivery Order
-            </Button>
-            <Button variant="outline-warning" href="/stock">
-              <i className="bi bi-archive me-2"></i>
-              Check Stock Levels
-            </Button>
-            <Button variant="outline-success" href="/goods-receipts?action=new">
-              <i className="bi bi-receipt-cutoff me-2"></i>
-              Receive Goods
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
-
-      {/* Pending Pickings */}
-      <Row>
-        <Col lg={8} className="mb-4">
-          <Card>
-            <Card.Header>
-              <Card.Title className="mb-0">Sales Orders Ready for Picking</Card.Title>
+      {/* Inventory Summary */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-3">
+              <h6 className="mb-0">Ringkasan Inventaris</h6>
             </Card.Header>
             <Card.Body>
-              <Table responsive hover>
-                <thead>
-                  <tr>
-                    <th>SO #</th>
-                    <th>Customer</th>
-                    <th>Items</th>
-                    <th>Priority</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboardData.pendingPickings.map((so) => (
-                    <tr key={so.id}>
-                      <td>{so.sales_order_number}</td>
-                      <td>{so.customer_name}</td>
-                      <td>{so.total_items} items</td>
-                      <td>
-                        <Badge bg={so.priority === 'HIGH' ? 'danger' : so.priority === 'MEDIUM' ? 'warning' : 'info'}>
-                          {so.priority}
-                        </Badge>
-                      </td>
-                      <td>
-                        <Button size="sm" variant="outline-primary" href={`/sales-orders/${so.id}`}>
-                          <i className="bi bi-eye me-1"></i>
-                          View
-                        </Button>
-                        <Button size="sm" variant="outline-success" className="ms-1" href={`/delivery-orders/create?so=${so.id}`}>
-                          <i className="bi bi-truck me-1"></i>
-                          Ship
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <Row className="text-center">
+                <Col>
+                  <div className="mb-2">
+                    <h4 className="text-warning mb-1">{warehouseData.inventory.total_reserved}</h4>
+                    <small className="text-muted">Stok Reserved</small>
+                  </div>
+                  <div className="text-muted">
+                    <small>Total barang yang dikunci untuk SO</small>
+                  </div>
+                </Col>
+                <Col>
+                  <div className="mb-2">
+                    <h4 className="text-success mb-1">{warehouseData.inventory.today_movements.goods_in}</h4>
+                    <small className="text-muted">Barang Masuk</small>
+                  </div>
+                  <div className="text-muted">
+                    <small>Goods Receipt hari ini</small>
+                  </div>
+                </Col>
+                <Col>
+                  <div className="mb-2">
+                    <h4 className="text-danger mb-1">{warehouseData.inventory.today_movements.goods_out}</h4>
+                    <small className="text-muted">Barang Keluar</small>
+                  </div>
+                  <div className="text-muted">
+                    <small>Delivery Order hari ini</small>
+                  </div>
+                </Col>
+                <Col>
+                  <div className="mb-2">
+                    <h4 className="text-secondary mb-1">{warehouseData.inventory.low_stock_count}</h4>
+                    <small className="text-muted">Stok Rendah</small>
+                  </div>
+                  <div className="text-muted">
+                    <small>Item perlu diisi ulang</small>
+                  </div>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row>
+        {/* Pending Sales Orders */}
+        <Col lg={8} className="mb-4">
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">Tugas Harian - SO Pending</h6>
+                <div>
+                  <Button variant="outline-success" size="sm" className="me-2">
+                    <i className="bi bi-file-earmark-text me-1"></i>
+                    Cetak Picking List
+                  </Button>
+                  <Button variant="outline-primary" size="sm">
+                    Lihat Semua
+                  </Button>
+                </div>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              {warehouseData.pendingOrders.length > 0 ? (
+                <div className="table-responsive">
+                  <Table hover size="sm">
+                    <thead>
+                      <tr>
+                        <th>No. SO</th>
+                        <th>Pelanggan</th>
+                        <th>Tanggal SO</th>
+                        <th>Umur</th>
+                        <th>Total Item</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {warehouseData.pendingOrders.map((order, index) => (
+                        <tr key={index}>
+                          <td><small className="fw-bold">{order.so_number}</small></td>
+                          <td>{order.customer_name}</td>
+                          <td><small>{new Date(order.so_date).toLocaleDateString('id-ID')}</small></td>
+                          <td>
+                            <small className="text-muted">
+                              {Math.ceil((new Date() - new Date(order.so_date)) / (1000 * 60 * 60 * 24))} hari
+                            </small>
+                          </td>
+                          <td><small>{order.total_items || 0} item</small></td>
+                          <td>
+                            <Badge bg="warning">PENDING</Badge>
+                          </td>
+                          <td>
+                            <Badge bg={getOrderPriorityColor(order.so_date)}>
+                              {getOrderPriorityText(order.so_date)}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Button variant="outline-primary" size="sm" className="me-1">
+                              <i className="bi bi-eye"></i>
+                            </Button>
+                            <Button variant="outline-success" size="sm" className="me-1">
+                              <i className="bi bi-play"></i>
+                            </Button>
+                            <Button variant="outline-warning" size="sm">
+                              <i className="bi bi-printer"></i>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-3">
+                  <i className="bi bi-check-circle text-success fs-1"></i>
+                  <p className="text-muted mt-2">Tidak ada SO pending</p>
+                  <small className="text-muted">Semua pesanan telah diproses</small>
+                </div>
+              )}
             </Card.Body>
           </Card>
         </Col>
 
+        {/* Quick Actions */}
         <Col lg={4} className="mb-4">
-          <Card>
-            <Card.Header>
-              <Card.Title className="mb-0">Warehouse Alerts</Card.Title>
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-3">
+              <h6 className="mb-0">Aksi Cepat</h6>
             </Card.Header>
             <Card.Body>
-              {dashboardData.lowStockItems.length > 0 && (
-                <Alert variant="danger" className="mb-3">
-                  <Alert.Heading>
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    Low Stock Alert
-                  </Alert.Heading>
-                  <p className="mb-0">
-                    {dashboardData.lowStockItems.length} items are running low on stock.
-                  </p>
-                </Alert>
-              )}
-
-              <Alert variant="warning" className="mb-3">
-                <Alert.Heading>
-                  <i className="bi bi-clock-history me-2"></i>
-                  Pending Orders
-                </Alert.Heading>
-                <p className="mb-0">
-                  {dashboardData.salesOrders.pending} sales orders are waiting to be processed.
-                </p>
-              </Alert>
-
-              <Alert variant="info" className="mb-3">
-                <Alert.Heading>
-                  <i className="bi bi-truck me-2"></i>
-                  Ready for Delivery
-                </Alert.Heading>
-                <p className="mb-0">
-                  {dashboardData.salesOrders.ready} orders are ready for shipment.
-                </p>
-              </Alert>
-
               <div className="d-grid gap-2">
-                <Button variant="outline-primary" href="/sales-orders">
-                  View All Sales Orders
+                <Button variant="primary" className="w-100">
+                  <i className="bi bi-plus-circle me-2"></i>
+                  Proses SO Manual
                 </Button>
-                <Button variant="outline-warning" href="/delivery-orders">
-                  Manage Deliveries
+                <Button variant="outline-primary" className="w-100">
+                  <i className="bi bi-clipboard-check me-2"></i>
+                  Batch Processing
                 </Button>
-                <Button variant="outline-danger" href="/stock?filter=low">
-                  View Low Stock Items
+                <Button variant="outline-success" className="w-100">
+                  <i className="bi bi-truck me-2"></i>
+                  Buat DO Manual
+                </Button>
+                <Button variant="outline-warning" className="w-100">
+                  <i className="bi bi-search me-2"></i>
+                  Cari Lokasi Barang
+                </Button>
+              </div>
+
+              <hr className="my-3" />
+
+              <div className="text-center">
+                <h6 className="text-muted mb-2">Tips</h6>
+                <small className="text-muted">
+                  Prioritaskan SO yang paling lama (berdasarkan warna priority) untuk meminimalkan keterlambatan pengiriman.
+                </small>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Recent Stock Movements */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">Mutasi Stok Hari Ini</h6>
+                <Button variant="outline-primary" size="sm">
+                  Lihat Semua Mutasi
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              {warehouseData.recentMovements.length > 0 ? (
+                <div className="table-responsive">
+                  <Table hover size="sm">
+                    <thead>
+                      <tr>
+                        <th>Waktu</th>
+                        <th>Jenis</th>
+                        <th>No. Dokumen</th>
+                        <th>Item</th>
+                        <th>Kuantitas</th>
+                        <th>Lokasi</th>
+                        <th>User</th>
+                        <th>Keterangan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {warehouseData.recentMovements.map((movement, index) => (
+                        <tr key={index}>
+                          <td>
+                            <small>{new Date(movement.created_at).toLocaleTimeString('id-ID')}</small>
+                          </td>
+                          <td>
+                            <Badge bg={movement.type === 'IN' ? 'success' : 'danger'}>
+                              {movement.type}
+                            </Badge>
+                          </td>
+                          <td><small>{movement.document_number}</small></td>
+                          <td>{movement.item_name}</td>
+                          <td className="fw-bold">{movement.quantity}</td>
+                          <td><small>{movement.location || '-'}</small></td>
+                          <td><small>{movement.user_name}</small></td>
+                          <td><small>{movement.notes || '-'}</small></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-3">
+                  <i className="bi bi-arrows-collapse text-muted fs-1"></i>
+                  <p className="text-muted mt-2">Belum ada mutasi stok hari ini</p>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Warehouse Performance */}
+      <Row>
+        <Col lg={6} className="mb-4">
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-3">
+              <h6 className="mb-0">Kinerja Hari Ini</h6>
+            </Card.Header>
+            <Card.Body>
+              <div className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="text-muted">Proses SO</span>
+                  <span className="fw-bold text-primary">75%</span>
+                </div>
+                <ProgressBar variant="primary" now={75} style={{ height: '20px' }} />
+              </div>
+              <div className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="text-muted">Pengiriman</span>
+                  <span className="fw-bold text-success">60%</span>
+                </div>
+                <ProgressBar variant="success" now={60} style={{ height: '20px' }} />
+              </div>
+              <div className="text-center">
+                <small className="text-muted">
+                  Total {warehouseData.tasks.completed_today} SO selesai hari ini
+                </small>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col lg={6} className="mb-4">
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-3">
+              <h6 className="mb-0">Alert Stok</h6>
+            </Card.Header>
+            <Card.Body>
+              <div className="alert alert-warning" role="alert">
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  <div className="flex-grow-1">
+                    <strong>{warehouseData.inventory.low_stock_count} Item</strong> dengan stok rendah
+                  </div>
+                </div>
+              </div>
+              <div className="text-center">
+                <Button variant="warning" size="sm">
+                  <i className="bi bi-eye me-1"></i>
+                  Lihat Item Stok Rendah
                 </Button>
               </div>
             </Card.Body>

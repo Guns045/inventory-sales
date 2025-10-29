@@ -117,73 +117,79 @@ class RoleController extends Controller
                 'menu_items' => [
                     [
                         'title' => 'Dashboard',
-                        'path' => '/dashboard',
+                        'path' => '/dashboard/main',
                         'icon' => 'bi-speedometer2',
                         'permission' => 'dashboard.read'
                     ],
                     [
+                        'title' => 'Dashboard Approval',
+                        'path' => '/dashboard/approval',
+                        'icon' => 'bi-check-square',
+                        'permission' => 'approvals.read'
+                    ],
+                    [
                         'title' => 'Manajemen User',
-                        'path' => '/users',
+                        'path' => '/dashboard/users',
                         'icon' => 'bi-people',
                         'permission' => 'users.read'
                     ],
                     [
                         'title' => 'Customers',
-                        'path' => '/customers',
+                        'path' => '/dashboard/customers',
                         'icon' => 'bi-building',
                         'permission' => 'customers.read'
                     ],
                     [
                         'title' => 'Suppliers',
-                        'path' => '/suppliers',
+                        'path' => '/dashboard/suppliers',
                         'icon' => 'bi-truck',
                         'permission' => 'suppliers.read'
                     ],
                     [
                         'title' => 'Products',
-                        'path' => '/products',
+                        'path' => '/dashboard/products',
                         'icon' => 'bi-box',
                         'permission' => 'products.read'
                     ],
                     [
                         'title' => 'Stock',
-                        'path' => '/stock',
+                        'path' => '/dashboard/stock',
                         'icon' => 'bi-archive',
                         'permission' => 'stock.read'
                     ],
                     [
                         'title' => 'Quotations',
-                        'path' => '/quotations',
+                        'path' => '/dashboard/quotations',
                         'icon' => 'bi-file-text',
                         'permission' => 'quotations.read'
                     ],
                     [
                         'title' => 'Sales Orders',
-                        'path' => '/sales-orders',
+                        'path' => '/dashboard/sales-orders',
                         'icon' => 'bi-cart-check',
                         'permission' => 'sales_orders.read'
                     ],
                     [
                         'title' => 'Invoices',
-                        'path' => '/invoices',
+                        'path' => '/dashboard/invoices',
                         'icon' => 'bi-receipt',
                         'permission' => 'invoices.read'
                     ],
                     [
                         'title' => 'Approvals',
-                        'path' => '/approvals',
+                        'path' => '/dashboard/approvals',
                         'icon' => 'bi-check-square',
                         'permission' => 'approvals.read'
                     ],
                     [
                         'title' => 'Laporan',
-                        'path' => '/reports',
+                        'path' => '/dashboard/reports',
                         'icon' => 'bi-graph-up',
                         'permission' => 'reports.read'
                     ],
                     [
                         'title' => 'Settings',
-                        'path' => '/settings',
+                        'path' => '/dashboard/settings',
                         'icon' => 'bi-gear',
                         'permission' => 'settings.read'
                     ]
@@ -205,35 +211,35 @@ class RoleController extends Controller
                     ],
                     [
                         'title' => 'Customers',
-                        'path' => '/customers',
+                        'path' => '/dashboard/customers',
                         'icon' => 'bi-people',
                         'permission' => 'customers.read',
                         'description' => 'Kelola data pelanggan'
                     ],
                     [
                         'title' => 'Stock',
-                        'path' => '/stock',
+                        'path' => '/dashboard/stock',
                         'icon' => 'bi-archive',
                         'permission' => 'stock.read',
                         'description' => 'Lihat stok produk'
                     ],
                     [
                         'title' => 'Quotations',
-                        'path' => '/quotations',
+                        'path' => '/dashboard/quotations',
                         'icon' => 'bi-file-text',
                         'permission' => 'quotations.read',
                         'description' => 'Menambah, submit for approval, convert to SO'
                     ],
                     [
                         'title' => 'Sales Orders',
-                        'path' => '/sales-orders',
+                        'path' => '/dashboard/sales-orders',
                         'icon' => 'bi-cart-check',
                         'permission' => 'sales_orders.read',
                         'description' => 'Kelola sales order'
                     ],
                     [
                         'title' => 'Invoices',
-                        'path' => '/invoices',
+                        'path' => '/dashboard/invoices',
                         'icon' => 'bi-receipt',
                         'permission' => 'invoices.read',
                         'description' => 'Lihat status invoice'
@@ -263,35 +269,35 @@ class RoleController extends Controller
                     ],
                     [
                         'title' => 'Warehouses',
-                        'path' => '/warehouses',
+                        'path' => '/dashboard/warehouses',
                         'icon' => 'bi-building',
                         'permission' => 'warehouses.read',
                         'description' => 'Kelola gudang'
                     ],
                     [
                         'title' => 'Stock',
-                        'path' => '/stock',
+                        'path' => '/dashboard/stock',
                         'icon' => 'bi-archive',
                         'permission' => 'stock.read',
                         'description' => 'Kelola stok barang'
                     ],
                     [
                         'title' => 'Sales Orders',
-                        'path' => '/sales-orders',
+                        'path' => '/dashboard/sales-orders',
                         'icon' => 'bi-cart-check',
                         'permission' => 'sales_orders.read',
                         'description' => 'Proses sales order'
                     ],
                     [
                         'title' => 'Delivery Orders',
-                        'path' => '/delivery-orders',
+                        'path' => '/dashboard/delivery-orders',
                         'icon' => 'bi-truck',
                         'permission' => 'delivery_orders.read',
                         'description' => 'Kelola surat jalan'
                     ],
                     [
                         'title' => 'Goods Receipts',
-                        'path' => '/goods-receipts',
+                        'path' => '/dashboard/goods-receipts',
                         'icon' => 'bi-receipt-cutoff',
                         'permission' => 'goods_receipts.read',
                         'description' => 'Kelola penerimaan barang'
@@ -321,35 +327,35 @@ class RoleController extends Controller
                     ],
                     [
                         'title' => 'Customers',
-                        'path' => '/customers',
+                        'path' => '/dashboard/customers',
                         'icon' => 'bi-building',
                         'permission' => 'customers.read',
                         'description' => 'Kelola data pelanggan'
                     ],
                     [
                         'title' => 'Sales Orders',
-                        'path' => '/sales-orders',
+                        'path' => '/dashboard/sales-orders',
                         'icon' => 'bi-cart-check',
                         'permission' => 'sales_orders.read',
                         'description' => 'Lihat sales order'
                     ],
                     [
                         'title' => 'Invoices',
-                        'path' => '/invoices',
+                        'path' => '/dashboard/invoices',
                         'icon' => 'bi-receipt',
                         'permission' => 'invoices.read',
                         'description' => 'Kelola invoice'
                     ],
                     [
                         'title' => 'Payments',
-                        'path' => '/payments',
+                        'path' => '/dashboard/payments',
                         'icon' => 'bi-credit-card',
                         'permission' => 'payments.read',
                         'description' => 'Kelola pembayaran'
                     ],
                     [
                         'title' => 'Reports',
-                        'path' => '/reports',
+                        'path' => '/dashboard/reports',
                         'icon' => 'bi-graph-up',
                         'permission' => 'reports.read',
                         'description' => 'Lihat laporan keuangan'

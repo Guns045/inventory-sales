@@ -33,7 +33,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user/permissions', [RoleController::class, 'getUserPermissions']);
     Route::post('/check-permission/{permission}', [RoleController::class, 'checkPermission']);
     Route::apiResource('users', UserController::class);
-    Route::apiResource('roles', RoleController::class);
+    // Route::post('users', [UserController::class, 'store'])->middleware('permission:users.create');
+    // Route::put('users/{id}', [UserController::class, 'update'])->middleware('permission:users.update');
+    // Route::delete('users/{id}', [UserController::class, 'destroy'])->middleware('permission:users.delete');
+    Route::apiResource('roles', RoleController::class)->middleware('permission:users.read');
     
     // Master data
     Route::apiResource('categories', CategoryController::class);
@@ -53,8 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('quotations', QuotationController::class);
     Route::get('/quotations/{id}/items', [QuotationController::class, 'getQuotationItems']);
     Route::post('/quotations/{id}/submit', [QuotationController::class, 'submit']);
-    Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve']);
-    Route::post('/quotations/{id}/reject', [QuotationController::class, 'reject']);
+    Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])->middleware('permission:quotations.approve');
+    Route::post('/quotations/{id}/reject', [QuotationController::class, 'reject'])->middleware('permission:quotations.reject');
     Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
     
     Route::apiResource('sales-orders', SalesOrderController::class);

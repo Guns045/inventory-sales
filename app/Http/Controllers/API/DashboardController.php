@@ -32,11 +32,11 @@ class DashboardController extends Controller
             // Critical Stock Alerts
             $criticalStocks = ProductStock::with('product')
                 ->where('quantity', '<=', DB::raw('products.min_stock_level'))
-                ->join('products', 'product_stocks.product_id', '=', 'products.id')
-                ->orderBy('product_stocks.quantity', 'asc')
+                ->join('products', 'product_stock.product_id', '=', 'products.id')
+                ->orderBy('product_stock.quantity', 'asc')
                 ->take(10)
                 ->get([
-                    'product_stocks.*',
+                    'product_stock.*',
                     'products.name as product_name',
                     'products.sku',
                     'products.min_stock_level'
@@ -99,12 +99,12 @@ class DashboardController extends Controller
 
             // Inventory Summary
             $totalProducts = Product::count();
-            $lowStockProducts = ProductStock::join('products', 'product_stocks.product_id', '=', 'products.id')
-                ->where('product_stocks.quantity', '<=', DB::raw('products.min_stock_level'))
+            $lowStockProducts = ProductStock::join('products', 'product_stock.product_id', '=', 'products.id')
+                ->where('product_stock.quantity', '<=', DB::raw('products.min_stock_level'))
                 ->count();
 
-            $totalInventoryValue = ProductStock::join('products', 'product_stocks.product_id', '=', 'products.id')
-                ->sum(DB::raw('product_stocks.quantity * products.buy_price'));
+            $totalInventoryValue = ProductStock::join('products', 'product_stock.product_id', '=', 'products.id')
+                ->sum(DB::raw('product_stock.quantity * products.buy_price'));
 
             // Customer & Supplier Summary
             $totalCustomers = Customer::count();
@@ -137,7 +137,7 @@ class DashboardController extends Controller
                     products.name,
                     products.sku,
                     SUM(sales_order_items.quantity) as total_quantity,
-                    SUM(sales_order_items.total_price) as total_revenue
+                    SUM(sales_order_items.quantity * sales_order_items.unit_price * (1 - sales_order_items.discount_percentage/100) * (1 + sales_order_items.tax_rate/100)) as total_revenue
                 ')
                 ->join('products', 'sales_order_items.product_id', '=', 'products.id')
                 ->join('sales_orders', 'sales_order_items.sales_order_id', '=', 'sales_orders.id')
@@ -565,14 +565,14 @@ class DashboardController extends Controller
                 ->get();
 
             // Stock by Category
-            $stockByCategory = DB::table('product_stocks')
-                ->join('products', 'product_stocks.product_id', '=', 'products.id')
+            $stockByCategory = DB::table('product_stock')
+                ->join('products', 'product_stock.product_id', '=', 'products.id')
                 ->join('categories', 'products.category_id', '=', 'categories.id')
                 ->selectRaw('
                     categories.name as category_name,
                     COUNT(DISTINCT products.id) as product_count,
-                    SUM(product_stocks.quantity) as total_quantity,
-                    SUM(product_stocks.quantity * products.buy_price) as total_value
+                    SUM(product_stock.quantity) as total_quantity,
+                    SUM(product_stock.quantity * products.buy_price) as total_value
                 ')
                 ->groupBy('categories.id', 'categories.name')
                 ->orderBy('total_value', 'desc')
@@ -580,11 +580,11 @@ class DashboardController extends Controller
 
             // Low Stock Products
             $lowStockProducts = ProductStock::with('product', 'warehouse')
-                ->join('products', 'product_stocks.product_id', '=', 'products.id')
-                ->where('product_stocks.quantity', '<=', DB::raw('products.min_stock_level'))
-                ->orderBy('product_stocks.quantity', 'asc')
+                ->join('products', 'product_stock.product_id', '=', 'products.id')
+                ->where('product_stock.quantity', '<=', DB::raw('products.min_stock_level'))
+                ->orderBy('product_stock.quantity', 'asc')
                 ->get([
-                    'product_stocks.*',
+                    'product_stock.*',
                     'products.name as product_name',
                     'products.sku',
                     'products.min_stock_level',
@@ -592,14 +592,14 @@ class DashboardController extends Controller
                 ]);
 
             // Stock Value by Warehouse
-            $stockByWarehouse = DB::table('product_stocks')
-                ->join('warehouses', 'product_stocks.warehouse_id', '=', 'warehouses.id')
-                ->join('products', 'product_stocks.product_id', '=', 'products.id')
+            $stockByWarehouse = DB::table('product_stock')
+                ->join('warehouses', 'product_stock.warehouse_id', '=', 'warehouses.id')
+                ->join('products', 'product_stock.product_id', '=', 'products.id')
                 ->selectRaw('
                     warehouses.name as warehouse_name,
-                    COUNT(DISTINCT product_stocks.product_id) as product_count,
-                    SUM(product_stocks.quantity) as total_quantity,
-                    SUM(product_stocks.quantity * products.buy_price) as total_value
+                    COUNT(DISTINCT product_stock.product_id) as product_count,
+                    SUM(product_stock.quantity) as total_quantity,
+                    SUM(product_stock.quantity * products.buy_price) as total_value
                 ')
                 ->groupBy('warehouses.id', 'warehouses.name')
                 ->orderBy('total_value', 'desc')
@@ -610,8 +610,8 @@ class DashboardController extends Controller
                     product_id,
                     products.name as product_name,
                     products.sku,
-                    SUM(CASE WHEN movement_type = "IN" THEN quantity ELSE 0 END) as total_in,
-                    SUM(CASE WHEN movement_type = "OUT" THEN quantity ELSE 0 END) as total_out,
+                    SUM(CASE WHEN type = "IN" THEN quantity_change ELSE 0 END) as total_in,
+                    SUM(CASE WHEN type = "OUT" THEN quantity_change ELSE 0 END) as total_out,
                     COUNT(*) as movement_count
                 ')
                 ->join('products', 'stock_movements.product_id', '=', 'products.id')
@@ -629,9 +629,9 @@ class DashboardController extends Controller
                 'top_movements' => $topMovements,
                 'summary' => [
                     'total_products' => Product::count(),
-                    'total_stock_value' => DB::table('product_stocks')
-                        ->join('products', 'product_stocks.product_id', '=', 'products.id')
-                        ->sum(DB::raw('product_stocks.quantity * products.buy_price')),
+                    'total_stock_value' => DB::table('product_stock')
+                        ->join('products', 'product_stock.product_id', '=', 'products.id')
+                        ->sum(DB::raw('product_stock.quantity * products.buy_price')),
                     'low_stock_count' => $lowStockProducts->count(),
                     'total_movements_30_days' => $stockMovements->count(),
                 ]
@@ -683,7 +683,7 @@ class DashboardController extends Controller
                     products.name as product_name,
                     products.sku,
                     SUM(sales_order_items.quantity) as total_quantity,
-                    SUM(sales_order_items.total_price) as total_revenue,
+                    SUM(sales_order_items.quantity * sales_order_items.unit_price * (1 - sales_order_items.discount_percentage/100) * (1 + sales_order_items.tax_rate/100)) as total_revenue,
                     COUNT(DISTINCT sales_order_items.sales_order_id) as order_count
                 ')
                 ->join('products', 'sales_order_items.product_id', '=', 'products.id')
@@ -729,7 +729,7 @@ class DashboardController extends Controller
 
             // Monthly Comparison (Last 12 months)
             $monthlyComparison = SalesOrder::selectRaw('
-                    DATE_FORMAT(created_at, "%Y-%m") as month,
+                    strftime("%Y-%m", created_at) as month,
                     COUNT(*) as order_count,
                     SUM(total_amount) as total_sales
                 ')

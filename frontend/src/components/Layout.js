@@ -46,25 +46,46 @@ const Layout = () => {
         </div>
         <Nav className="flex-column p-3">
           {visibleMenuItems.map((item) => (
-            <Nav.Link
-              key={item.path}
-              as={item.action ? 'span' : Link}
-              to={item.action ? undefined : item.path}
-              className={`mb-1 ${location.pathname === item.path ? 'active' : ''} ${item.action ? 'logout-link' : ''}`}
-              title={item.description}
-              onClick={item.action === 'logout' ? handleLogout : undefined}
-              style={{ cursor: item.action ? 'pointer' : 'default' }}
-            >
-              <i className={`bi ${item.icon} me-3`}></i>
-              <div>
-                {item.title}
-                {item.description && (
-                  <small className="d-block text-muted small-desc">
-                    {item.description}
-                  </small>
-                )}
-              </div>
-            </Nav.Link>
+            <Nav.Item key={item.path}>
+              {item.action === 'logout' ? (
+                <Nav.Link
+                  className={`mb-1 logout-link ${location.pathname === item.path ? 'active' : ''}`}
+                  title={item.description}
+                  onClick={() => {
+                    console.log('Layout: Clicking logout');
+                    handleLogout();
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <i className={`bi ${item.icon} me-3`}></i>
+                  <div>
+                    {item.title}
+                    {item.description && (
+                      <small className="d-block text-muted small-desc">
+                        {item.description}
+                      </small>
+                    )}
+                  </div>
+                </Nav.Link>
+              ) : (
+                <Nav.Link
+                  as={Link}
+                  to={item.path}
+                  className={`mb-1 ${location.pathname === item.path ? 'active' : ''}`}
+                  title={item.description}
+                  >
+                  <i className={`bi ${item.icon} me-3`}></i>
+                  <div>
+                    {item.title}
+                    {item.description && (
+                      <small className="d-block text-muted small-desc">
+                        {item.description}
+                      </small>
+                    )}
+                  </div>
+                </Nav.Link>
+              )}
+            </Nav.Item>
           ))}
         </Nav>
       </div>
@@ -100,31 +121,48 @@ const Layout = () => {
         </div>
         <Nav className="flex-column p-3">
           {visibleMenuItems.map((item) => (
-            <Nav.Link
-              key={item.path}
-              as={item.action ? 'span' : Link}
-              to={item.action ? undefined : item.path}
-              className={`mb-1 text-white ${location.pathname === item.path ? 'active' : ''} ${item.action ? 'logout-link' : ''}`}
-              onClick={() => {
-                if (item.action === 'logout') {
-                  handleLogout();
-                } else {
-                  setSidebarOpen(false);
-                }
-              }}
-              title={item.description}
-              style={{ cursor: item.action ? 'pointer' : 'default' }}
-            >
-              <i className={`bi ${item.icon} me-3`}></i>
-              <div>
-                {item.title}
-                {item.description && (
-                  <small className="d-block text-muted small-desc">
-                    {item.description}
-                  </small>
-                )}
-              </div>
-            </Nav.Link>
+            <Nav.Item key={item.path}>
+              {item.action === 'logout' ? (
+                <Nav.Link
+                  className={`mb-1 text-white logout-link ${location.pathname === item.path ? 'active' : ''}`}
+                  title={item.description}
+                  onClick={() => {
+                    handleLogout();
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <i className={`bi ${item.icon} me-3`}></i>
+                  <div>
+                    {item.title}
+                    {item.description && (
+                      <small className="d-block text-muted small-desc">
+                        {item.description}
+                      </small>
+                    )}
+                  </div>
+                </Nav.Link>
+              ) : (
+                <Nav.Link
+                  as={Link}
+                  to={item.path}
+                  className={`mb-1 text-white ${location.pathname === item.path ? 'active' : ''}`}
+                  title={item.description}
+                  onClick={() => {
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <i className={`bi ${item.icon} me-3`}></i>
+                  <div>
+                    {item.title}
+                    {item.description && (
+                      <small className="d-block text-muted small-desc">
+                        {item.description}
+                      </small>
+                    )}
+                  </div>
+                </Nav.Link>
+              )}
+            </Nav.Item>
           ))}
         </Nav>
       </div>

@@ -7,8 +7,22 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
+  const [token, setToken] = useState(() => {
+    const storedToken = localStorage.getItem('token');
+    // Validate token format
+    if (storedToken && typeof storedToken === 'string' && storedToken.length > 10) {
+      return storedToken;
+    }
+    return null;
+  });
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+      return storedUser;
+    } catch {
+      return null;
+    }
+  });
 
   const login = (token, userData) => {
     setToken(token);
@@ -23,6 +37,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
+
+  // Validate token format
+  const validateToken = (token) => {
+    return token && typeof token === 'string' && token.length > 10;
+  };
+
+  // Check if current token is valid
+  const isValidToken = validateToken(token);
 
   const value = {
     token,
