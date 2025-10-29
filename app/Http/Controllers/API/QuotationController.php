@@ -111,11 +111,25 @@ class QuotationController extends Controller
             // Calculate totals
             $subtotal = $quotation->quotationItems->sum('total_price');
             $totalAmount = $subtotal; // In this implementation, subtotal and total are the same after tax
-            
+
             $quotation->update([
                 'subtotal' => $subtotal,
                 'total_amount' => $totalAmount,
             ]);
+
+            // If status is SUBMITTED, create approval record
+            if ($quotation->status === 'SUBMITTED') {
+                // Create approval record manually to handle auth context properly
+                Approval::create([
+                    'user_id' => auth()->id(),
+                    'approvable_type' => Quotation::class,
+                    'approvable_id' => $quotation->id,
+                    'status' => 'PENDING',
+                    'notes' => null,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            }
 
             return $quotation->refresh();
         });
@@ -128,11 +142,17 @@ class QuotationController extends Controller
         );
 
         // Create notification for admin/managers
+        $notificationMessage = $quotation->status === 'SUBMITTED'
+            ? "New quotation {$quotation->quotation_number} submitted for approval"
+            : "New quotation created: {$quotation->quotation_number} for {$quotation->customer->company_name}";
+
+        $notificationPath = $quotation->status === 'SUBMITTED' ? '/approvals' : '/quotations';
+
         Notification::createForRole(
             'Admin',
-            "New quotation created: {$quotation->quotation_number} for {$quotation->customer->company_name}",
+            $notificationMessage,
             'info',
-            '/quotations'
+            $notificationPath
         );
 
         return response()->json($quotation->load(['customer', 'user', 'quotationItems.product']), 201);
@@ -310,104 +330,174 @@ class QuotationController extends Controller
 
     public function approve(Request $request, $id)
     {
-        $request->validate([
-            'notes' => 'nullable|string|max:500'
-        ]);
+        try {
+            \Log::info('=== QUOTATION APPROVE REQUEST ===');
+            \Log::info('Quotation ID: ' . $id);
+            \Log::info('Request Data:', $request->all());
+            \Log::info('Auth User ID: ' . auth()->id());
 
-        $quotation = Quotation::findOrFail($id);
+            $request->validate([
+                'notes' => 'nullable|string|max:500'
+            ]);
 
-        if ($quotation->status !== 'SUBMITTED') {
-            return response()->json([
-                'message' => 'Only submitted quotations can be approved'
-            ], 422);
-        }
+            $quotation = Quotation::findOrFail($id);
+            \Log::info('Quotation found:', [
+                'id' => $quotation->id,
+                'status' => $quotation->status,
+                'quotation_number' => $quotation->quotation_number
+            ]);
 
-        if (!$quotation->hasPendingApproval()) {
-            return response()->json([
-                'message' => 'No pending approval request found for this quotation'
-            ], 422);
-        }
-
-        $approval = $quotation->latestApproval();
-        if ($approval->isApproved()) {
-            return response()->json([
-                'message' => 'Quotation is already approved'
-            ], 422);
-        }
-
-        // Process approval using the approval system
-        if ($quotation->approve($request->notes)) {
-            // Send notification to sales user
-            if ($quotation->user_id) {
-                Notification::createForUser(
-                    $quotation->user_id,
-                    "Your quotation {$quotation->quotation_number} has been approved!",
-                    'success',
-                    '/quotations'
-                );
+            if ($quotation->status !== 'SUBMITTED') {
+                \Log::warning('Quotation status is not SUBMITTED: ' . $quotation->status);
+                return response()->json([
+                    'message' => 'Only submitted quotations can be approved',
+                    'current_status' => $quotation->status
+                ], 422);
             }
 
-            // Notify admin that quotation is ready for conversion
-            Notification::createForRole(
-                'Admin',
-                "Quotation {$quotation->quotation_number} approved and ready to convert to Sales Order",
-                'info',
-                '/quotations'
-            );
+            if (!$quotation->hasPendingApproval()) {
+                \Log::warning('No pending approval found for quotation');
+                return response()->json([
+                    'message' => 'No pending approval request found for this quotation'
+                ], 422);
+            }
 
-            return response()->json($quotation->load(['customer', 'user', 'quotationItems.product', 'approvals']));
+            $approval = $quotation->latestApproval();
+            if ($approval && $approval->isApproved()) {
+                \Log::warning('Quotation already approved');
+                return response()->json([
+                    'message' => 'Quotation is already approved'
+                ], 422);
+            }
+
+            \Log::info('Processing approval...');
+            // Process approval using the approval system
+            if ($quotation->approve($request->notes)) {
+                \Log::info('Approval successful');
+
+                // Send notification to sales user
+                if ($quotation->user_id) {
+                    Notification::createForUser(
+                        $quotation->user_id,
+                        "Your quotation {$quotation->quotation_number} has been approved!",
+                        'success',
+                        '/quotations'
+                    );
+                }
+
+                // Notify admin that quotation is ready for conversion
+                Notification::createForRole(
+                    'Admin',
+                    "Quotation {$quotation->quotation_number} approved and ready to convert to Sales Order",
+                    'info',
+                    '/quotations'
+                );
+
+                return response()->json($quotation->load(['customer', 'user', 'quotationItems.product', 'approvals']));
+            }
+
+            \Log::error('Approval process failed');
+            return response()->json([
+                'message' => 'Failed to approve quotation'
+            ], 500);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Quotation Approve Validation Error:');
+            \Log::error('Field Errors:', $e->errors());
+            \Log::error('Request Data:', $request->all());
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Quotation Approve Error: ' . $e->getMessage());
+            \Log::error('Stack Trace:', $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Failed to approve quotation: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'message' => 'Failed to approve quotation'
-        ], 500);
     }
 
     public function reject(Request $request, $id)
     {
-        $request->validate([
-            'notes' => 'required|string|max:500'
-        ]);
+        try {
+            \Log::info('=== QUOTATION REJECT REQUEST ===');
+            \Log::info('Quotation ID: ' . $id);
+            \Log::info('Request Data:', $request->all());
+            \Log::info('Auth User ID: ' . auth()->id());
 
-        $quotation = Quotation::findOrFail($id);
+            $request->validate([
+                'notes' => 'required|string|max:500'
+            ]);
 
-        if ($quotation->status !== 'SUBMITTED') {
-            return response()->json([
-                'message' => 'Only submitted quotations can be rejected'
-            ], 422);
-        }
+            $quotation = Quotation::findOrFail($id);
+            \Log::info('Quotation found:', [
+                'id' => $quotation->id,
+                'status' => $quotation->status,
+                'quotation_number' => $quotation->quotation_number
+            ]);
 
-        if (!$quotation->hasPendingApproval()) {
-            return response()->json([
-                'message' => 'No pending approval request found for this quotation'
-            ], 422);
-        }
-
-        $approval = $quotation->latestApproval();
-        if ($approval->isRejected()) {
-            return response()->json([
-                'message' => 'Quotation is already rejected'
-            ], 422);
-        }
-
-        // Process rejection using the approval system
-        if ($quotation->reject($request->notes)) {
-            // Send notification to sales user
-            if ($quotation->user_id) {
-                Notification::createForUser(
-                    $quotation->user_id,
-                    "Your quotation {$quotation->quotation_number} has been rejected",
-                    'warning',
-                    '/quotations'
-                );
+            if ($quotation->status !== 'SUBMITTED') {
+                \Log::warning('Quotation status is not SUBMITTED: ' . $quotation->status);
+                return response()->json([
+                    'message' => 'Only submitted quotations can be rejected',
+                    'current_status' => $quotation->status
+                ], 422);
             }
 
-            return response()->json($quotation->load(['customer', 'user', 'quotationItems.product', 'approvals']));
-        }
+            if (!$quotation->hasPendingApproval()) {
+                \Log::warning('No pending approval found for quotation');
+                return response()->json([
+                    'message' => 'No pending approval request found for this quotation'
+                ], 422);
+            }
 
-        return response()->json([
-            'message' => 'Failed to reject quotation'
-        ], 500);
+            $approval = $quotation->latestApproval();
+            if ($approval && $approval->isRejected()) {
+                \Log::warning('Quotation already rejected');
+                return response()->json([
+                    'message' => 'Quotation is already rejected'
+                ], 422);
+            }
+
+            \Log::info('Processing rejection...');
+            // Process rejection using the approval system
+            if ($quotation->reject($request->notes)) {
+                \Log::info('Rejection successful');
+
+                // Send notification to sales user
+                if ($quotation->user_id) {
+                    Notification::createForUser(
+                        $quotation->user_id,
+                        "Your quotation {$quotation->quotation_number} has been rejected",
+                        'warning',
+                        '/quotations'
+                    );
+                }
+
+                return response()->json($quotation->load(['customer', 'user', 'quotationItems.product', 'approvals']));
+            }
+
+            \Log::error('Rejection process failed');
+            return response()->json([
+                'message' => 'Failed to reject quotation'
+            ], 500);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Quotation Reject Validation Error:');
+            \Log::error('Field Errors:', $e->errors());
+            \Log::error('Request Data:', $request->all());
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Quotation Reject Error: ' . $e->getMessage());
+            \Log::error('Stack Trace:', $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Failed to reject quotation: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function createSalesOrder(Request $request, $id)

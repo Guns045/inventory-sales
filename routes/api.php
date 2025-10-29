@@ -19,6 +19,7 @@ use App\Http\Controllers\API\PurchaseOrderController;
 use App\Http\Controllers\API\GoodsReceiptController;
 use App\Http\Controllers\API\ApprovalController;
 use App\Http\Controllers\API\DashboardController;
+use App\Http\Controllers\API\NotificationController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -96,4 +97,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard']);
     Route::get('/dashboard/warehouse', [DashboardController::class, 'warehouseDashboard']);
     Route::get('/dashboard/finance', [DashboardController::class, 'financeDashboard']);
+
+    // Notification routes
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/admin', [NotificationController::class, 'adminNotifications']);
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+    Route::post('/notifications/create', [NotificationController::class, 'createNotification']);
+
+    // Activity log routes
+    Route::get('/activity-logs', [NotificationController::class, 'activityLogs']);
+    Route::get('/activity-logs/my', [NotificationController::class, 'myActivityLogs']);
+
+    // Reports routes
+    Route::get('/reports/stock', [DashboardController::class, 'stockReports']);
+    Route::get('/reports/sales', [DashboardController::class, 'salesReports']);
 });

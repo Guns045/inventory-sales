@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import { Container, Row, Col, Nav, Button, Spinner } from 'react-bootstrap';
+import NotificationsDropdown from './NotificationsDropdown';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,10 +48,12 @@ const Layout = () => {
           {visibleMenuItems.map((item) => (
             <Nav.Link
               key={item.path}
-              as={Link}
-              to={item.path}
-              className={`mb-1 ${location.pathname === item.path ? 'active' : ''}`}
+              as={item.action ? 'span' : Link}
+              to={item.action ? undefined : item.path}
+              className={`mb-1 ${location.pathname === item.path ? 'active' : ''} ${item.action ? 'logout-link' : ''}`}
               title={item.description}
+              onClick={item.action === 'logout' ? handleLogout : undefined}
+              style={{ cursor: item.action ? 'pointer' : 'default' }}
             >
               <i className={`bi ${item.icon} me-3`}></i>
               <div>
@@ -63,12 +66,6 @@ const Layout = () => {
               </div>
             </Nav.Link>
           ))}
-          <div className="mt-auto pt-3 border-top border-white-50">
-            <Nav.Link onClick={handleLogout} className="text-white">
-              <i className="bi bi-box-arrow-right me-3"></i>
-              Logout
-            </Nav.Link>
-          </div>
         </Nav>
       </div>
 
@@ -105,11 +102,18 @@ const Layout = () => {
           {visibleMenuItems.map((item) => (
             <Nav.Link
               key={item.path}
-              as={Link}
-              to={item.path}
-              className={`mb-1 text-white ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => setSidebarOpen(false)}
+              as={item.action ? 'span' : Link}
+              to={item.action ? undefined : item.path}
+              className={`mb-1 text-white ${location.pathname === item.path ? 'active' : ''} ${item.action ? 'logout-link' : ''}`}
+              onClick={() => {
+                if (item.action === 'logout') {
+                  handleLogout();
+                } else {
+                  setSidebarOpen(false);
+                }
+              }}
               title={item.description}
+              style={{ cursor: item.action ? 'pointer' : 'default' }}
             >
               <i className={`bi ${item.icon} me-3`}></i>
               <div>
@@ -122,12 +126,6 @@ const Layout = () => {
               </div>
             </Nav.Link>
           ))}
-          <div className="mt-auto pt-3 border-top border-white-50">
-            <Nav.Link onClick={handleLogout} className="text-white">
-              <i className="bi bi-box-arrow-right me-3"></i>
-              Logout
-            </Nav.Link>
-          </div>
         </Nav>
       </div>
 
@@ -153,6 +151,7 @@ const Layout = () => {
             </Col>
             <Col xs="auto">
               <div className="d-flex align-items-center">
+                <NotificationsDropdown />
                 <div className="me-3">
                   <i className="bi bi-person-circle me-2"></i>
                   <span className="text-muted">Welcome, {user?.name || 'User'}</span>

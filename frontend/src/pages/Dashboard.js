@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Spinner, Alert, ListGroup } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import React from 'react';
+import { Alert } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
-import SalesDashboard from '../components/dashboard/SalesDashboard';
-import ApprovalDashboard from '../components/dashboard/ApprovalDashboard';
-import WarehouseDashboard from '../components/dashboard/WarehouseDashboard';
-import FinanceDashboard from '../components/dashboard/FinanceDashboard';
+import DashboardAdmin from './DashboardAdmin';
+import DashboardSales from './DashboardSales';
+import DashboardWarehouse from './DashboardWarehouse';
+import DashboardFinance from './DashboardFinance';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -20,14 +19,14 @@ const Dashboard = () => {
 
     switch (role) {
       case 'sales':
-        return <SalesDashboard />;
+        return <DashboardSales />;
       case 'admin':
       case 'manager':
-        return <ApprovalDashboard />;
+        return <DashboardAdmin />;
       case 'gudang':
-        return <WarehouseDashboard />;
+        return <DashboardWarehouse />;
       case 'finance':
-        return <FinanceDashboard />;
+        return <DashboardFinance />;
       default:
         return <DefaultDashboard />;
     }

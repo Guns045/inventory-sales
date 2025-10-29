@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { APIProvider } from './contexts/APIContext';
 import { PermissionProvider } from './contexts/PermissionContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './App.css';
@@ -32,6 +33,7 @@ function App() {
     <AuthProvider>
       <APIProvider>
         <PermissionProvider>
+          <NotificationProvider>
           <Router>
             <div className="App">
               <Routes>
@@ -61,6 +63,7 @@ function App() {
               </Routes>
             </div>
           </Router>
+          </NotificationProvider>
         </PermissionProvider>
       </APIProvider>
     </AuthProvider>
