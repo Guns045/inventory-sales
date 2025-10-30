@@ -20,10 +20,14 @@ use App\Http\Controllers\API\GoodsReceiptController;
 use App\Http\Controllers\API\ApprovalController;
 use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\CompanySettingsController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+
+// Public company settings (for displaying logo/info)
+Route::get('/company-settings/public', [CompanySettingsController::class, 'index']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -46,11 +50,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
     
     // Inventory management
-    Route::get('/product-stock', [ProductStockController::class, 'index']);
-    Route::get('/product-stock/{id}', [ProductStockController::class, 'show']);
-    Route::post('/product-stock', [ProductStockController::class, 'store']);
-    Route::put('/product-stock/{id}', [ProductStockController::class, 'update']);
-    Route::delete('/product-stock/{id}', [ProductStockController::class, 'destroy']);
+    Route::get('/product-stock', [ProductStockController::class, 'index'])->middleware('permission:product-stock.read');
+    Route::get('/product-stock/{id}', [ProductStockController::class, 'show'])->middleware('permission:product-stock.read');
+    Route::post('/product-stock', [ProductStockController::class, 'store'])->middleware('permission:product-stock.create');
+    Route::put('/product-stock/{id}', [ProductStockController::class, 'update'])->middleware('permission:product-stock.update');
+    Route::delete('/product-stock/{id}', [ProductStockController::class, 'destroy'])->middleware('permission:product-stock.delete');
     
     // Sales management
     Route::apiResource('quotations', QuotationController::class);
@@ -59,8 +63,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])->middleware('permission:quotations.approve');
     Route::post('/quotations/{id}/reject', [QuotationController::class, 'reject'])->middleware('permission:quotations.reject');
     Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
+    Route::get('/quotations/{id}/check-convertibility', [QuotationController::class, 'checkConvertibility']);
     
-    Route::apiResource('sales-orders', SalesOrderController::class);
+    Route::get('/sales-orders', [SalesOrderController::class, 'index'])->middleware('permission:sales-orders.read');
+Route::post('/sales-orders', [SalesOrderController::class, 'store']);
+Route::get('/sales-orders/{sales_order}', [SalesOrderController::class, 'show']);
+Route::put('/sales-orders/{sales_order}', [SalesOrderController::class, 'update']);
+Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'destroy']);
     Route::get('/sales-orders/{id}/items', [SalesOrderController::class, 'getSalesOrderItems']);
     Route::post('/sales-orders/{id}/update-status', [SalesOrderController::class, 'updateStatus']);
     
@@ -95,11 +104,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/quotations/{id}/export-excel', [QuotationController::class, 'exportExcel']);
 
     // Dashboard routes
-    Route::get('/dashboard', [DashboardController::class, 'getDashboardData']);
-    Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard']);
-    Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard']);
-    Route::get('/dashboard/warehouse', [DashboardController::class, 'warehouseDashboard']);
-    Route::get('/dashboard/finance', [DashboardController::class, 'financeDashboard']);
+    Route::get('/dashboard', [DashboardController::class, 'getDashboardData'])->middleware('permission:dashboard.read');
+    Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard'])->middleware('permission:dashboard.sales');
+    Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard'])->middleware('permission:dashboard.approval');
+    Route::get('/dashboard/warehouse', [DashboardController::class, 'warehouseDashboard'])->middleware('permission:dashboard.warehouse');
+    Route::get('/dashboard/finance', [DashboardController::class, 'financeDashboard'])->middleware('permission:dashboard.finance');
 
     // Notification routes
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -110,10 +119,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/create', [NotificationController::class, 'createNotification']);
 
     // Activity log routes
-    Route::get('/activity-logs', [NotificationController::class, 'activityLogs']);
-    Route::get('/activity-logs/my', [NotificationController::class, 'myActivityLogs']);
+    Route::get('/activity-logs', [NotificationController::class, 'activityLogs'])->middleware('permission:activity-logs.read');
+    Route::get('/activity-logs/my', [NotificationController::class, 'myActivityLogs'])->middleware('permission:activity-logs.read');
 
     // Reports routes
     Route::get('/reports/stock', [DashboardController::class, 'stockReports']);
     Route::get('/reports/sales', [DashboardController::class, 'salesReports']);
+
+    // Company Settings routes (Admin only)
+    Route::apiResource('company-settings', CompanySettingsController::class)->middleware('permission:users.update');
+    Route::post('/company-settings/upload-logo', [CompanySettingsController::class, 'uploadLogo'])->middleware('permission:users.update');
+    Route::delete('/company-settings/{id}/delete-logo', [CompanySettingsController::class, 'deleteLogo'])->middleware('permission:users.update');
 });

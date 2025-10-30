@@ -504,61 +504,52 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::findOrFail($id);
 
-        if ($quotation->status !== 'APPROVED') {
-            return response()->json([
-                'message' => 'Only approved quotations can be converted to sales orders'
-            ], 422);
-        }
+        // Check if quotation can be converted (approved, has available stock, not already converted)
+        if (!$quotation->canBeConverted()) {
+            $message = 'Cannot convert quotation to sales order. ';
 
-        // Check if sales order already exists for this quotation
-        $existingOrder = \App\Models\SalesOrder::where('quotation_id', $id)->first();
-        if ($existingOrder) {
+            if (!$quotation->isApproved()) {
+                $message .= 'Quotation must be approved first.';
+            } elseif ($quotation->salesOrder) {
+                $message .= 'Quotation already converted to sales order.';
+            } elseif (!$quotation->hasAvailableStock()) {
+                $message .= 'Insufficient stock for one or more items.';
+            }
+
             return response()->json([
-                'message' => 'Sales order already exists for this quotation',
-                'sales_order' => $existingOrder
+                'message' => $message,
+                'can_convert' => false
             ], 422);
         }
 
         try {
             \DB::beginTransaction();
 
-            // Create sales order
-            $salesOrder = \App\Models\SalesOrder::create([
-                'sales_order_number' => 'SO-' . date('Y-m-d') . '-' . str_pad(\App\Models\SalesOrder::count() + 1, 3, '0', STR_PAD_LEFT),
-                'quotation_id' => $id,
-                'customer_id' => $quotation->customer_id,
-                'user_id' => auth()->id(),
-                'status' => 'PENDING',
-                'total_amount' => $quotation->total_amount,
-                'notes' => $request->input('notes', ''),
-            ]);
+            // Use the model method to convert quotation to sales order
+            $salesOrder = $quotation->convertToSalesOrder($request->input('notes', ''));
 
-            // Copy quotation items to sales order items
-            foreach ($quotation->quotationItems as $quotationItem) {
-                \App\Models\SalesOrderItem::create([
-                    'sales_order_id' => $salesOrder->id,
-                    'product_id' => $quotationItem->product_id,
-                    'quantity' => $quotationItem->quantity,
-                    'unit_price' => $quotationItem->unit_price,
-                    'discount_percentage' => $quotationItem->discount_percentage,
-                    'tax_rate' => $quotationItem->tax_rate,
-                    'total_price' => $quotationItem->total_price,
-                ]);
-            }
-
-            // Quotation status remains APPROVED
+            // Update quotation status to CONVERTED
+            $quotation->update(['status' => 'CONVERTED']);
 
             // Log activity
             ActivityLog::log(
                 'CREATE_SALES_ORDER',
-                "User created sales order {$salesOrder->order_number} from quotation {$quotation->quotation_number}",
+                "User created sales order {$salesOrder->sales_order_number} from quotation {$quotation->quotation_number}",
                 $salesOrder
             );
 
-            // Send notification
+            // Send notification to warehouse team
             Notification::createForRole(
                 'Gudang',
-                "New sales order: {$salesOrder->order_number}",
+                "New sales order: {$salesOrder->sales_order_number}",
+                'info',
+                '/sales-orders'
+            );
+
+            // Send notification to admin
+            Notification::createForRole(
+                'Admin',
+                "Sales Order {$salesOrder->sales_order_number} created from Quotation {$quotation->quotation_number}",
                 'info',
                 '/sales-orders'
             );
@@ -566,8 +557,9 @@ class QuotationController extends Controller
             \DB::commit();
 
             return response()->json([
-                'message' => 'Sales order created successfully',
-                'sales_order' => $salesOrder->load(['customer', 'user', 'salesOrderItems.product', 'quotation'])
+                'message' => 'Sales order created successfully and stock has been reserved',
+                'sales_order' => $salesOrder->load(['customer', 'user', 'salesOrderItems.product', 'quotation']),
+                'stock_reserved' => true
             ]);
 
         } catch (\Exception $e) {
@@ -577,6 +569,45 @@ class QuotationController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Check if quotation can be converted to sales order
+     */
+    public function checkConvertibility($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+
+        return response()->json([
+            'can_convert' => $quotation->canBeConverted(),
+            'is_approved' => $quotation->isApproved(),
+            'has_sales_order' => $quotation->salesOrder !== null,
+            'has_available_stock' => $quotation->hasAvailableStock(),
+            'status' => $quotation->status,
+            'reasons' => $this->getConvertibilityReasons($quotation)
+        ]);
+    }
+
+    /**
+     * Get reasons why quotation cannot be converted
+     */
+    private function getConvertibilityReasons($quotation): array
+    {
+        $reasons = [];
+
+        if (!$quotation->isApproved()) {
+            $reasons[] = 'Quotation must be approved first';
+        }
+
+        if ($quotation->salesOrder) {
+            $reasons[] = 'Quotation already converted to sales order';
+        }
+
+        if (!$quotation->hasAvailableStock()) {
+            $reasons[] = 'Insufficient stock for one or more items';
+        }
+
+        return $reasons;
     }
 
     public function exportPDF($id)

@@ -284,19 +284,32 @@ const Quotations = () => {
   };
 
   const handleConvertToSO = async (quotation) => {
-    if (window.confirm('Convert this quotation to Sales Order?')) {
+    if (window.confirm('Convert this quotation to Sales Order? Stock will be reserved for this order.')) {
       try {
-        const soData = {
-          quotation_id: quotation.id,
-          customer_id: quotation.customer_id,
-          status: 'PENDING',
+        const response = await post(`/quotations/${quotation.id}/create-sales-order`, {
           notes: `Converted from Quotation ${quotation.quotation_number}`
-        };
-        await post('/sales-orders', soData);
-        alert('Quotation converted to Sales Order successfully!');
+        });
+
+        if (response.stock_reserved) {
+          alert('Quotation converted to Sales Order successfully! Stock has been reserved.');
+        } else {
+          alert('Quotation converted to Sales Order successfully!');
+        }
+
         await fetchData();
       } catch (err) {
-        setError('Failed to convert quotation to Sales Order');
+        let errorMessage = 'Failed to convert quotation to Sales Order';
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+          if (err.response.data?.can_convert === false) {
+            errorMessage += '\n\nPlease check if:\n- Quotation is approved\n- Sufficient stock is available\n- Quotation has not been converted before';
+          }
+        } else if (err.response?.data?.errors) {
+          // Handle Laravel validation errors
+          const validationErrors = Object.values(err.response.data.errors).flat();
+          errorMessage = validationErrors.join(', ');
+        }
+        setError(errorMessage);
         console.error('Error converting to SO:', err);
       }
     }
@@ -587,14 +600,21 @@ const Quotations = () => {
                     <button
                       className="btn btn-sm btn-info me-1"
                       onClick={() => handleConvertToSO(quotation)}
+                      title="Convert to Sales Order"
                     >
                       Convert to SO
                     </button>
                   )}
+                  {quotation.status === 'CONVERTED' && (
+                    <span className="badge bg-success me-1">
+                      <i className="bi bi-check-circle me-1"></i>
+                      Converted
+                    </span>
+                  )}
                   <button
                     className="btn btn-sm btn-danger"
                     onClick={() => handleDelete(quotation.id)}
-                    disabled={quotation.status === 'APPROVED' || quotation.status === 'SUBMITTED'}
+                    disabled={quotation.status === 'APPROVED' || quotation.status === 'SUBMITTED' || quotation.status === 'CONVERTED'}
                   >
                     Delete
                   </button>

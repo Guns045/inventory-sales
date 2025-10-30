@@ -11,12 +11,27 @@ export const useAPI = () => {
 export const APIProvider = ({ children }) => {
   const { token } = useAuth();
 
+  // Dynamic base URL - supports both localhost and network access
+  const getBaseURL = () => {
+    // If accessing from network IP, use the same IP for API
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8000/api';
+    } else {
+      // Use the same hostname as the frontend for API access
+      return `http://${hostname}:8000/api`;
+    }
+  };
+
   // Create axios instance with base configuration
   const api = axios.create({
-    baseURL: 'http://localhost:8001/api', // Update this to match your Laravel backend URL
+    baseURL: getBaseURL(),
     headers: {
       'Content-Type': 'application/json',
     },
+    timeout: 30000, // 30 seconds timeout
   });
 
   // Add request interceptor to include token

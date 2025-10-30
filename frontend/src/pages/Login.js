@@ -27,7 +27,8 @@ const Login = () => {
 
       if (response.data.token && response.data.user) {
         login(response.data.token, response.data.user);
-        navigate('/dashboard');
+        // Force page reload to refresh permissions
+        window.location.href = '/dashboard';
       }
     } catch (err) {
       setError('Login gagal. Silakan periksa kembali email dan password Anda.');

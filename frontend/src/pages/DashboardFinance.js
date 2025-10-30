@@ -49,12 +49,31 @@ const DashboardFinance = () => {
         api.get('/payments')
       ]);
 
+      // Helper function to safely extract array data from response
+      const extractArrayData = (response) => {
+        if (response?.data?.data && Array.isArray(response.data.data)) {
+          return response.data.data; // Pagination response
+        }
+        if (response?.data && Array.isArray(response.data)) {
+          return response.data; // Direct array response
+        }
+        return []; // Fallback to empty array
+      };
+
+      // Helper function to safely extract object data from response
+      const extractObjectData = (response) => {
+        if (response?.data) {
+          return response.data;
+        }
+        return {};
+      };
+
       setFinanceData({
-        accounts_receivable: arResponse.data,
-        invoices: invoicesResponse.data,
-        payments: paymentsResponse.data,
-        pending_invoices: pendingResponse.data.slice(0, 10), // Top 10 pending invoices
-        recent_payments: recentPaymentsResponse.data.slice(0, 5), // Latest 5 payments
+        accounts_receivable: extractObjectData(arResponse),
+        invoices: extractObjectData(invoicesResponse),
+        payments: extractObjectData(paymentsResponse),
+        pending_invoices: extractArrayData(pendingResponse).slice(0, 10), // Top 10 pending invoices
+        recent_payments: extractArrayData(recentPaymentsResponse).slice(0, 5), // Latest 5 payments
         loading: false,
         error: null
       });

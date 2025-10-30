@@ -15,12 +15,21 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', '*'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'],
-    'supports_credentials' => true,
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://192.168.18.23:3000',
+        'http://192.168.18.23:3001',
+        'http://192.168.18.23:5173',
+    ],
 
     'allowed_origins_patterns' => [],
 

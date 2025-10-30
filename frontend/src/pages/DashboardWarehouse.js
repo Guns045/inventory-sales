@@ -36,18 +36,65 @@ const DashboardWarehouse = () => {
 
   const fetchWarehouseData = async () => {
     try {
-      const [tasksResponse, inventoryResponse, ordersResponse, movementsResponse] = await Promise.all([
-        api.get('/dashboard/warehouse'),
-        api.get('/product-stock'),
-        api.get('/sales-orders'),
-        api.get('/activity-logs')
-      ]);
+      console.log('DashboardWarehouse: Starting to fetch warehouse data...');
+
+      const requests = [
+        { endpoint: '/dashboard/warehouse', key: 'tasks' },
+        { endpoint: '/product-stock', key: 'inventory' },
+        { endpoint: '/sales-orders', key: 'orders' },
+        { endpoint: '/activity-logs', key: 'movements' }
+      ];
+
+      console.log('DashboardWarehouse: Making API requests:', requests);
+
+      const responses = await Promise.allSettled(
+        requests.map(req => {
+          console.log(`DashboardWarehouse: Requesting ${req.endpoint}`);
+          return api.get(req.endpoint);
+        })
+      );
+
+      // Check for any failed requests
+      const failedRequests = responses.filter(res => res.status === 'rejected');
+      if (failedRequests.length > 0) {
+        console.error('DashboardWarehouse: Failed requests:', failedRequests);
+        const error = failedRequests[0].reason;
+        console.error('DashboardWarehouse: First error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          config: error.config
+        });
+        throw error;
+      }
+
+      const [tasksResponse, inventoryResponse, ordersResponse, movementsResponse] = responses.map(res => res.value);
+      console.log('DashboardWarehouse: All requests successful');
+
+      // Helper function to safely extract array data from response
+      const extractArrayData = (response) => {
+        if (response?.data?.data && Array.isArray(response.data.data)) {
+          return response.data.data; // Pagination response
+        }
+        if (response?.data && Array.isArray(response.data)) {
+          return response.data; // Direct array response
+        }
+        return []; // Fallback to empty array
+      };
+
+      // Helper function to safely extract object data from response
+      const extractObjectData = (response) => {
+        if (response?.data) {
+          return response.data;
+        }
+        return {};
+      };
 
       setWarehouseData({
-        tasks: tasksResponse.data,
-        inventory: inventoryResponse.data,
-        pendingOrders: ordersResponse.data.slice(0, 10), // Top 10 pending orders
-        recentMovements: movementsResponse.data.slice(0, 5), // Latest 5 movements
+        tasks: extractObjectData(tasksResponse),
+        inventory: extractObjectData(inventoryResponse),
+        pendingOrders: extractArrayData(ordersResponse).slice(0, 10), // Top 10 pending orders
+        recentMovements: extractArrayData(movementsResponse).slice(0, 5), // Latest 5 movements
         loading: false,
         error: null
       });

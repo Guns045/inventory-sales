@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar } from 'react-bootstrap';
+import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar, Modal, Form } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,6 +24,29 @@ const DashboardSales = () => {
     sales_orders: [],
     loading: true,
     error: null
+  });
+
+  // Quotation Modal State (matching Quotations.js structure)
+  const [showQuotationModal, setShowQuotationModal] = useState(false);
+  const [quotationForm, setQuotationForm] = useState({
+    customer_id: '',
+    status: 'DRAFT',
+    valid_until: '',
+    items: []
+  });
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loadingModal, setLoadingModal] = useState(false);
+  const [errorModal, setErrorModal] = useState('');
+  const [items, setItems] = useState([]);
+
+  // New Item state for adding items (matching Quotations.js)
+  const [newItem, setNewItem] = useState({
+    product_id: '',
+    quantity: 1,
+    unit_price: 0,
+    discount_percentage: 0,
+    tax_rate: 0
   });
 
   useEffect(() => {
@@ -92,6 +115,183 @@ const DashboardSales = () => {
     }).format(amount);
   };
 
+  // Quotation Modal Functions (matching Quotations.js structure)
+  const handleShowQuotationModal = async () => {
+    try {
+      setLoadingModal(true);
+      setErrorModal('');
+
+      // Fetch customers and products for dropdown
+      const [customersResponse, productsResponse] = await Promise.all([
+        api.get('/customers'),
+        api.get('/products')
+      ]);
+
+      setCustomers(customersResponse.data?.data || customersResponse.data || []);
+      setProducts(productsResponse.data?.data || productsResponse.data || []);
+
+      // Reset form to match Quotations.js structure
+      setQuotationForm({
+        customer_id: '',
+        status: 'DRAFT',
+        valid_until: '',
+        items: []
+      });
+      setItems([]);
+
+      setShowQuotationModal(true);
+    } catch (error) {
+      console.error('Error loading modal data:', error);
+      setErrorModal('Gagal memuat data. Silakan coba lagi.');
+    } finally {
+      setLoadingModal(false);
+    }
+  };
+
+  const handleCloseQuotationModal = () => {
+    setShowQuotationModal(false);
+    setErrorModal('');
+    setQuotationForm({
+      customer_id: '',
+      status: 'DRAFT',
+      valid_until: '',
+      items: []
+    });
+    setItems([]);
+    setNewItem({
+      product_id: '',
+      quantity: 1,
+      unit_price: 0,
+      discount_percentage: 0,
+      tax_rate: 0
+    });
+  };
+
+  const handleQuotationSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      setLoadingModal(true);
+      setErrorModal('');
+
+      // Validate items before submission (matching Quotations.js)
+      if (items.length === 0) {
+        setErrorModal('Quotation must have at least one item');
+        return;
+      }
+
+      // Validate items data (matching Quotations.js)
+      const invalidItem = items.find(item =>
+        !item.product_id || !item.quantity || !item.unit_price ||
+        item.quantity <= 0 || item.unit_price <= 0
+      );
+
+      if (invalidItem) {
+        setErrorModal('Please ensure all items have valid product, quantity, and price information');
+        return;
+      }
+
+      // Validate required fields
+      if (!quotationForm.customer_id || !quotationForm.valid_until) {
+        setErrorModal('Silakan lengkapi semua field yang wajib diisi.');
+        return;
+      }
+
+      const quotationData = {
+        customer_id: quotationForm.customer_id,
+        status: quotationForm.status,
+        valid_until: quotationForm.valid_until,
+        items: items.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          tax_rate: item.tax_rate || 0
+        }))
+      };
+
+      const response = await api.post('/quotations', quotationData);
+
+      console.log('Quotation created:', response.data);
+
+      // Show success message
+      alert('Penawaran berhasil dibuat!');
+
+      // Close modal and refresh data
+      handleCloseQuotationModal();
+      fetchSalesData();
+
+    } catch (error) {
+      console.error('Error creating quotation:', error);
+      let errorMessage = 'Failed to create quotation';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Handle Laravel validation errors
+        const validationErrors = Object.values(error.response.data.errors).flat();
+        errorMessage = validationErrors.join(', ');
+      }
+      setErrorModal(errorMessage);
+    } finally {
+      setLoadingModal(false);
+    }
+  };
+
+  const handleQuotationChange = (e) => {
+    const { name, value } = e.target;
+    setQuotationForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Item management functions (matching Quotations.js)
+  const handleItemChange = (e) => {
+    const { name, value } = e.target;
+    setNewItem(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const addItem = () => {
+    if (!newItem.product_id || newItem.quantity <= 0) return;
+
+    const product = products.find(p => p.id === parseInt(newItem.product_id, 10));
+    if (!product) return;
+
+    const itemTotal = newItem.quantity * product.sell_price;
+    const discountAmount = itemTotal * (newItem.discount_percentage / 100);
+    const taxAmount = (itemTotal - discountAmount) * (newItem.tax_rate / 100);
+    const total = itemTotal - discountAmount + taxAmount;
+
+    const item = {
+      id: Date.now(), // Use timestamp for unique ID
+      product_id: parseInt(newItem.product_id, 10),
+      product_name: product.name,
+      quantity: newItem.quantity,
+      unit_price: product.sell_price,
+      discount_percentage: newItem.discount_percentage,
+      tax_rate: newItem.tax_rate,
+      total_price: total
+    };
+
+    setItems(prev => [...prev, item]);
+
+    // Reset form
+    setNewItem({
+      product_id: '',
+      quantity: 1,
+      unit_price: 0,
+      discount_percentage: 0,
+      tax_rate: 0
+    });
+  };
+
+  const removeItem = (id) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  };
+
   const getAchievementColor = (percentage) => {
     if (percentage >= 100) return 'success';
     if (percentage >= 75) return 'warning';
@@ -141,7 +341,7 @@ const DashboardSales = () => {
           <p className="text-muted mb-0">Selamat datang, {user?.name || 'Sales'} - Ringkasan Kinerja Penjualan</p>
         </div>
         <div>
-          <Button variant="primary" className="me-2">
+          <Button variant="primary" className="me-2" onClick={handleShowQuotationModal}>
             <i className="bi bi-plus-circle me-1"></i>
             Buat Penawaran Baru
           </Button>
@@ -480,6 +680,195 @@ const DashboardSales = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Quotation Modal */}
+      <Modal
+        show={showQuotationModal}
+        onHide={handleCloseQuotationModal}
+        size="lg"
+        backdrop="static"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Buat Penawaran Baru</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {loadingModal ? (
+            <div className="text-center py-4">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-2">Memuat data...</p>
+            </div>
+          ) : (
+            <Form onSubmit={handleQuotationSubmit}>
+              {errorModal && (
+                <Alert variant="danger" className="mb-3">
+                  {errorModal}
+                </Alert>
+              )}
+
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Customer:</Form.Label>
+                    <Form.Select
+                      name="customer_id"
+                      value={quotationForm.customer_id}
+                      onChange={handleQuotationChange}
+                      required
+                    >
+                      <option value="">Select Customer</option>
+                      {customers.map(cust => (
+                        <option key={cust.id} value={cust.id}>{cust.company_name || cust.name}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Status:</Form.Label>
+                    <Form.Select
+                      name="status"
+                      value={quotationForm.status}
+                      onChange={handleQuotationChange}
+                      required
+                    >
+                      <option value="DRAFT">Draft</option>
+                      <option value="SUBMITTED">Submitted</option>
+                      <option value="APPROVED">Approved</option>
+                      <option value="REJECTED">Rejected</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Valid Until:</Form.Label>
+                    <Form.Control
+                      type="date"
+                      name="valid_until"
+                      value={quotationForm.valid_until}
+                      onChange={handleQuotationChange}
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {/* Quotation Items Section */}
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Quotation Items</strong></Form.Label>
+                <Row className="mb-2">
+                  <Col md={4}>
+                    <Form.Label>Product:</Form.Label>
+                    <Form.Select
+                      name="product_id"
+                      value={newItem.product_id}
+                      onChange={handleItemChange}
+                    >
+                      <option value="">Select Product</option>
+                      {products.map(prod => (
+                        <option key={prod.id} value={prod.id}>
+                          {prod.sku} - {prod.name} - Rp {(prod.sell_price).toLocaleString()}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Col>
+                  <Col md={2}>
+                    <Form.Label>Quantity:</Form.Label>
+                    <Form.Control
+                      type="number"
+                      name="quantity"
+                      value={newItem.quantity}
+                      onChange={handleItemChange}
+                      min="1"
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Label>Discount (%):</Form.Label>
+                    <Form.Control
+                      type="number"
+                      name="discount_percentage"
+                      value={newItem.discount_percentage}
+                      onChange={handleItemChange}
+                      min="0"
+                      max="100"
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Label>Tax (%):</Form.Label>
+                    <Form.Control
+                      type="number"
+                      name="tax_rate"
+                      value={newItem.tax_rate}
+                      onChange={handleItemChange}
+                      min="0"
+                      max="100"
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Label>&nbsp;</Form.Label><br/>
+                    <Button type="button" variant="primary" onClick={addItem}>
+                      Add Item
+                    </Button>
+                  </Col>
+                </Row>
+              </Form.Group>
+
+              {/* Items Table */}
+              {items.length > 0 && (
+                <div className="table-responsive mb-3">
+                  <Table striped bordered hover size="sm">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Discount (%)</th>
+                        <th>Tax (%)</th>
+                        <th>Total</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map(item => (
+                        <tr key={item.id}>
+                          <td>{item.product_name}</td>
+                          <td>{item.quantity}</td>
+                          <td>Rp {(item.unit_price).toLocaleString()}</td>
+                          <td>{item.discount_percentage}%</td>
+                          <td>{item.tax_rate}%</td>
+                          <td>Rp {(item.total_price).toLocaleString()}</td>
+                          <td>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => removeItem(item.id)}
+                            >
+                              Remove
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              )}
+
+              <Modal.Footer>
+                <Button variant="secondary" onClick={handleCloseQuotationModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" disabled={loadingModal}>
+                  {loadingModal ? 'Creating...' : 'Create'}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          )}
+        </Modal.Body>
+      </Modal>
     </div>
   );
 };

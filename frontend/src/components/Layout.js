@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import { Container, Row, Col, Nav, Button, Spinner } from 'react-bootstrap';
+import { useCompany } from '../contexts/CompanyContext';
+import { Container, Row, Col, Nav, Button, Spinner, Image } from 'react-bootstrap';
 import NotificationsDropdown from './NotificationsDropdown';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { logout } = useAuth();
   const { user, visibleMenuItems, loading } = usePermissions();
+  const { companySettings, getLogoUrl } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,11 +38,35 @@ const Layout = () => {
       {/* Sidebar */}
       <div className={`sidebar d-none d-lg-block ${sidebarOpen ? 'show' : ''}`} style={{ width: '280px' }}>
         <div className="sidebar-header">
-          <h4>
-            <i className="bi bi-box-seam me-2"></i>
-            Inventory System
-          </h4>
-          <small className="text-muted d-block mt-1">
+          <div className="d-flex align-items-center mb-2">
+            {getLogoUrl() ? (
+              <Image
+                src={getLogoUrl()}
+                alt="Company Logo"
+                style={{
+                  height: '40px',
+                  width: 'auto',
+                  maxWidth: '200px',
+                  objectFit: 'contain',
+                  marginRight: '10px'
+                }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+            ) : null}
+            <i
+              className={`bi bi-box-seam me-2 ${getLogoUrl() ? 'd-none' : ''}`}
+              style={{ display: getLogoUrl() ? 'none' : 'inline-block' }}
+            ></i>
+            <div className="flex-grow-1">
+              <h5 className="mb-0 fw-bold">
+                {companySettings?.company_name || 'Inventory System'}
+              </h5>
+            </div>
+          </div>
+          <small className="text-muted d-block">
             Role: {user?.role || 'Unknown'}
           </small>
         </div>
@@ -102,14 +128,36 @@ const Layout = () => {
       {/* Mobile Sidebar */}
       <div className={`sidebar d-lg-none position-fixed top-0 start-0 h-100 ${sidebarOpen ? 'show' : ''}`} style={{ zIndex: 1045 }}>
         <div className="sidebar-header d-flex justify-content-between align-items-center">
-          <div>
-            <h5 className="mb-0">
-              <i className="bi bi-box-seam me-2"></i>
-              Inventory
-            </h5>
-            <small className="text-muted">
-              Role: {user?.role || 'Unknown'}
-            </small>
+          <div className="d-flex align-items-center">
+            {getLogoUrl() ? (
+              <Image
+                src={getLogoUrl()}
+                alt="Company Logo"
+                style={{
+                  height: '35px',
+                  width: 'auto',
+                  maxWidth: '150px',
+                  objectFit: 'contain',
+                  marginRight: '8px'
+                }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'inline-block';
+                }}
+              />
+            ) : null}
+            <i
+              className={`bi bi-box-seam me-2 ${getLogoUrl() ? 'd-none' : ''}`}
+              style={{ display: getLogoUrl() ? 'none' : 'inline-block' }}
+            ></i>
+            <div>
+              <h6 className="mb-0 fw-bold text-white">
+                {companySettings?.company_name || 'Inventory'}
+              </h6>
+              <small className="text-muted">
+                Role: {user?.role || 'Unknown'}
+              </small>
+            </div>
           </div>
           <Button
             variant="link"
@@ -181,10 +229,34 @@ const Layout = () => {
                 >
                   <i className="bi bi-list fs-5"></i>
                 </Button>
-                <h4 className="mb-0 fw-semibold">
-                  <i className="bi bi-box-seam me-2 text-primary"></i>
-                  Inventory Management System
-                </h4>
+                <div className="d-flex align-items-center">
+                  {getLogoUrl() ? (
+                    <Image
+                      src={getLogoUrl()}
+                      alt="Company Logo"
+                      style={{
+                        height: '35px',
+                        width: 'auto',
+                        maxWidth: '180px',
+                        objectFit: 'contain',
+                        marginRight: '12px'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'inline-flex';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`d-flex align-items-center ${getLogoUrl() ? 'd-none' : ''}`}
+                    style={{ display: getLogoUrl() ? 'none' : 'inline-flex' }}
+                  >
+                    <i className="bi bi-box-seam me-2 text-primary"></i>
+                  </div>
+                  <h4 className="mb-0 fw-semibold">
+                    {companySettings?.company_name || 'Inventory Management System'}
+                  </h4>
+                </div>
               </div>
             </Col>
             <Col xs="auto">

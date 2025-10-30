@@ -6,7 +6,9 @@
       "Bash(php artisan serve:*)",
       "Bash(npm start)",
       "Bash(curl:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

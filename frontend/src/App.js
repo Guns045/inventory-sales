@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { APIProvider } from './contexts/APIContext';
 import { PermissionProvider } from './contexts/PermissionContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { CompanyProvider } from './contexts/CompanyContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './App.css';
@@ -44,7 +45,8 @@ function App() {
       <APIProvider>
         <PermissionProvider>
           <NotificationProvider>
-            <div className="App">
+            <CompanyProvider>
+              <div className="App">
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/" element={<RoleBasedRoute />} />
@@ -79,7 +81,8 @@ function App() {
 
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
-            </div>
+              </div>
+            </CompanyProvider>
           </NotificationProvider>
         </PermissionProvider>
       </APIProvider>
