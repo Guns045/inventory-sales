@@ -109,7 +109,8 @@ class PermissionMiddleware
                 'delivery-orders' => ['read', 'update'],
                 'purchase-orders' => ['read', 'create'],
                 'goods-receipts' => ['read', 'create', 'update'],
-                'product-stock' => ['read'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
                 'activity-logs' => ['read'],
                 'reports' => ['read'],
                 'dashboard' => ['read', 'warehouse']

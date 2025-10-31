@@ -173,7 +173,7 @@ const Login = () => {
                 </div>
                 <div className="text-secondary small mt-3 p-2 bg-white rounded-2 border">
                   <i className="bi bi-key text-primary me-2"></i>
-                  <strong>Password:</strong> <span className="text-dark">password123</span>
+                  <strong>Password:</strong> <span className="text-dark">password</span>
                 </div>
               </div>
 

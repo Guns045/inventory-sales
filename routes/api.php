@@ -21,6 +21,7 @@ use App\Http\Controllers\API\ApprovalController;
 use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\CompanySettingsController;
+use App\Http\Controllers\API\PickingListController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -72,14 +73,33 @@ Route::put('/sales-orders/{sales_order}', [SalesOrderController::class, 'update'
 Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'destroy']);
     Route::get('/sales-orders/{id}/items', [SalesOrderController::class, 'getSalesOrderItems']);
     Route::post('/sales-orders/{id}/update-status', [SalesOrderController::class, 'updateStatus']);
-    
+    Route::post('/sales-orders/{id}/create-picking-list', [SalesOrderController::class, 'createPickingList']);
+
+    // Picking List management
+    Route::get('/picking-lists', [PickingListController::class, 'index'])->middleware('permission:picking-lists.read');
+    Route::post('/picking-lists', [PickingListController::class, 'store'])->middleware('permission:picking-lists.create');
+    Route::get('/picking-lists/{picking_list}', [PickingListController::class, 'show'])->middleware('permission:picking-lists.read');
+    Route::put('/picking-lists/{picking_list}', [PickingListController::class, 'update'])->middleware('permission:picking-lists.update');
+    Route::delete('/picking-lists/{picking_list}', [PickingListController::class, 'destroy'])->middleware('permission:picking-lists.delete');
+    Route::get('/picking-lists/{picking_list}/items', [PickingListController::class, 'getItems'])->middleware('permission:picking-lists.read');
+    Route::get('/picking-lists/{picking_list}/print', [PickingListController::class, 'print'])->middleware('permission:picking-lists.print');
+    Route::post('/picking-lists/{picking_list}/complete', [PickingListController::class, 'complete'])->middleware('permission:picking-lists.complete');
+
     // Delivery management
     Route::apiResource('delivery-orders', DeliveryOrderController::class);
     Route::get('/delivery-orders/{id}/items', [DeliveryOrderController::class, 'getDeliveryOrderItems']);
+    Route::post('/delivery-orders/from-picking-list', [DeliveryOrderController::class, 'createFromPickingList']);
+    Route::post('/delivery-orders/from-sales-order', [DeliveryOrderController::class, 'createFromSalesOrder']);
+    Route::post('/delivery-orders/{id}/mark-as-shipped', [DeliveryOrderController::class, 'markAsShipped']);
+    Route::post('/delivery-orders/{id}/mark-as-delivered', [DeliveryOrderController::class, 'markAsDelivered']);
+    Route::get('/delivery-orders/{id}/print', [DeliveryOrderController::class, 'print']);
+      Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
+    Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery']);
     
     // Finance management
     Route::apiResource('invoices', InvoiceController::class);
     Route::get('/invoices/{id}/items', [InvoiceController::class, 'getInvoiceItems']);
+    Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->middleware('permission:invoices.read');
     Route::apiResource('payments', PaymentController::class);
     
     // Purchase management
@@ -130,4 +150,10 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::apiResource('company-settings', CompanySettingsController::class)->middleware('permission:users.update');
     Route::post('/company-settings/upload-logo', [CompanySettingsController::class, 'uploadLogo'])->middleware('permission:users.update');
     Route::delete('/company-settings/{id}/delete-logo', [CompanySettingsController::class, 'deleteLogo'])->middleware('permission:users.update');
+
+    // Inventory Management routes
+    Route::post('/inventory/deduct', [InventoryController::class, 'deductStock'])->middleware('permission:inventory.update');
+    Route::post('/inventory/reserve', [InventoryController::class, 'reserveStock'])->middleware('permission:inventory.update');
+    Route::get('/inventory/stock-levels', [InventoryController::class, 'getStockLevels'])->middleware('permission:inventory.read');
+    Route::get('/inventory/product-movements/{product_id}', [InventoryController::class, 'getProductMovements'])->middleware('permission:inventory.read');
 });

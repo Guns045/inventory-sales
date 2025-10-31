@@ -26,6 +26,7 @@ Berikut adalah alur kerja utama (workflow) dari proses penjualan, mulai dari pen
     Tim Gudang menerima notifikasi (via dashboard) bahwa ada SO baru yang siap diproses.
     Tim Gudang mencetak "Dokumen Pengambilan Barang" (Picking List) berdasarkan SO. Dokumen ini berisi daftar item, jumlah, dan lokasi rak (jika ada) untuk memudahkan pengambilan.
     Tim Gudang mengambil barang dan mengubah status SO menjadi PROCESSING atau READY TO SHIP.
+    
 5. Gudang/Pengiriman: Surat Jalan (Delivery Order)
     Setelah barang siap kirim, Tim Gudang membuat "Surat Jalan" (Delivery Order/DO).
     Surat Jalan ini akan dicetak dan dibawa oleh kurir/driver sebagai bukti pengiriman.

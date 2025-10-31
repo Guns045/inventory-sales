@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use Illuminate\Support\Facades\DB;
+use PDF;
 
 class InvoiceController extends Controller
 {
@@ -130,5 +131,22 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with('invoiceItems.product')->findOrFail($id);
         return response()->json($invoice->invoiceItems);
+    }
+
+    /**
+     * Print invoice
+     */
+    public function print($id)
+    {
+        $invoice = Invoice::with([
+            'customer',
+            'salesOrder',
+            'invoiceItems.product',
+            'salesOrder.customer'
+        ])->findOrFail($id);
+
+        $pdf = PDF::loadView('pdf.invoice', compact('invoice'));
+
+        return $pdf->stream('invoice-' . $invoice->invoice_number . '.pdf');
     }
 }

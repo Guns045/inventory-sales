@@ -10,15 +10,36 @@ use App\Models\Quotation;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SalesOrderController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $salesOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])->paginate(10);
+        $query = SalesOrder::with(['customer', 'user', 'items.product']);
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $requestedStatus = $request->status;
+            Log::info('SalesOrder index: Filtering by status: ' . $requestedStatus);
+            $query->where('status', $requestedStatus);
+        }
+
+        $salesOrders = $query->paginate(10);
+
+        // Log status distribution for debugging
+        $statusCounts = SalesOrder::select('status', \DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->get()
+            ->pluck('count', 'status')
+            ->toArray();
+
+        Log::info('SalesOrder index: Status distribution', $statusCounts);
+        Log::info('SalesOrder index: Returning ' . $salesOrders->count() . ' orders');
+
         return response()->json($salesOrders);
     }
 
@@ -204,8 +225,19 @@ class SalesOrderController extends Controller
 
     public function getSalesOrderItems($id)
     {
-        $salesOrder = SalesOrder::with('salesOrderItems.product')->findOrFail($id);
-        return response()->json($salesOrder->salesOrderItems);
+        try {
+            Log::info('getSalesOrderItems: Fetching items for Sales Order ID: ' . $id);
+
+            $salesOrder = SalesOrder::with('items.product')->findOrFail($id);
+            Log::info('getSalesOrderItems: Found Sales Order: ' . $salesOrder->sales_order_number . ' with ' . $salesOrder->items->count() . ' items');
+
+            return response()->json($salesOrder->items);
+        } catch (\Exception $e) {
+            Log::error('getSalesOrderItems: Error - ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error fetching sales order items: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateStatus(Request $request, $id)
@@ -252,5 +284,100 @@ class SalesOrderController extends Controller
         }
 
         return response()->json($salesOrder);
+    }
+
+    public function createPickingList(Request $request, $id)
+    {
+        try {
+            Log::info('createPickingList: Starting for Sales Order ID: ' . $id);
+
+            $salesOrder = SalesOrder::with(['items.product'])->findOrFail($id);
+            Log::info('createPickingList: Found Sales Order: ' . $salesOrder->sales_order_number . ' with status: ' . $salesOrder->status);
+
+            if ($salesOrder->status !== 'PENDING') {
+                Log::warning('createPickingList: Invalid status. Expected: PENDING, Actual: ' . $salesOrder->status);
+                return response()->json([
+                    'message' => 'Picking List can only be created for PENDING Sales Orders.',
+                    'current_status' => $salesOrder->status,
+                    'sales_order_number' => $salesOrder->sales_order_number
+                ], 422);
+            }
+
+            // Check if picking list already exists
+            $existingPickingList = \App\Models\PickingList::where('sales_order_id', $id)
+                ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
+                ->first();
+
+            if ($existingPickingList) {
+                return response()->json([
+                    'message' => 'Picking List already exists for this Sales Order.',
+                    'data' => $existingPickingList
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            $pickingList = \App\Models\PickingList::create([
+                'picking_list_number' => \App\Models\PickingList::generateNumber(),
+                'sales_order_id' => $salesOrder->id,
+                'user_id' => auth()->id(),
+                'status' => 'READY',
+                'notes' => $request->notes ?? null,
+            ]);
+            Log::info('createPickingList: Created Picking List: ' . $pickingList->picking_list_number);
+
+            foreach ($salesOrder->items as $item) {
+                Log::info('createPickingList: Processing item: ' . $item->product_id);
+
+                $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)
+                    ->first();
+
+                \App\Models\PickingListItem::create([
+                    'picking_list_id' => $pickingList->id,
+                    'product_id' => $item->product_id,
+                    'warehouse_id' => $productStock?->warehouse_id,
+                    'location_code' => $productStock?->location_code ?? $item->product->location_code ?? null,
+                    'quantity_required' => $item->quantity,
+                    'quantity_picked' => 0,
+                    'status' => 'PENDING',
+                ]);
+            }
+
+            $salesOrder->update(['status' => 'PROCESSING']);
+            Log::info('createPickingList: Updated Sales Order status to PROCESSING');
+
+            // Create notification for warehouse team (commented out for now to avoid errors)
+            // Notification::createForRole(
+            //     'Gudang',
+            //     "New Picking List {$pickingList->picking_list_number} created for Sales Order {$salesOrder->sales_order_number}",
+            //     'info',
+            //     '/picking-lists'
+            // );
+
+            // Log activity (commented out for now to avoid errors)
+            // ActivityLog::log(
+            //     'CREATE_PICKING_LIST',
+            //     "User created Picking List {$pickingList->picking_list_number} for Sales Order {$salesOrder->sales_order_number}",
+            //     $pickingList
+            // );
+
+            DB::commit();
+
+            $pickingList->load(['salesOrder.customer', 'items.product', 'user']);
+
+            return response()->json([
+                'message' => 'Picking List created successfully!',
+                'data' => $pickingList
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('createPickingList: Error - ' . $e->getMessage());
+            Log::error('createPickingList: Trace - ' . $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Error creating Picking List: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
     }
 }

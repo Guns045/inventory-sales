@@ -349,81 +349,67 @@ class DashboardController extends Controller
     public function warehouseDashboard(Request $request)
     {
         try {
-            // Get sales orders statistics
-            $salesOrderStats = [
-                'pending' => SalesOrder::where('status', 'PENDING')->count(),
-                'processing' => SalesOrder::where('status', 'PROCESSING')->count(),
-                'ready' => SalesOrder::where('status', 'READY_TO_SHIP')->count()
+            // Get sales orders statistics for task cards
+            $tasks = [
+                'pending_orders' => SalesOrder::where('status', 'PENDING')->count(),
+                'processing_orders' => SalesOrder::where('status', 'PROCESSING')->count(),
+                'ready_to_ship' => SalesOrder::where('status', 'READY_TO_SHIP')->count(),
+                'completed_today' => SalesOrder::where('status', 'COMPLETED')
+                    ->whereDate('updated_at', today())->count(),
             ];
 
-            // Get delivery orders statistics (dummy data for now)
-            $deliveryOrderStats = [
-                'preparing' => SalesOrder::where('status', 'READY_TO_SHIP')->count(),
-                'shipped' => SalesOrder::where('status', 'SHIPPED')->count(),
-                'delivered' => SalesOrder::where('status', 'COMPLETED')->count()
+            // Get picking lists statistics
+            $pickingListsStats = [
+                'ready' => \App\Models\PickingList::where('status', 'READY')->count(),
+                'picking' => \App\Models\PickingList::where('status', 'PICKING')->count(),
+                'completed_today' => \App\Models\PickingList::where('status', 'COMPLETED')
+                    ->whereDate('completed_at', today())->count(),
             ];
 
-            // Get pending pickings with customer names and priority
-            $pendingPickings = SalesOrder::with(['customer'])
-                ->where('status', 'PENDING')
-                ->orderBy('created_at', 'desc')
-                ->take(10)
-                ->get()
-                ->map(function($order) {
-                    return [
-                        'id' => $order->id,
-                        'sales_order_number' => $order->sales_order_number ?? 'SO-' . date('Y-m-d') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                        'customer_name' => $order->customer ? $order->customer->company_name : 'Unknown Customer',
-                        'total_items' => $order->salesOrderItems ? $order->salesOrderItems->sum('quantity') : 0,
-                        'priority' => 'HIGH' // Dummy priority for now
-                    ];
-                })->values();
+            // Update tasks to include picking list stats
+            $tasks['processing_orders'] = $pickingListsStats['picking'];
+            $tasks['ready_to_ship'] = $pickingListsStats['ready'] + $tasks['ready_to_ship'];
 
-            // Get recent deliveries (dummy data for now)
-            $recentDeliveries = SalesOrder::with(['customer'])
-                ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-                ->orderBy('updated_at', 'desc')
-                ->take(5)
-                ->get()
-                ->map(function($order) {
-                    return [
-                        'id' => $order->id,
-                        'delivery_order_number' => 'DO-' . date('Y-m-d') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                        'customer_name' => $order->customer ? $order->customer->company_name : 'Unknown Customer',
-                        'shipping_date' => $order->updated_at ? $order->updated_at->format('Y-m-d') : date('Y-m-d'),
-                        'status' => $order->status
-                    ];
-                })->values();
-
-            // Get low stock items (dummy data for now)
-            $lowStockItems = [
-                [
-                    'id' => 1,
-                    'name' => 'Engine Oil 5W-30',
-                    'sku' => 'OIL-001',
-                    'current_stock' => 5,
-                    'min_stock_level' => 10
-                ]
+            // Get inventory summary
+            $inventory = [
+                'total_reserved' => ProductStock::sum('reserved_quantity'),
+                'today_movements' => [
+                    'goods_in' => StockMovement::where('type', 'IN')
+                        ->whereDate('created_at', today())
+                        ->count(),
+                    'goods_out' => StockMovement::where('type', 'OUT')
+                        ->whereDate('created_at', today())
+                        ->count(),
+                ],
+                'low_stock_count' => ProductStock::with('product')
+                    ->join('products', 'product_stock.product_id', '=', 'products.id')
+                    ->where('product_stock.quantity', '<=', DB::raw('products.min_stock_level'))
+                    ->count(),
             ];
 
+            // Return complete data structure
             return response()->json([
-                'sales_orders' => $salesOrderStats,
-                'delivery_orders' => $deliveryOrderStats,
-                'low_stock_items' => $lowStockItems,
-                'pending_pickings' => $pendingPickings,
-                'recent_deliveries' => $recentDeliveries
+                'tasks' => $tasks,
+                'inventory' => $inventory,
             ]);
-
         } catch (\Exception $e) {
             \Log::error('Warehouse Dashboard Error: ' . $e->getMessage());
-
             // Return default data structure on error
             return response()->json([
-                'sales_orders' => ['pending' => 0, 'processing' => 0, 'ready' => 0],
-                'delivery_orders' => ['preparing' => 0, 'shipped' => 0, 'delivered' => 0],
-                'low_stock_items' => [],
-                'pending_pickings' => [],
-                'recent_deliveries' => []
+                'tasks' => [
+                    'pending_orders' => 0,
+                    'processing_orders' => 0,
+                    'ready_to_ship' => 0,
+                    'completed_today' => 0,
+                ],
+                'inventory' => [
+                    'total_reserved' => 0,
+                    'today_movements' => [
+                        'goods_in' => 0,
+                        'goods_out' => 0,
+                    ],
+                    'low_stock_count' => 0,
+                ],
             ]);
         }
     }

@@ -30,6 +30,7 @@ import ProductStock from './pages/ProductStock';
 import Quotations from './pages/Quotations';
 import SalesOrders from './pages/SalesOrders';
 import DeliveryOrders from './pages/DeliveryOrders';
+import PickingLists from './pages/PickingLists';
 import PurchaseOrders from './pages/PurchaseOrders';
 import GoodsReceipts from './pages/GoodsReceipts';
 import Invoices from './pages/Invoices';
@@ -70,6 +71,7 @@ function App() {
                   <Route path="quotations" element={<Quotations />} />
                   <Route path="sales-orders" element={<SalesOrders />} />
                   <Route path="delivery-orders" element={<DeliveryOrders />} />
+                  <Route path="picking-lists" element={<PickingLists />} />
                   <Route path="purchase-orders" element={<PurchaseOrders />} />
                   <Route path="goods-receipts" element={<GoodsReceipts />} />
                   <Route path="invoices" element={<Invoices />} />

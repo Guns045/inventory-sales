@@ -257,15 +257,26 @@ class RoleController extends Controller
                 'dashboard' => ['read'],
                 'warehouses' => ['read', 'update'],
                 'stock' => ['read', 'update'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
                 'sales_orders' => ['read', 'update'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
                 'delivery_orders' => ['read', 'create', 'update'],
                 'goods_receipts' => ['read', 'create', 'update'],
+                'activity-logs' => ['read'],
                 'menu_items' => [
                     [
                         'title' => 'Dashboard',
                         'path' => '/dashboard/warehouse',
                         'icon' => 'bi-speedometer2',
-                        'permission' => 'dashboard.read'
+                        'permission' => 'dashboard.warehouse',
+                        'description' => 'Dashboard Gudang'
+                    ],
+                    [
+                        'title' => 'Picking Lists',
+                        'path' => '/dashboard/picking-lists',
+                        'icon' => 'bi-clipboard-check',
+                        'permission' => 'picking-lists.read',
+                        'description' => 'Kelola pengambilan barang'
                     ],
                     [
                         'title' => 'Warehouses',
@@ -280,13 +291,6 @@ class RoleController extends Controller
                         'icon' => 'bi-archive',
                         'permission' => 'stock.read',
                         'description' => 'Kelola stok barang'
-                    ],
-                    [
-                        'title' => 'Sales Orders',
-                        'path' => '/dashboard/sales-orders',
-                        'icon' => 'bi-cart-check',
-                        'permission' => 'sales_orders.read',
-                        'description' => 'Proses sales order'
                     ],
                     [
                         'title' => 'Delivery Orders',

@@ -15,6 +15,14 @@ const SalesOrders = () => {
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0
+  });
   const [formData, setFormData] = useState({
     customer_id: '',
     status: 'PENDING',
@@ -25,20 +33,50 @@ const SalesOrders = () => {
     fetchSalesOrders();
   }, []);
 
-  const fetchSalesOrders = async () => {
+  const fetchSalesOrders = async (page = 1) => {
     try {
       setLoading(true);
       setError('');
-      const response = await get('/sales-orders');
+      const response = await get(`/sales-orders?page=${page}`);
       if (response && response.data) {
         // Handle paginated response - Laravel pagination returns data in response.data.data
-        const salesOrdersData = Array.isArray(response.data) ? response.data : response.data.data || [];
-        setSalesOrders(salesOrdersData);
+        if (response.data.data) {
+          // Paginated response
+          setSalesOrders(response.data.data);
+          setPagination({
+            current_page: response.data.current_page,
+            last_page: response.data.last_page,
+            per_page: response.data.per_page,
+            total: response.data.total,
+            from: response.data.from,
+            to: response.data.to
+          });
+        } else {
+          // Simple array response (fallback)
+          const salesOrdersData = Array.isArray(response.data) ? response.data : [];
+          setSalesOrders(salesOrdersData);
+          setPagination({
+            current_page: 1,
+            last_page: 1,
+            per_page: salesOrdersData.length,
+            total: salesOrdersData.length,
+            from: 1,
+            to: salesOrdersData.length
+          });
+        }
       }
     } catch (err) {
       console.error('Error fetching sales orders:', err);
       setError('Failed to fetch sales orders');
       setSalesOrders([]); // Ensure we always set an array
+      setPagination({
+        current_page: 1,
+        last_page: 1,
+        per_page: 0,
+        total: 0,
+        from: 0,
+        to: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -73,7 +111,7 @@ const SalesOrders = () => {
         notes: `Status updated to ${newStatus} by ${user.name}`
       });
 
-      await fetchSalesOrders();
+      await fetchSalesOrders(pagination.current_page);
       setShowItemsModal(false);
 
     } catch (err) {
@@ -90,7 +128,7 @@ const SalesOrders = () => {
       try {
         setError('');
         await deleteRequest(`/sales-orders/${orderId}`);
-        await fetchSalesOrders();
+        await fetchSalesOrders(pagination.current_page);
       } catch (err) {
         let errorMessage = 'Failed to delete sales order';
         if (err.response?.data?.message) {
@@ -179,133 +217,192 @@ const SalesOrders = () => {
                   <p className="text-muted">Create your first sales order or convert a quotation to get started.</p>
                 </div>
               ) : (
-                <div className="table-responsive">
-                  <Table hover className="align-middle">
-                    <thead className="table-light">
-                      <tr>
-                        <th>SO Number</th>
-                        <th>Customer</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Total Amount</th>
-                        <th>Created By</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {salesOrders.map(order => (
-                        <tr key={order.id}>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <div>
-                                <div className="fw-semibold">{order.sales_order_number}</div>
-                                {order.quotation && (
-                                  <small className="text-muted">
-                                    From: {order.quotation.quotation_number}
-                                  </small>
-                                )}
+                <>
+                  <div className="table-responsive">
+                    <Table hover className="align-middle">
+                      <thead className="table-light">
+                        <tr>
+                          <th>SO Number</th>
+                          <th>Customer</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                          <th>Total Amount</th>
+                          <th>Created By</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {salesOrders.map(order => (
+                          <tr key={order.id}>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div>
+                                  <div className="fw-semibold">{order.sales_order_number}</div>
+                                  {order.quotation && (
+                                    <small className="text-muted">
+                                      From: {order.quotation.quotation_number}
+                                    </small>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="fw-medium">
-                              {order.customer?.company_name || 'N/A'}
-                            </div>
-                          </td>
-                          <td>
-                            {getStatusBadge(order.status)}
-                          </td>
-                          <td>
-                            <div>{formatDate(order.created_at)}</div>
-                          </td>
-                          <td>
-                            <div className="fw-semibold text-primary">
-                              {formatCurrency(order.total_amount)}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
-                                   style={{ width: '32px', height: '32px', fontSize: '12px' }}>
-                                {order.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </td>
+                            <td>
+                              <div className="fw-medium">
+                                {order.customer?.company_name || 'N/A'}
                               </div>
-                              <div>
-                                <div className="small fw-medium">{order.user?.name || 'Unknown'}</div>
-                                <small className="text-muted">{order.user?.role?.name || ''}</small>
+                            </td>
+                            <td>
+                              {getStatusBadge(order.status)}
+                            </td>
+                            <td>
+                              <div>{formatDate(order.created_at)}</div>
+                            </td>
+                            <td>
+                              <div className="fw-semibold text-primary">
+                                {formatCurrency(order.total_amount)}
                               </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="btn-group" role="group">
-                              <Button
-                                variant="outline-primary"
-                                size="sm"
-                                onClick={() => handleView(order)}
-                                title="View Details"
-                              >
-                                <i className="bi bi-eye"></i>
-                              </Button>
-
-                              {order.status === 'PENDING' && (
-                                <Button
-                                  variant="outline-success"
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(order, 'PROCESSING')}
-                                  title="Start Processing"
-                                >
-                                  <i className="bi bi-play-circle"></i>
-                                </Button>
-                              )}
-
-                              {order.status === 'PROCESSING' && (
+                            </td>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
+                                     style={{ width: '32px', height: '32px', fontSize: '12px' }}>
+                                  {order.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+                                <div>
+                                  <div className="small fw-medium">{order.user?.name || 'Unknown'}</div>
+                                  <small className="text-muted">{order.user?.role?.name || ''}</small>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="btn-group" role="group">
                                 <Button
                                   variant="outline-primary"
                                   size="sm"
-                                  onClick={() => handleStatusUpdate(order, 'READY_TO_SHIP')}
-                                  title="Mark as Ready to Ship"
+                                  onClick={() => handleView(order)}
+                                  title="View Details"
                                 >
-                                  <i className="bi bi-truck"></i>
+                                  <i className="bi bi-eye"></i>
                                 </Button>
-                              )}
 
-                              {order.status === 'READY_TO_SHIP' && (
+                                {order.status === 'PENDING' && (
+                                  <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    onClick={() => handleStatusUpdate(order, 'PROCESSING')}
+                                    title="Start Processing"
+                                  >
+                                    <i className="bi bi-play-circle"></i>
+                                  </Button>
+                                )}
+
+                                {order.status === 'PROCESSING' && (
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => handleStatusUpdate(order, 'READY_TO_SHIP')}
+                                    title="Mark as Ready to Ship"
+                                  >
+                                    <i className="bi bi-truck"></i>
+                                  </Button>
+                                )}
+
+                                {order.status === 'READY_TO_SHIP' && (
+                                  <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    onClick={() => handleStatusUpdate(order, 'SHIPPED')}
+                                    title="Mark as Shipped"
+                                  >
+                                    <i className="bi bi-box-seam"></i>
+                                  </Button>
+                                )}
+
+                                {order.status === 'SHIPPED' && (
+                                  <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    onClick={() => handleStatusUpdate(order, 'COMPLETED')}
+                                    title="Mark as Completed"
+                                  >
+                                    <i className="bi bi-check-circle"></i>
+                                  </Button>
+                                )}
+
                                 <Button
-                                  variant="outline-success"
+                                  variant="outline-danger"
                                   size="sm"
-                                  onClick={() => handleStatusUpdate(order, 'SHIPPED')}
-                                  title="Mark as Shipped"
+                                  onClick={() => handleDelete(order.id)}
+                                  disabled={order.status !== 'PENDING'}
+                                  title="Delete Sales Order"
                                 >
-                                  <i className="bi bi-box-seam"></i>
+                                  <i className="bi bi-trash"></i>
                                 </Button>
-                              )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
 
-                              {order.status === 'SHIPPED' && (
-                                <Button
-                                  variant="outline-success"
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(order, 'COMPLETED')}
-                                  title="Mark as Completed"
-                                >
-                                  <i className="bi bi-check-circle"></i>
-                                </Button>
-                              )}
+                  {/* Pagination */}
+                  {pagination.last_page > 1 && (
+                    <div className="d-flex justify-content-between align-items-center mt-3">
+                      <div className="text-muted">
+                        Showing {pagination.from} to {pagination.to} of {pagination.total} entries
+                      </div>
+                      <div className="btn-group" role="group">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => fetchSalesOrders(pagination.current_page - 1)}
+                          disabled={pagination.current_page === 1}
+                        >
+                          <i className="bi bi-chevron-left"></i> Previous
+                        </Button>
 
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => handleDelete(order.id)}
-                                disabled={order.status !== 'PENDING'}
-                                title="Delete Sales Order"
-                              >
-                                <i className="bi bi-trash"></i>
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+                        {/* Page Numbers */}
+                        {[...Array(Math.min(5, pagination.last_page))].map((_, index) => {
+                          const pageNumber = index + 1;
+                          const isActive = pageNumber === pagination.current_page;
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={isActive ? "primary" : "outline-secondary"}
+                              size="sm"
+                              onClick={() => fetchSalesOrders(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        })}
+
+                        {pagination.last_page > 5 && (
+                          <>
+                            <span className="btn btn-outline-secondary btn-sm disabled">...</span>
+                            <Button
+                              variant={pagination.current_page === pagination.last_page ? "primary" : "outline-secondary"}
+                              size="sm"
+                              onClick={() => fetchSalesOrders(pagination.last_page)}
+                            >
+                              {pagination.last_page}
+                            </Button>
+                          </>
+                        )}
+
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => fetchSalesOrders(pagination.current_page + 1)}
+                          disabled={pagination.current_page === pagination.last_page}
+                        >
+                          Next <i className="bi bi-chevron-right"></i>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </Card.Body>
           </Card>

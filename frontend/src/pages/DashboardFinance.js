@@ -26,11 +26,13 @@ const DashboardFinance = () => {
       monthly_total: 0,
       pending_count: 0,
     },
-    pending_invoices: [],
+    shipped_orders: [],
     recent_payments: [],
     loading: true,
     error: null
   });
+
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   useEffect(() => {
     fetchFinanceData();
@@ -41,11 +43,11 @@ const DashboardFinance = () => {
 
   const fetchFinanceData = async () => {
     try {
-      const [arResponse, invoicesResponse, paymentsResponse, pendingResponse, recentPaymentsResponse] = await Promise.all([
+      const [arResponse, invoicesResponse, paymentsResponse, shippedOrdersResponse, recentPaymentsResponse] = await Promise.all([
         api.get('/dashboard/finance'),
         api.get('/invoices'),
         api.get('/payments'),
-        api.get('/sales-orders'),
+        api.get('/sales-orders?status=SHIPPED'), // Changed to get SHIPPED orders
         api.get('/payments')
       ]);
 
@@ -68,11 +70,13 @@ const DashboardFinance = () => {
         return {};
       };
 
+      const shippedOrders = extractArrayData(shippedOrdersResponse).slice(0, 10);
+
       setFinanceData({
         accounts_receivable: extractObjectData(arResponse),
         invoices: extractObjectData(invoicesResponse),
         payments: extractObjectData(paymentsResponse),
-        pending_invoices: extractArrayData(pendingResponse).slice(0, 10), // Top 10 pending invoices
+        shipped_orders: shippedOrders, // Renamed from pending_invoices
         recent_payments: extractArrayData(recentPaymentsResponse).slice(0, 5), // Latest 5 payments
         loading: false,
         error: null
@@ -106,6 +110,11 @@ const DashboardFinance = () => {
       case 'partial': return 'info';
       default: return 'secondary';
     }
+  };
+
+  // Navigate to Invoices page for invoice creation
+  const handleNavigateToInvoices = () => {
+    window.location.href = '/invoices';
   };
 
   // Only allow Finance role to access this dashboard
@@ -285,25 +294,28 @@ const DashboardFinance = () => {
       </Row>
 
       <Row>
-        {/* Pending Invoices */}
+        {/* Shipped Orders - Ready for Invoice */}
         <Col lg={8} className="mb-4">
           <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
+            <Card.Header className="bg-warning bg-opacity-10 border-warning pt-3">
               <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Invoice Menunggu Pembuatan</h6>
+                <h6 className="mb-0 text-warning">
+                  <i className="bi bi-truck me-2"></i>
+                  Sales Orders Siap Dibuatkan Invoice ({financeData.shipped_orders?.length || 0})
+                </h6>
                 <div>
                   <Button variant="outline-success" size="sm" className="me-2">
                     <i className="bi bi-file-earmark-plus me-1"></i>
                     Batch Create Invoice
                   </Button>
                   <Button variant="outline-primary" size="sm">
-                    Lihat Semua
+                    Lihat Semua SO
                   </Button>
                 </div>
               </div>
             </Card.Header>
             <Card.Body>
-              {financeData.pending_invoices.length > 0 ? (
+              {financeData.shipped_orders && financeData.shipped_orders.length > 0 ? (
                 <div className="table-responsive">
                   <Table hover size="sm">
                     <thead>
@@ -311,6 +323,7 @@ const DashboardFinance = () => {
                         <th>No. SO</th>
                         <th>Pelanggan</th>
                         <th>Tanggal SO</th>
+                        <th>Tanggal Kirim</th>
                         <th>Total</th>
                         <th>Umur</th>
                         <th>Status</th>
@@ -318,28 +331,51 @@ const DashboardFinance = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {financeData.pending_invoices.map((invoice, index) => (
-                        <tr key={index}>
-                          <td><small className="fw-bold">{invoice.so_number}</small></td>
-                          <td>{invoice.customer_name}</td>
-                          <td><small>{new Date(invoice.so_date).toLocaleDateString('id-ID')}</small></td>
-                          <td className="fw-bold">{formatCurrency(invoice.total)}</td>
+                      {financeData.shipped_orders.map((order, index) => (
+                        <tr key={order.id}>
                           <td>
-                            <small className="text-muted">
-                              {Math.ceil((new Date() - new Date(invoice.so_date)) / (1000 * 60 * 60 * 24))} hari
-                            </small>
+                            <div className="fw-bold">{order.sales_order_number}</div>
+                            {order.delivery_order_number && (
+                              <small className="text-muted">DO: {order.delivery_order_number}</small>
+                            )}
                           </td>
+                          <td>{order.customer?.company_name || order.customer?.name || '-'}</td>
+                          <td><small>{new Date(order.created_at).toLocaleDateString('id-ID')}</small></td>
+                          <td><small>{new Date(order.shipped_at || order.updated_at).toLocaleDateString('id-ID')}</small></td>
+                          <td className="fw-bold text-primary">{formatCurrency(order.total_amount)}</td>
                           <td>
-                            <Badge bg={getPaymentStatusColor(invoice.status)}>
-                              {invoice.status.toUpperCase()}
+                            <Badge bg={
+                              Math.ceil((new Date() - new Date(order.shipped_at || order.updated_at)) / (1000 * 60 * 60 * 24)) >= 3 ? 'danger' :
+                              Math.ceil((new Date() - new Date(order.shipped_at || order.updated_at)) / (1000 * 60 * 60 * 24)) >= 1 ? 'warning' : 'success'
+                            }>
+                              {Math.ceil((new Date() - new Date(order.shipped_at || order.updated_at)) / (1000 * 60 * 60 * 24))} hari
                             </Badge>
                           </td>
                           <td>
-                            <Button variant="outline-primary" size="sm" className="me-1">
+                            <Badge bg="success">SHIPPED</Badge>
+                          </td>
+                          <td>
+                            <Button variant="outline-primary" size="sm" className="me-1" title="View Details">
                               <i className="bi bi-eye"></i>
                             </Button>
-                            <Button variant="outline-success" size="sm">
-                              <i className="bi bi-file-earmark-plus"></i>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => handleCreateInvoice(order.id)}
+                              disabled={invoiceLoading}
+                              title="Create Invoice"
+                            >
+                              {invoiceLoading ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="bi bi-file-earmark-plus me-1"></i>
+                                  Create Invoice
+                                </>
+                              )}
                             </Button>
                           </td>
                         </tr>
@@ -350,8 +386,8 @@ const DashboardFinance = () => {
               ) : (
                 <div className="text-center py-3">
                   <i className="bi bi-check-circle text-success fs-1"></i>
-                  <p className="text-muted mt-2">Tidak ada invoice pending</p>
-                  <small className="text-muted">Semua SO sudah dibuatkan invoice</small>
+                  <p className="text-muted mt-2">Tidak ada Sales Orders yang siap dibuatkan invoice</p>
+                  <small className="text-muted">Menunggu Sales Orders dengan status SHIPPED dari Tim Gudang</small>
                 </div>
               )}
             </Card.Body>
