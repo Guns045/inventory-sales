@@ -54,11 +54,7 @@
 }
 
 /* Grid layout for modal */
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
+
 
 .col-md-6 {
   padding: 0.5rem;

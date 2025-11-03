@@ -13,11 +13,29 @@ const Invoices = () => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState({
     status: '',
-    search: ''
+    search: '',
+    date_from: '',
+    date_to: '',
+    customer: '',
+    min_amount: '',
+    max_amount: ''
   });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    payment_date: '',
+    notes: ''
+  });
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const [statusModal, setStatusModal] = useState({
+    show: false,
+    invoice: null,
+    newStatus: ''
+  });
   const [createLoading, setCreateLoading] = useState(false);
 
   useEffect(() => {
@@ -27,8 +45,22 @@ const Invoices = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+
+      // Build query params for invoices
+      const params = new URLSearchParams();
+      if (filter.status) params.append('status', filter.status);
+      if (filter.search) params.append('search', filter.search);
+      if (filter.date_from) params.append('date_from', filter.date_from);
+      if (filter.date_to) params.append('date_to', filter.date_to);
+      if (filter.customer) params.append('customer', filter.customer);
+      if (filter.min_amount) params.append('min_amount', filter.min_amount);
+      if (filter.max_amount) params.append('max_amount', filter.max_amount);
+
+      const queryString = params.toString();
+      const invoiceUrl = `/invoices${queryString ? '?' + queryString : ''}`;
+
       const [invoicesResponse, shippedOrdersResponse] = await Promise.allSettled([
-        api.get('/invoices'),
+        api.get(invoiceUrl),
         api.get('/sales-orders?status=SHIPPED')
       ]);
 
@@ -94,10 +126,119 @@ const Invoices = () => {
     try {
       const response = await api.get(`/invoices/${invoice.id}`);
       setSelectedInvoice(response.data);
+
+      // Fetch payment history for this invoice
+      await fetchPaymentHistory(invoice.id);
+
       setShowDetailModal(true);
     } catch (err) {
       console.error('Error fetching invoice details:', err);
       setError('Failed to fetch invoice details');
+    }
+  };
+
+  const fetchPaymentHistory = async (invoiceId) => {
+    try {
+      const response = await api.get(`/payments?invoice_id=${invoiceId}`);
+      setPaymentHistory(response.data.data || response.data || []);
+    } catch (err) {
+      console.error('Error fetching payment history:', err);
+      setPaymentHistory([]);
+    }
+  };
+
+  const handleViewPaymentHistory = async (invoice) => {
+    try {
+      setSelectedInvoice(invoice);
+      await fetchPaymentHistory(invoice.id);
+      setShowDetailModal(true);
+    } catch (err) {
+      console.error('Error viewing payment history:', err);
+      alert('❌ Failed to load payment history');
+    }
+  };
+
+  const handleStatusDropdown = (invoice) => {
+    setStatusModal({
+      show: true,
+      invoice: invoice,
+      newStatus: invoice.status
+    });
+  };
+
+  const getAvailableStatuses = (currentStatus) => {
+    const statuses = ['UNPAID', 'PAID', 'PARTIAL', 'OVERDUE'];
+
+    // Business rules for status transitions
+    if (currentStatus === 'PAID') {
+      return []; // Cannot change from PAID
+    }
+
+    return statuses.filter(status => {
+      if (status === currentStatus) return false;
+      if (currentStatus === 'PARTIAL' && status === 'UNPAID') return false;
+      return true;
+    });
+  };
+
+  const handleStatusChange = async () => {
+    if (!statusModal.invoice || !statusModal.newStatus) return;
+
+    try {
+      await handleUpdateStatus(
+        statusModal.invoice.id,
+        statusModal.newStatus,
+        `Status changed by user`
+      );
+
+      setStatusModal({ show: false, invoice: null, newStatus: '' });
+      await fetchData();
+    } catch (error) {
+      console.error('Error changing status:', error);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      // Build query params for export
+      const params = new URLSearchParams();
+      if (filter.status) params.append('status', filter.status);
+      if (filter.search) params.append('search', filter.search);
+      if (filter.date_from) params.append('date_from', filter.date_from);
+      if (filter.date_to) params.append('date_to', filter.date_to);
+      if (filter.customer) params.append('customer', filter.customer);
+      if (filter.min_amount) params.append('min_amount', filter.min_amount);
+      if (filter.max_amount) params.append('max_amount', filter.max_amount);
+      params.append('export', 'excel');
+
+      const queryString = params.toString();
+      const exportUrl = `/invoices/export${queryString ? '?' + queryString : ''}`;
+
+      const response = await api.get(exportUrl, {
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+      });
+
+      // Create blob URL and download
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoices-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      alert('✅ Invoice data exported successfully!');
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      alert('❌ Failed to export data: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -148,6 +289,108 @@ const Invoices = () => {
         console.error('Error response:', error.response.status, error.response.data);
       }
       alert('Gagal mencetak invoice: ' + (error.response?.data?.message || error.message || 'Unknown error'));
+    }
+  };
+
+  const handleUpdateStatus = async (invoiceId, newStatus, notes = '') => {
+    try {
+      const response = await api.patch(`/invoices/${invoiceId}/status`, {
+        status: newStatus,
+        notes: notes
+      });
+
+      if (response.data) {
+        await fetchData(); // Refresh the invoice list
+        alert(`✅ Invoice status berhasil diubah ke ${newStatus}!`);
+      }
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+      alert('❌ Gagal mengubah status invoice: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleMarkAsPaid = (invoice) => {
+    setSelectedInvoice(invoice);
+    setPaymentData({
+      amount: invoice.total_amount || '',
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: ''
+    });
+    setShowPaymentModal(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedInvoice) return;
+
+    // Validation
+    if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
+      alert('❌ Jumlah pembayaran harus lebih dari 0');
+      return;
+    }
+
+    if (!paymentData.payment_date) {
+      alert('❌ Tanggal pembayaran harus diisi');
+      return;
+    }
+
+    const paymentAmount = parseFloat(paymentData.amount);
+    const totalAmount = parseFloat(selectedInvoice.total_amount);
+
+    // Check if payment amount exceeds total
+    if (paymentAmount > totalAmount) {
+      alert(`❌ Jumlah pembayaran melebihi total invoice (${formatCurrency(totalAmount)})`);
+      return;
+    }
+
+    try {
+      // Create payment record
+      const paymentRecord = {
+        invoice_id: selectedInvoice.id,
+        payment_date: paymentData.payment_date,
+        amount_paid: paymentAmount,
+        payment_method: 'Transfer Bank', // Default, can be made configurable
+        reference_number: paymentData.notes || null
+      };
+
+      await api.post('/payments', paymentRecord);
+
+      // Show appropriate success message
+      let successMessage = '✅ Pembayaran berhasil dicatat!';
+      if (paymentAmount < totalAmount) {
+        const remaining = totalAmount - paymentAmount;
+        successMessage += `\nSisa pembayaran: ${formatCurrency(remaining)}`;
+      }
+
+      // Reset and close modal
+      setShowPaymentModal(false);
+      setSelectedInvoice(null);
+      setPaymentData({ amount: '', payment_date: '', notes: '' });
+
+      // Refresh data
+      await fetchData();
+      alert(successMessage);
+
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      alert('❌ Gagal mencatat pembayaran: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const isInvoiceOverdue = (invoice) => {
+    if (!invoice.due_date || invoice.status === 'PAID' || invoice.status === 'OVERDUE') {
+      return false;
+    }
+    const dueDate = new Date(invoice.due_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  };
+
+  const handleMarkAsOverdue = (invoice) => {
+    if (window.confirm(`Apakah Anda yakin ingin mengubah status invoice ${invoice.invoice_number} ke OVERDUE?`)) {
+      const notes = `Status diubah ke OVERDUE pada ${formatDate(new Date())}. Melewati tanggal jatuh tempo: ${formatDate(invoice.due_date)}.`;
+      handleUpdateStatus(invoice.id, 'OVERDUE', notes);
     }
   };
 
@@ -332,7 +575,11 @@ const Invoices = () => {
         <Card.Header className="bg-white border-0">
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0">Invoices ({invoices.length})</h5>
-            <div className="d-flex gap-2">
+            <Button variant="outline-success" size="sm" onClick={handleExportExcel}>
+              <i className="bi bi-file-earmark-excel me-1"></i>
+              Export to Excel
+            </Button>
+            <div className="d-flex gap-2 flex-wrap">
               <Form.Group className="mb-0">
                 <Form.Control
                   as="select"
@@ -357,6 +604,56 @@ const Invoices = () => {
                   className="form-control form-control-sm"
                 />
               </Form.Group>
+              <Form.Group className="mb-0">
+                <Form.Control
+                  type="date"
+                  placeholder="From Date"
+                  value={filter.date_from}
+                  onChange={(e) => handleFilterChange('date_from', e.target.value)}
+                  className="form-control form-control-sm"
+                  title="From Date"
+                />
+              </Form.Group>
+              <Form.Group className="mb-0">
+                <Form.Control
+                  type="date"
+                  placeholder="To Date"
+                  value={filter.date_to}
+                  onChange={(e) => handleFilterChange('date_to', e.target.value)}
+                  className="form-control form-control-sm"
+                  title="To Date"
+                />
+              </Form.Group>
+              <Form.Group className="mb-0">
+                <Form.Control
+                  type="text"
+                  placeholder="Customer"
+                  value={filter.customer}
+                  onChange={(e) => handleFilterChange('customer', e.target.value)}
+                  className="form-control form-control-sm"
+                />
+              </Form.Group>
+              <Form.Group className="mb-0">
+                <Form.Control
+                  type="number"
+                  placeholder="Min Amount"
+                  value={filter.min_amount}
+                  onChange={(e) => handleFilterChange('min_amount', e.target.value)}
+                  className="form-control form-control-sm"
+                />
+              </Form.Group>
+              <Form.Group className="mb-0">
+                <Form.Control
+                  type="number"
+                  placeholder="Max Amount"
+                  value={filter.max_amount}
+                  onChange={(e) => handleFilterChange('max_amount', e.target.value)}
+                  className="form-control form-control-sm"
+                />
+              </Form.Group>
+              <Button variant="outline-secondary" size="sm" onClick={() => setFilter({ status: '', search: '', date_from: '', date_to: '', customer: '', min_amount: '', max_amount: '' })}>
+                <i className="bi bi-arrow-clockwise"></i> Reset
+              </Button>
             </div>
           </div>
         </Card.Header>
@@ -376,7 +673,10 @@ const Invoices = () => {
               </thead>
               <tbody>
                 {invoices.map((invoice) => (
-                  <tr key={invoice.id}>
+                  <tr
+                    key={invoice.id}
+                    className={isInvoiceOverdue(invoice) && invoice.status !== 'OVERDUE' ? 'table-warning' : ''}
+                  >
                     <td>
                       <div className="fw-bold">{invoice.invoice_number}</div>
                       {invoice.sales_order_number && (
@@ -392,6 +692,9 @@ const Invoices = () => {
                     <td>
                       <Badge bg={getStatusBadge(invoice.status)}>
                         {invoice.status}
+                        {isInvoiceOverdue(invoice) && invoice.status !== 'OVERDUE' && (
+                          <i className="bi bi-exclamation-triangle ms-1"></i>
+                        )}
                       </Badge>
                     </td>
                     <td>
@@ -402,6 +705,51 @@ const Invoices = () => {
                         onClick={() => handleViewDetail(invoice)}
                       >
                         <i className="bi bi-eye"></i>
+                      </Button>
+                      {(invoice.status === 'UNPAID' || invoice.status === 'PARTIAL') && (
+                        <>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            className="me-1"
+                            onClick={() => handleMarkAsPaid(invoice)}
+                            title="Add Payment"
+                          >
+                            <i className="bi bi-plus-circle"></i>
+                          </Button>
+                          {invoice.status === 'UNPAID' && isInvoiceOverdue(invoice) && (
+                            <Button
+                              variant="outline-warning"
+                              size="sm"
+                              className="me-1"
+                              onClick={() => handleMarkAsOverdue(invoice)}
+                              title="Mark as Overdue"
+                            >
+                              <i className="bi bi-exclamation-triangle"></i>
+                            </Button>
+                          )}
+                        </>
+                      )}
+
+                      {/* Status Management Dropdown */}
+                      <div className="btn-group me-1">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => handleStatusDropdown(invoice)}
+                          title="Change Status"
+                        >
+                          <i className="bi bi-arrow-repeat"></i>
+                        </Button>
+                      </div>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="me-1"
+                        onClick={() => handleViewPaymentHistory(invoice)}
+                        title="View Payment History"
+                      >
+                        <i className="bi bi-clock-history"></i>
                       </Button>
                       <Button
                         variant="outline-info"
@@ -499,12 +847,77 @@ const Invoices = () => {
                   <p><strong>Total Amount:</strong> {formatCurrency(selectedInvoice.total_amount)}</p>
                 </Col>
               </Row>
+
+              {/* Payment Progress */}
+              {paymentHistory.length > 0 && (
+                <div className="mt-3">
+                  <h6>Payment Progress</h6>
+                  <div className="progress mb-2" style={{ height: '25px' }}>
+                    <div
+                      className="progress-bar bg-success"
+                      role="progressbar"
+                      style={{ width: `${(paymentHistory.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0) / selectedInvoice.total_amount) * 100}%` }}
+                    >
+                      {Math.round((paymentHistory.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0) / selectedInvoice.total_amount) * 100)}% Paid
+                    </div>
+                  </div>
+                  <small className="text-muted">
+                    {formatCurrency(paymentHistory.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0))} of {formatCurrency(selectedInvoice.total_amount)}
+                  </small>
+                </div>
+              )}
+
               {selectedInvoice.notes && (
                 <div className="mt-3">
                   <h6>Notes</h6>
                   <p>{selectedInvoice.notes}</p>
                 </div>
               )}
+
+              {/* Payment History Section */}
+              <div className="mt-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="mb-0">Payment History</h6>
+                  {paymentHistory.length > 0 && (
+                    <div className="d-flex gap-2">
+                      <Badge bg="success">
+                        Total Paid: {formatCurrency(paymentHistory.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0))}
+                      </Badge>
+                      <Badge bg="warning">
+                        Remaining: {formatCurrency(selectedInvoice.total_amount - paymentHistory.reduce((sum, p) => sum + parseFloat(p.amount_paid), 0))}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {paymentHistory.length > 0 ? (
+                  <Table responsive size="sm">
+                    <thead>
+                      <tr>
+                        <th>Payment Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentHistory.map((payment) => (
+                        <tr key={payment.id}>
+                          <td>{formatDate(payment.payment_date)}</td>
+                          <td className="fw-semibold text-success">{formatCurrency(payment.amount_paid)}</td>
+                          <td>{payment.payment_method}</td>
+                          <td>{payment.reference_number || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-3 bg-light rounded">
+                    <i className="bi bi-clock-history text-muted fs-4"></i>
+                    <p className="text-muted mt-2 mb-0">No payment history found</p>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </Modal.Body>
@@ -518,6 +931,135 @@ const Invoices = () => {
               Print Invoice
             </Button>
           )}
+        </Modal.Footer>
+      </Modal>
+
+      {/* Payment Confirmation Modal */}
+      <Modal show={showPaymentModal} onHide={() => setShowPaymentModal(false)} size="md">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-check-circle text-success me-2"></i>
+            Konfirmasi Pembayaran
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedInvoice && (
+            <div>
+              <div className="mb-3">
+                <strong>Invoice: </strong>{selectedInvoice.invoice_number}
+              </div>
+              <div className="mb-3">
+                <strong>Total: </strong>{formatCurrency(selectedInvoice.total_amount)}
+              </div>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Jumlah Pembayaran *</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentData.amount}
+                  onChange={(e) => setPaymentData(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="Masukkan jumlah pembayaran"
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Tanggal Pembayaran *</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={paymentData.payment_date}
+                  onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date: e.target.value }))}
+                  max={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Catatan (Opsional)</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={paymentData.notes}
+                  onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Masukkan catatan pembayaran..."
+                />
+              </Form.Group>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowPaymentModal(false)}>
+            <i className="bi bi-x-circle me-1"></i>
+            Batal
+          </Button>
+          <Button variant="success" onClick={handleConfirmPayment}>
+            <i className="bi bi-check-circle me-1"></i>
+            Konfirmasi Pembayaran
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Status Change Modal */}
+      <Modal show={statusModal.show} onHide={() => setStatusModal({ show: false, invoice: null, newStatus: '' })} size="md">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-arrow-repeat text-primary me-2"></i>
+            Change Invoice Status
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {statusModal.invoice && (
+            <div>
+              <div className="mb-3">
+                <strong>Invoice: </strong>{statusModal.invoice.invoice_number}
+              </div>
+              <div className="mb-3">
+                <strong>Current Status: </strong>
+                <Badge bg={getStatusBadge(statusModal.invoice.status)}>
+                  {statusModal.invoice.status}
+                </Badge>
+              </div>
+
+              <Form.Group className="mb-3">
+                <Form.Label>New Status *</Form.Label>
+                <Form.Select
+                  value={statusModal.newStatus}
+                  onChange={(e) => setStatusModal(prev => ({ ...prev, newStatus: e.target.value }))}
+                  required
+                >
+                  <option value="">Select Status</option>
+                  {getAvailableStatuses(statusModal.invoice.status).map(status => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              {getAvailableStatuses(statusModal.invoice.status).length === 0 && (
+                <Alert variant="warning">
+                  <i className="bi bi-info-circle me-2"></i>
+                  Cannot change status from {statusModal.invoice.status}
+                </Alert>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setStatusModal({ show: false, invoice: null, newStatus: '' })}>
+            <i className="bi bi-x-circle me-1"></i>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleStatusChange}
+            disabled={!statusModal.newStatus || statusModal.newStatus === statusModal.invoice?.status}
+          >
+            <i className="bi bi-check-circle me-1"></i>
+            Change Status
+          </Button>
         </Modal.Footer>
       </Modal>
     </div>

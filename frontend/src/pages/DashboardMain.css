@@ -1,0 +1,165 @@
+.dashboard-main {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* Hover effect for cards */
+.hover-lift {
+  transition: all 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Better spacing for mobile */
+@media (max-width: 768px) {
+  .dashboard-main {
+    padding: 0.75rem;
+  }
+
+  .card-body {
+    padding: 1rem !important;
+  }
+
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+}
+
+/* Improved responsive spacing */
+@media (max-width: 576px) {
+  .dashboard-main {
+    padding: 0.5rem;
+  }
+
+  .card-body {
+    padding: 0.75rem !important;
+  }
+
+  .table-responsive {
+    font-size: 0.8rem;
+  }
+}
+
+/* Tablet responsive adjustments */
+@media (min-width: 577px) and (max-width: 991px) {
+  .dashboard-main {
+    padding: 1rem;
+  }
+
+  .card-body {
+    padding: 1.5rem !important;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1200px) {
+  .dashboard-main {
+    padding: 1.5rem;
+  }
+
+  .card-body {
+    padding: 2rem !important;
+  }
+}
+
+/* Improve badge styling */
+.badge {
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+/* Better progress bar styling */
+.progress {
+  background-color: #e9ecef;
+}
+
+.progress-bar {
+  transition: width 0.6s ease;
+}
+
+/* Card header improvements */
+.card-header {
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+}
+
+/* Table improvements */
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #495057;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Button improvements */
+.btn {
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Icon improvements */
+i {
+  vertical-align: middle;
+}
+
+/* Empty state improvements */
+.text-center.py-5 i {
+  opacity: 0.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .dashboard-main .h2 {
+    font-size: 1.5rem;
+  }
+
+  .card-body .h3 {
+    font-size: 1.75rem;
+  }
+
+  .table-sm th,
+  .table-sm td {
+    padding: 0.5rem;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.2s ease;
+}
+
+/* Focus states for accessibility */
+.btn:focus,
+.btn:focus-visible {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Loading state */
+.spinner-border {
+  animation: spinner-border 0.75s linear infinite;
+}
+
+/* Better color contrast */
+.text-muted {
+  color: #6c757d !important;
+}
+
+/* Improved shadows */
+.shadow-sm {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}

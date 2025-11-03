@@ -12,9 +12,16 @@ class PaymentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $payments = Payment::with(['invoice', 'invoice.customer'])->paginate(10);
+        $query = Payment::with(['invoice', 'invoice.customer']);
+
+        // Filter by invoice_id if provided
+        if ($request->has('invoice_id') && !empty($request->invoice_id)) {
+            $query->where('invoice_id', $request->invoice_id);
+        }
+
+        $payments = $query->orderBy('payment_date', 'desc')->paginate(10);
         return response()->json($payments);
     }
 
@@ -36,9 +43,16 @@ class PaymentController extends Controller
         // Update invoice status based on payment
         $invoice = Invoice::findOrFail($request->invoice_id);
         $totalPayments = $invoice->payments()->sum('amount_paid');
-        
+
         if ($totalPayments >= $invoice->total_amount) {
             $invoice->update(['status' => 'PAID']);
+        } elseif ($totalPayments > 0 && $totalPayments < $invoice->total_amount) {
+            // Partial payment
+            if ($invoice->due_date < now()) {
+                $invoice->update(['status' => 'OVERDUE']);
+            } else {
+                $invoice->update(['status' => 'PARTIAL']);
+            }
         } elseif ($invoice->due_date < now() && $totalPayments < $invoice->total_amount) {
             $invoice->update(['status' => 'OVERDUE']);
         } else {
@@ -77,9 +91,16 @@ class PaymentController extends Controller
         // Update invoice status based on payment
         $invoice = Invoice::findOrFail($request->invoice_id);
         $totalPayments = $invoice->payments()->sum('amount_paid');
-        
+
         if ($totalPayments >= $invoice->total_amount) {
             $invoice->update(['status' => 'PAID']);
+        } elseif ($totalPayments > 0 && $totalPayments < $invoice->total_amount) {
+            // Partial payment
+            if ($invoice->due_date < now()) {
+                $invoice->update(['status' => 'OVERDUE']);
+            } else {
+                $invoice->update(['status' => 'PARTIAL']);
+            }
         } elseif ($invoice->due_date < now() && $totalPayments < $invoice->total_amount) {
             $invoice->update(['status' => 'OVERDUE']);
         } else {

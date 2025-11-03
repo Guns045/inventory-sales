@@ -100,6 +100,8 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::apiResource('invoices', InvoiceController::class);
     Route::get('/invoices/{id}/items', [InvoiceController::class, 'getInvoiceItems']);
     Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->middleware('permission:invoices.read');
+    Route::patch('/invoices/{id}/status', [InvoiceController::class, 'updateStatus'])->middleware('permission:invoices.update');
+    Route::get('/invoices/export', [InvoiceController::class, 'export'])->middleware('permission:invoices.read');
     Route::apiResource('payments', PaymentController::class);
     
     // Purchase management

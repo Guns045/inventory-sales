@@ -255,6 +255,7 @@ class RoleController extends Controller
             ],
             'Gudang' => [
                 'dashboard' => ['read'],
+                'dashboard.warehouse' => ['read'],
                 'warehouses' => ['read', 'update'],
                 'stock' => ['read', 'update'],
                 'product-stock' => ['read', 'create', 'update', 'delete'],

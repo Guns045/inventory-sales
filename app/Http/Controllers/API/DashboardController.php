@@ -528,8 +528,10 @@ class DashboardController extends Controller
                 return $this->salesDashboard($request);
             case 'admin':
             case 'manager':
+            case 'administrator':
                 return $this->adminDashboard($request);
             case 'gudang':
+            case 'warehouse':
                 return $this->warehouseDashboard($request);
             case 'finance':
                 return $this->financeDashboard($request);
@@ -653,13 +655,13 @@ class DashboardController extends Controller
 
             // Daily Sales Trend
             $dailySales = SalesOrder::selectRaw('
-                    DATE(created_at) as date,
+                    DATE_FORMAT(created_at, "%Y-%m-%d") as date,
                     COUNT(*) as order_count,
                     SUM(total_amount) as total_sales
                 ')
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
                 ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-                ->groupBy('DATE(created_at)')
+                ->groupBy('DATE_FORMAT(created_at, "%Y-%m-%d")')
                 ->orderBy('date')
                 ->get();
 
@@ -715,13 +717,13 @@ class DashboardController extends Controller
 
             // Monthly Comparison (Last 12 months)
             $monthlyComparison = SalesOrder::selectRaw('
-                    strftime("%Y-%m", created_at) as month,
+                    DATE_FORMAT(created_at, "%Y-%m") as month,
                     COUNT(*) as order_count,
                     SUM(total_amount) as total_sales
                 ')
                 ->where('created_at', '>=', now()->subMonths(12))
                 ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-                ->groupBy('month')
+                ->groupBy('DATE_FORMAT(created_at, "%Y-%m")')
                 ->orderBy('month')
                 ->get();
 

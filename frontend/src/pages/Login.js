@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAPI } from '../contexts/APIContext';
-import { useNavigate } from 'react-router-dom';
-import { Form, Button, Alert, Spinner, Container, Row, Col } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -12,7 +11,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { api } = useAPI();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,72 +45,53 @@ const Login = () => {
 
   return (
     <div className="login-container">
-      <Container>
-        <Row className="justify-content-center">
-          <Col md={6} lg={5} xl={4}>
-            <div className="login-card">
+      <div className="login-wrapper">
+        <div className="login-card">
               {/* Logo and Title */}
-              <div className="text-center mb-4">
+              <div className="login-header">
                 <div className="mb-3">
-                  <i className="bi bi-box-seam text-primary" style={{ fontSize: '3rem' }}></i>
+                  <i className="bi bi-box-seam" style={{ fontSize: '3rem' }}></i>
                 </div>
-                <h2 className="text-dark fw-bold mb-1">Inventory System</h2>
-                <p className="text-secondary">Sign in to your account</p>
+                <h1>Inventory System</h1>
+                <p>Sign in to your account</p>
               </div>
 
               {/* Error Alert */}
               {error && (
-                <Alert variant="danger" className="mb-4">
-                  <i className="bi bi-exclamation-triangle me-2"></i>
+                <div className="error-message">
+                  <i className="bi bi-exclamation-triangle"></i>
                   {error}
-                </Alert>
+                </div>
               )}
 
-              {/* Login Form */}
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-4">
-                  <Form.Label className="text-dark fw-semibold">
-                    <i className="bi bi-envelope text-primary me-2"></i>
+            {/* Login Form */}
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>
+                    <i className="bi bi-envelope me-2"></i>
                     Email Address
-                  </Form.Label>
-                  <Form.Control
+                  </label>
+                  <input
                     type="email"
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    size="lg"
-                    className="bg-white text-dark border border-secondary-subtle"
-                    style={{
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                      borderRadius: '8px',
-                      padding: '12px 16px',
-                      fontSize: '16px'
-                    }}
                   />
-                </Form.Group>
+                </div>
 
-                <Form.Group className="mb-4">
-                  <Form.Label className="text-dark fw-semibold">
-                    <i className="bi bi-lock text-primary me-2"></i>
+                <div className="form-group">
+                  <label>
+                    <i className="bi bi-lock me-2"></i>
                     Password
-                  </Form.Label>
+                  </label>
                   <div className="password-toggle">
-                    <Form.Control
+                    <input
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      size="lg"
-                      className="bg-white text-dark border border-secondary-subtle"
-                      style={{
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                        borderRadius: '8px',
-                        padding: '12px 16px',
-                        fontSize: '16px',
-                        paddingRight: '50px'
-                      }}
                     />
                     <button
                       type="button"
@@ -120,23 +99,15 @@ const Login = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       onMouseDown={(e) => e.preventDefault()}
                     >
-                      <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'} text-secondary`}></i>
+                      <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
                     </button>
                   </div>
-                </Form.Group>
+                </div>
 
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  className="w-100 mb-3 fw-semibold py-3"
-                  size="lg"
+                  className="login-button"
                   disabled={loading}
-                  style={{
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                    fontSize: '16px',
-                    fontWeight: '600'
-                  }}
                 >
                   {loading ? (
                     <>
@@ -149,46 +120,42 @@ const Login = () => {
                       Sign In
                     </>
                   )}
-                </Button>
-              </Form>
+                </button>
+              </form>
 
               {/* Demo Accounts */}
-              <div className="mt-4 p-3 bg-light rounded-3">
-                <h6 className="text-dark mb-3 fw-semibold">
-                  <i className="bi bi-info-circle text-primary me-2"></i>
+              <div className="demo-accounts">
+                <h6>
+                  <i className="bi bi-info-circle me-2"></i>
                   Demo Accounts
                 </h6>
                 <div className="small">
                   {demoAccounts.map((account, index) => (
-                    <div key={index} className="text-secondary mb-2 d-flex justify-content-between align-items-center">
+                    <div key={index} className="account-item">
                       <span>
-                        <i className="bi bi-person-circle text-primary me-2"></i>
+                        <i className="bi bi-person-circle me-2"></i>
                         <strong>{account.role}:</strong>
                       </span>
-                      <code className="text-dark bg-white px-2 py-1 rounded border">
+                      <code>
                         {account.email}
                       </code>
                     </div>
                   ))}
                 </div>
-                <div className="text-secondary small mt-3 p-2 bg-white rounded-2 border">
-                  <i className="bi bi-key text-primary me-2"></i>
-                  <strong>Password:</strong> <span className="text-dark">password</span>
+                <div className="password-note">
+                  <i className="bi bi-key me-2"></i>
+                  <strong>Password:</strong> <span>password</span>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="text-center mt-4">
-                <small className="text-secondary">
-                  <i className="bi bi-shield-check text-primary me-1"></i>
-                  Secure Login • Powered by Laravel & React
-                </small>
+                    {/* Footer */}
+              <div className="login-footer">
+                <i className="bi bi-shield-check me-1"></i>
+                Secure Login • Powered by Laravel & React
               </div>
             </div>
-          </Col>
-        </Row>
-      </Container>
-    </div>
+          </div>
+        </div>
   );
 };
 

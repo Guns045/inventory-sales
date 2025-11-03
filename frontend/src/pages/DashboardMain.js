@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { useAuth } from '../contexts/AuthContext';
+import './DashboardMain.css';
 
 const DashboardMain = () => {
   const { api } = useAPI();
@@ -37,6 +38,8 @@ const DashboardMain = () => {
     loading: true,
     error: null
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -47,7 +50,11 @@ const DashboardMain = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [kpiResponse, criticalResponse, quotationsResponse, ordersResponse, pipelineResponse, salesResponse] = await Promise.all([
+      setLoading(true);
+      setError(null);
+
+      // Use Promise.allSettled to handle partial failures
+      const [kpiResponse, criticalResponse, quotationsResponse, ordersResponse, pipelineResponse, salesResponse] = await Promise.allSettled([
         api.get('/dashboard'),
         api.get('/reports/stock'),
         api.get('/quotations?status=draft'),
@@ -56,28 +63,62 @@ const DashboardMain = () => {
         api.get('/reports/sales')
       ]);
 
-      setDashboardData({
-        kpi: kpiResponse.data || {
+      // Get data from fulfilled promises, use defaults for rejected ones
+      const kpiData = kpiResponse.status === 'fulfilled' ? kpiResponse.value.data : {
+        summary: {
           total_sales_ytd: 0,
-          critical_stocks_count: 0,
+          critical_stocks: 0,
           pending_quotations_count: 0,
           ready_to_ship_count: 0,
+        }
+      };
+
+      const criticalData = criticalResponse.status === 'fulfilled' ? criticalResponse.value.data : [];
+      const quotationsData = quotationsResponse.status === 'fulfilled' ? quotationsResponse.value.data : [];
+      const ordersData = ordersResponse.status === 'fulfilled' ? ordersResponse.value.data : [];
+      const pipelineData = pipelineResponse.status === 'fulfilled' ? pipelineResponse.value.data : { draft: 0, approved: 0, rejected: 0 };
+      const salesData = salesResponse.status === 'fulfilled' ? salesResponse.value.data : [];
+
+      // Map admin dashboard data structure to DashboardMain format
+      const mappedKpi = kpiData.summary || kpiData;
+
+      setDashboardData({
+        kpi: {
+          total_sales_ytd: mappedKpi.this_month_sales || mappedKpi.total_sales_ytd || 0,
+          critical_stocks_count: mappedKpi.critical_stocks || 0,
+          pending_quotations_count: mappedKpi.pending_approvals || 0,
+          ready_to_ship_count: mappedKpi.ready_to_ship || 0,
         },
-        critical_stocks: Array.isArray(criticalResponse.data) ? criticalResponse.data.slice(0, 10) : [], // Top 10 critical items
-        pending_quotations: Array.isArray(quotationsResponse.data) ? quotationsResponse.data : [],
-        ready_to_ship_orders: Array.isArray(ordersResponse.data) ? ordersResponse.data : [],
-        sales_pipeline: pipelineResponse.data || {
-          draft: 0,
-          approved: 0,
-          rejected: 0,
+        critical_stocks: Array.isArray(criticalData) ? criticalData.slice(0, 10).map(item => ({
+          item_code: item.sku || '',
+          item_name: item.product_name || item.name || '',
+          stock_actual: item.quantity || 0,
+          stock_minimum: item.min_stock_level || 0
+        })) : [],
+        pending_quotations: Array.isArray(quotationsData) ? quotationsData.slice(0, 10) : [],
+        ready_to_ship_orders: Array.isArray(ordersData) ? ordersData.slice(0, 10).map(order => ({
+          so_number: order.sales_order_number || `SO-${order.id}`,
+          customer_name: order.customer?.company_name || order.customer?.name || 'Unknown',
+          total: order.total_amount || 0,
+          so_date: order.created_at
+        })) : [],
+        sales_pipeline: {
+          draft: pipelineData.draft || 0,
+          approved: pipelineData.approved || 0,
+          rejected: pipelineData.rejected || 0,
         },
-        monthly_sales: Array.isArray(salesResponse.data) ? salesResponse.data : [],
+        monthly_sales: Array.isArray(salesData) ? salesData.slice(0, 6) : [],
         loading: false,
         error: null
       });
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      setDashboardData(prev => ({ ...prev, loading: false, error: error.message }));
+      setDashboardData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load dashboard data. Please try again.'
+      }));
     }
   };
 
@@ -112,15 +153,15 @@ const DashboardMain = () => {
   }
 
   return (
-    <div>
+    <div className="dashboard-main p-3 p-lg-4">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 className="mb-1">Dashboard Utama</h2>
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 mb-lg-5">
+        <div className="mb-3 mb-md-0">
+          <h1 className="h2 fw-bold mb-2">Dashboard Utama</h1>
           <p className="text-muted mb-0">Ringkasan Eksekutif - Sistem Manajemen Penjualan</p>
         </div>
-        <div>
-          <Button variant="outline-primary" size="sm" className="me-2">
+        <div className="d-flex flex-wrap gap-2">
+          <Button variant="outline-primary" size="sm">
             <i className="bi bi-download me-1"></i>
             Export Laporan
           </Button>
@@ -132,293 +173,87 @@ const DashboardMain = () => {
       </div>
 
       {/* KPI Cards */}
-      <Row className="mb-4">
-        <Col lg={3} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center">
+      <Row className="g-2 g-md-3 mb-4">
+        <Col xs={12} sm={6} lg={3}>
+          <Card className="border-0 shadow-sm h-100 hover-lift">
+            <Card.Body className="d-flex align-items-center p-2 p-md-3">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-2">Total Penjualan YTD</h6>
-                <h3 className="mb-0 text-primary">{formatCurrency(dashboardData.kpi.total_sales_ytd)}</h3>
-                <small className="text-success">
-                  <i className="bi bi-arrow-up"></i> 12.5% vs tahun lalu
+                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Total Penjualan YTD</h6>
+                <h2 className="mb-1 mb-md-2 text-primary fw-bold fs-4 fs-md-3">{formatCurrency(dashboardData.kpi.total_sales_ytd)}</h2>
+                <small className="text-success d-flex align-items-center">
+                  <i className="bi bi-arrow-up me-1"></i> 12.5% vs tahun lalu
                 </small>
               </div>
-              <div className="ms-3">
-                <div className="bg-primary bg-opacity-10 rounded-circle p-3">
-                  <i className="bi bi-currency-dollar text-primary fs-4"></i>
+              <div className="ms-2 ms-md-3">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-2 p-md-3">
+                  <i className="bi bi-currency-dollar text-primary fs-4 fs-md-5"></i>
                 </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col lg={3} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center">
+        <Col xs={12} sm={6} lg={3}>
+          <Card className="border-0 shadow-sm h-100 hover-lift">
+            <Card.Body className="d-flex align-items-center p-2 p-md-3">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-2">Stok Kritis</h6>
-                <h3 className="mb-0 text-danger">{dashboardData.kpi.critical_stocks_count}</h3>
+                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Stok Kritis</h6>
+                <h2 className="mb-1 mb-md-2 text-danger fw-bold fs-4 fs-md-3">{dashboardData.kpi.critical_stocks_count}</h2>
                 <small className="text-muted">Item perlu segera diisi</small>
               </div>
-              <div className="ms-3">
-                <div className="bg-danger bg-opacity-10 rounded-circle p-3">
-                  <i className="bi bi-exclamation-triangle text-danger fs-4"></i>
+              <div className="ms-2 ms-md-3">
+                <div className="bg-danger bg-opacity-10 rounded-circle p-2 p-md-3">
+                  <i className="bi bi-exclamation-triangle text-danger fs-4 fs-md-5"></i>
                 </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col lg={3} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center">
+        <Col xs={12} sm={6} lg={3}>
+          <Card className="border-0 shadow-sm h-100 hover-lift">
+            <Card.Body className="d-flex align-items-center p-2 p-md-3">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-2">Penawaran Pending</h6>
-                <h3 className="mb-0 text-warning">{dashboardData.kpi.pending_quotations_count}</h3>
+                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Penawaran Pending</h6>
+                <h2 className="mb-1 mb-md-2 text-warning fw-bold fs-4 fs-md-3">{dashboardData.kpi.pending_quotations_count}</h2>
                 <small className="text-muted">Menunggu persetujuan</small>
               </div>
-              <div className="ms-3">
-                <div className="bg-warning bg-opacity-10 rounded-circle p-3">
-                  <i className="bi bi-file-text text-warning fs-4"></i>
+              <div className="ms-2 ms-md-3">
+                <div className="bg-warning bg-opacity-10 rounded-circle p-2 p-md-3">
+                  <i className="bi bi-file-text text-warning fs-4 fs-md-5"></i>
                 </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col lg={3} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="d-flex align-items-center">
+        <Col xs={12} sm={6} lg={3}>
+          <Card className="border-0 shadow-sm h-100 hover-lift">
+            <Card.Body className="d-flex align-items-center p-2 p-md-3">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-2">Siap Kirim</h6>
-                <h3 className="mb-0 text-success">{dashboardData.kpi.ready_to_ship_count}</h3>
+                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Siap Kirim</h6>
+                <h2 className="mb-1 mb-md-2 text-success fw-bold fs-4 fs-md-3">{dashboardData.kpi.ready_to_ship_count}</h2>
                 <small className="text-muted">Pesanan siap dikirim</small>
               </div>
-              <div className="ms-3">
-                <div className="bg-success bg-opacity-10 rounded-circle p-3">
-                  <i className="bi bi-truck text-success fs-4"></i>
+              <div className="ms-2 ms-md-3">
+                <div className="bg-success bg-opacity-10 rounded-circle p-2 p-md-3">
+                  <i className="bi bi-truck text-success fs-4 fs-md-5"></i>
                 </div>
               </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row>
-        {/* Critical Stocks */}
-        <Col lg={6} className="mb-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Stok Kritis</h6>
-                <Button variant="outline-primary" size="sm">
-                  Lihat Semua
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              {dashboardData.critical_stocks.length > 0 ? (
-                <div className="table-responsive">
-                  <Table hover size="sm">
-                    <thead>
-                      <tr>
-                        <th>Kode Item</th>
-                        <th>Nama Item</th>
-                        <th>Stok Aktual</th>
-                        <th>Minimum</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboardData.critical_stocks.map((item, index) => (
-                        <tr key={index}>
-                          <td><small>{item.item_code}</small></td>
-                          <td>{item.item_name}</td>
-                          <td>
-                            <Badge bg="danger">{item.stock_actual}</Badge>
-                          </td>
-                          <td>{item.stock_minimum}</td>
-                          <td>
-                            <ProgressBar
-                              variant="danger"
-                              now={(item.stock_actual / item.stock_minimum) * 100}
-                              style={{ height: '4px' }}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <i className="bi bi-check-circle text-success fs-1"></i>
-                  <p className="text-muted mt-2">Tidak ada stok kritis</p>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Sales Pipeline */}
-        <Col lg={6} className="mb-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Pipeline Penjualan</h6>
-                <Button variant="outline-primary" size="sm">
-                  Detail
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              <Row className="text-center">
-                <Col>
-                  <div className="mb-3">
-                    <h4 className="text-secondary mb-1">{dashboardData.sales_pipeline.draft}</h4>
-                    <small className="text-muted">Draft</small>
-                  </div>
-                  <ProgressBar variant="secondary" now={30} />
-                </Col>
-                <Col>
-                  <div className="mb-3">
-                    <h4 className="text-success mb-1">{dashboardData.sales_pipeline.approved}</h4>
-                    <small className="text-muted">Approved</small>
-                  </div>
-                  <ProgressBar variant="success" now={50} />
-                </Col>
-                <Col>
-                  <div className="mb-3">
-                    <h4 className="text-danger mb-1">{dashboardData.sales_pipeline.rejected}</h4>
-                    <small className="text-muted">Rejected</small>
-                  </div>
-                  <ProgressBar variant="danger" now={20} />
-                </Col>
-              </Row>
-
-              <div className="mt-3">
-                <small className="text-muted">
-                  Total Pipeline: {dashboardData.sales_pipeline.draft + dashboardData.sales_pipeline.approved + dashboardData.sales_pipeline.rejected} Penawaran
-                </small>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row>
-        {/* Pending Quotations */}
-        <Col lg={6} className="mb-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Penawaran Menunggu Persetujuan</h6>
-                <Button variant="outline-primary" size="sm">
-                  Proses Sekarang
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              {dashboardData.pending_quotations.length > 0 ? (
-                <div className="table-responsive">
-                  <Table hover size="sm">
-                    <thead>
-                      <tr>
-                        <th>No. Quotation</th>
-                        <th>Pelanggan</th>
-                        <th>Tanggal</th>
-                        <th>Total</th>
-                        <th>Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboardData.pending_quotations.slice(0, 5).map((quotation, index) => (
-                        <tr key={index}>
-                          <td><small>{quotation.quotation_number}</small></td>
-                          <td>{quotation.customer_name}</td>
-                          <td><small>{new Date(quotation.date).toLocaleDateString('id-ID')}</small></td>
-                          <td>{formatCurrency(quotation.total)}</td>
-                          <td>
-                            <Button variant="outline-primary" size="sm">
-                              <i className="bi bi-eye"></i>
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <i className="bi bi-check-circle text-success fs-1"></i>
-                  <p className="text-muted mt-2">Tidak ada penawaran pending</p>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Ready to Ship */}
-        <Col lg={6} className="mb-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Pesanan Siap Kirim</h6>
-                <Button variant="outline-success" size="sm">
-                  Buat Surat Jalan
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              {dashboardData.ready_to_ship_orders.length > 0 ? (
-                <div className="table-responsive">
-                  <Table hover size="sm">
-                    <thead>
-                      <tr>
-                        <th>No. SO</th>
-                        <th>Pelanggan</th>
-                        <th>Tanggal SO</th>
-                        <th>Total</th>
-                        <th>Priority</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboardData.ready_to_ship_orders.slice(0, 5).map((order, index) => (
-                        <tr key={index}>
-                          <td><small>{order.so_number}</small></td>
-                          <td>{order.customer_name}</td>
-                          <td><small>{new Date(order.so_date).toLocaleDateString('id-ID')}</small></td>
-                          <td>{formatCurrency(order.total)}</td>
-                          <td>
-                            <Badge bg={index === 0 ? "danger" : index < 3 ? "warning" : "success"}>
-                              {index === 0 ? "High" : index < 3 ? "Medium" : "Low"}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <i className="bi bi-info-circle text-info fs-1"></i>
-                  <p className="text-muted mt-2">Tidak ada pesanan siap kirim</p>
-                </div>
-              )}
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
       {/* Monthly Sales Chart */}
-      <Row>
-        <Col lg={12} className="mb-4">
+      <Row className="g-2 g-md-3 mb-4">
+        <Col xs={12}>
           <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Grafik Penjualan Bulanan</h6>
-                <div>
-                  <Button variant="outline-primary" size="sm" className="me-2">
+            <Card.Header className="bg-white border-0 px-2 px-md-3 pt-2 pt-md-3 pb-2">
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                <h5 className="mb-2 mb-md-0 fw-semibold">Grafik Penjualan Bulanan</h5>
+                <div className="d-flex gap-2">
+                  <Button variant="outline-primary" size="sm">
                     <i className="bi bi-download"></i>
                   </Button>
                   <Button variant="outline-primary" size="sm">
@@ -427,12 +262,70 @@ const DashboardMain = () => {
                 </div>
               </div>
             </Card.Header>
-            <Card.Body>
-              <div className="text-center py-5">
-                <i className="bi bi-bar-chart-line text-muted fs-1"></i>
-                <p className="text-muted mt-2">Grafik penjualan akan ditampilkan di sini</p>
+            <Card.Body className="p-3 p-md-4">
+              <div className="text-center py-4 py-md-5">
+                <i className="bi bi-bar-chart-line text-muted fs-2 fs-md-1"></i>
+                <p className="text-muted mt-3 mb-0">Grafik penjualan akan ditampilkan di sini</p>
                 <small className="text-muted">Integrasi dengan chart library (Chart.js/Recharts) diperlukan</small>
               </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Critical Stocks */}
+      <Row className="g-2 g-md-3">
+        <Col xs={12}>
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 px-2 px-md-3 pt-2 pt-md-3 pb-2">
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0 fw-semibold">Stok Kritis</h5>
+                <Button variant="outline-primary" size="sm">
+                  Lihat Semua
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body className="p-2 p-md-3">
+              {dashboardData.critical_stocks.length > 0 ? (
+                <div className="table-responsive">
+                  <Table hover className="table-sm">
+                    <thead>
+                      <tr>
+                        <th className="small text-uppercase">Kode Item</th>
+                        <th className="small text-uppercase">Nama Item</th>
+                        <th className="small text-uppercase text-center">Stok</th>
+                        <th className="small text-uppercase text-center">Minimum</th>
+                        <th className="small text-uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboardData.critical_stocks.map((item, index) => (
+                        <tr key={index}>
+                          <td className="small fw-medium">{item.item_code}</td>
+                          <td className="small">{item.item_name}</td>
+                          <td className="text-center">
+                            <Badge bg="danger" className="px-2 py-1">{item.stock_actual}</Badge>
+                          </td>
+                          <td className="text-center small">{item.stock_minimum}</td>
+                          <td>
+                            <ProgressBar
+                              variant="danger"
+                              now={(item.stock_actual / item.stock_minimum) * 100}
+                              style={{ height: '6px' }}
+                              className="rounded-pill"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-3 py-md-4">
+                  <i className="bi bi-check-circle text-success fs-2 fs-md-1"></i>
+                  <p className="text-muted mt-3 mb-0">Tidak ada stok kritis</p>
+                </div>
+              )}
             </Card.Body>
           </Card>
         </Col>

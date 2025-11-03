@@ -18,7 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('customer_id');
             $table->date('issue_date');
             $table->date('due_date');
-            $table->enum('status', ['UNPAID', 'PAID', 'OVERDUE'])->default('UNPAID');
+            $table->enum('status', ['UNPAID', 'PAID', 'PARTIAL', 'OVERDUE'])->default('UNPAID');
             $table->decimal('total_amount', 15, 2);
             $table->timestamps();
             
