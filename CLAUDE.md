@@ -62,3 +62,5 @@ task-manager cancel-task <task_id> "Reason for cancellation"
 ✅ **ALWAYS complete one task fully before starting the next**
 ✅ **ALWAYS provide completion details in the complete command**
 ✅ **ALWAYS follow the exact 3-step sequence: list → start → complete (or cancel if not required)**
+- saya minta setiap pengerjaan yang dilakukan di project ini berdasarkan yang ada di folder @documentation. pengerjaan update, perbaikan, da penambahan fitur berdasar dari itu, jika ada yang perlu di improve dari project ini sesuaikan dengan file yang ada di foler itu
+- saat awal pengerjaan project selalu scan dan analisa sdh di kerjakan dan flie yang ada di @documentation\ ini, agar pekerjaan lebih ter arah

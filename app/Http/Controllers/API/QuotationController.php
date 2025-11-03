@@ -576,7 +576,38 @@ class QuotationController extends Controller
      */
     public function checkConvertibility($id)
     {
-        $quotation = Quotation::findOrFail($id);
+        $quotation = Quotation::with(['quotationItems.product', 'customer'])->findOrFail($id);
+
+        $stockDetails = [];
+
+        // Get detailed stock information for each item
+        foreach ($quotation->quotationItems as $item) {
+            $totalAvailable = \App\Models\ProductStock::where('product_id', $item->product_id)
+                ->selectRaw('SUM(quantity - reserved_quantity) as available')
+                ->value('available') ?? 0;
+
+            $warehouseStocks = \App\Models\ProductStock::where('product_id', $item->product_id)
+                ->with('warehouse')
+                ->get()
+                ->map(function($stock) {
+                    return [
+                        'warehouse_name' => $stock->warehouse->name,
+                        'quantity' => $stock->quantity,
+                        'reserved_quantity' => $stock->reserved_quantity,
+                        'available' => $stock->quantity - $stock->reserved_quantity
+                    ];
+                });
+
+            $stockDetails[] = [
+                'product_id' => $item->product_id,
+                'product_name' => $item->product->name ?? 'Unknown',
+                'required_quantity' => $item->quantity,
+                'total_available' => $totalAvailable,
+                'shortage' => max(0, $item->quantity - $totalAvailable),
+                'can_fulfill' => $totalAvailable >= $item->quantity,
+                'warehouse_stocks' => $warehouseStocks
+            ];
+        }
 
         return response()->json([
             'can_convert' => $quotation->canBeConverted(),
@@ -584,7 +615,8 @@ class QuotationController extends Controller
             'has_sales_order' => $quotation->salesOrder !== null,
             'has_available_stock' => $quotation->hasAvailableStock(),
             'status' => $quotation->status,
-            'reasons' => $this->getConvertibilityReasons($quotation)
+            'reasons' => $this->getConvertibilityReasons($quotation),
+            'stock_details' => $stockDetails
         ]);
     }
 

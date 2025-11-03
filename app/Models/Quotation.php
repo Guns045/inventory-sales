@@ -158,40 +158,59 @@ class Quotation extends Model
     }
 
     /**
-     * Reserve stock for a product
+     * Reserve stock for a product across multiple warehouses
      */
     private function reserveStock($productId, $quantity)
     {
-        // Get the default warehouse (you might want to make this configurable)
-        $defaultWarehouse = Warehouse::first() ?? Warehouse::create(['name' => 'Default Warehouse', 'location' => 'Default Location']);
+        $remainingQuantity = $quantity;
+        $stockReservations = [];
 
-        $productStock = ProductStock::where('product_id', $productId)
-            ->where('warehouse_id', $defaultWarehouse->id)
-            ->first();
+        // Get all warehouses with available stock for this product, ordered by available quantity
+        $productStocks = ProductStock::where('product_id', $productId)
+            ->whereRaw('(quantity - reserved_quantity) > 0')
+            ->orderByRaw('(quantity - reserved_quantity) DESC')
+            ->get();
 
-        if (!$productStock) {
-            throw new \Exception("Product stock not found for product ID: {$productId}");
+        // Calculate total available stock properly
+        $totalAvailableStock = 0;
+        foreach ($productStocks as $stock) {
+            $totalAvailableStock += ($stock->quantity - $stock->reserved_quantity);
         }
 
-        // Check if enough stock is available
-        $availableStock = $productStock->quantity - $productStock->reserved_quantity;
-        if ($availableStock < $quantity) {
-            throw new \Exception("Insufficient stock for product. Available: {$availableStock}, Required: {$quantity}");
+        if ($totalAvailableStock < $quantity) {
+            throw new \Exception("Insufficient stock for product. Total Available: {$totalAvailableStock}, Required: {$quantity}");
         }
 
-        // Reserve the stock
-        $productStock->increment('reserved_quantity', $quantity);
+        // Reserve stock from warehouses with available inventory
+        foreach ($productStocks as $productStock) {
+            if ($remainingQuantity <= 0) break;
 
-        // Log the stock movement
-        StockMovement::create([
-            'product_id' => $productId,
-            'warehouse_id' => $defaultWarehouse->id,
-            'type' => 'RESERVATION',
-            'quantity_change' => -$quantity,
-            'reference_id' => $this->id,
-            'reference_type' => Quotation::class,
-            'notes' => "Stock reserved for Sales Order conversion from Quotation #{$this->quotation_number}",
-        ]);
+            $availableInWarehouse = $productStock->quantity - $productStock->reserved_quantity;
+            $reserveFromWarehouse = min($remainingQuantity, $availableInWarehouse);
+
+            if ($reserveFromWarehouse > 0) {
+                // Reserve the stock in this warehouse
+                $productStock->increment('reserved_quantity', $reserveFromWarehouse);
+
+                $stockReservations[] = [
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'quantity_reserved' => $reserveFromWarehouse
+                ];
+
+                // Log the stock movement for this warehouse
+                StockMovement::create([
+                    'product_id' => $productId,
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'type' => 'RESERVATION',
+                    'quantity_change' => -$reserveFromWarehouse,
+                    'reference_id' => $this->id,
+                    'reference_type' => Quotation::class,
+                    'notes' => "Stock reserved for Sales Order conversion from Quotation #{$this->quotation_number} (Warehouse: {$productStock->warehouse->name})",
+                ]);
+
+                $remainingQuantity -= $reserveFromWarehouse;
+            }
+        }
     }
 
     /**
@@ -207,14 +226,32 @@ class Quotation extends Model
      */
     public function hasAvailableStock(): bool
     {
-        $defaultWarehouse = Warehouse::first() ?? Warehouse::create(['name' => 'Default Warehouse', 'location' => 'Default Location']);
-
         foreach ($this->quotationItems as $item) {
-            $productStock = ProductStock::where('product_id', $item->product_id)
-                ->where('warehouse_id', $defaultWarehouse->id)
-                ->first();
+            // Check total available stock across ALL warehouses using raw SQL
+            $totalAvailableStock = ProductStock::where('product_id', $item->product_id)
+                ->selectRaw('SUM(quantity - reserved_quantity) as available')
+                ->value('available') ?? 0;
 
-            if (!$productStock || ($productStock->quantity - $productStock->reserved_quantity) < $item->quantity) {
+            // If total available stock is less than required quantity
+            if ($totalAvailableStock < $item->quantity) {
+                // Log detailed information for debugging
+                \Log::error("Stock shortage for Product ID: {$item->product_id}");
+                \Log::error("Product Name: " . ($item->product->name ?? 'Unknown'));
+                \Log::error("Required Quantity: {$item->quantity}");
+                \Log::error("Available Stock: {$totalAvailableStock}");
+                \Log::error("Shortage: " . ($item->quantity - $totalAvailableStock));
+
+                // Get detailed stock info per warehouse
+                $stockDetails = ProductStock::where('product_id', $item->product_id)
+                    ->with('warehouse')
+                    ->get();
+
+                \Log::error("Stock details by warehouse:");
+                foreach ($stockDetails as $stock) {
+                    $available = $stock->quantity - $stock->reserved_quantity;
+                    \Log::error("  Warehouse: {$stock->warehouse->name} - Available: {$available}");
+                }
+
                 return false;
             }
         }

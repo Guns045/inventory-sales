@@ -125,6 +125,11 @@ const PickingLists = () => {
     });
   };
 
+  const getCustomerName = (customer) => {
+    if (!customer) return 'N/A';
+    return customer.name || customer.company_name || 'N/A';
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -290,7 +295,7 @@ const PickingLists = () => {
                     <tr key={pl.id}>
                       <td>{pl.picking_list_number}</td>
                       <td>{pl.sales_order?.sales_order_number || '-'}</td>
-                      <td>{pl.sales_order?.customer?.name || '-'}</td>
+                      <td>{getCustomerName(pl.sales_order?.customer)}</td>
                       <td>
                         <span className={`status ${getStatusClass(pl.status)}`}>
                           {pl.status_label || pl.status}
@@ -339,7 +344,7 @@ const PickingLists = () => {
             <div className="modal-body">
               <div className="picking-list-info">
                 <p><strong>Sales Order:</strong> {selectedPickingList.sales_order?.sales_order_number}</p>
-                <p><strong>Customer:</strong> {selectedPickingList.sales_order?.customer?.name}</p>
+                <p><strong>Customer:</strong> {getCustomerName(selectedPickingList.sales_order?.customer)}</p>
                 <p><strong>Status:</strong>
                   <span className={`status ${getStatusClass(selectedPickingList.status)}`}>
                     {selectedPickingList.status_label || selectedPickingList.status}
