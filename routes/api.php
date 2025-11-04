@@ -121,6 +121,17 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::get('/my-approval-requests', [ApprovalController::class, 'myRequests']);
     Route::get('/pending-approvals', [ApprovalController::class, 'pendingForMe']);
 
+    // Multi-level approval management (Admin only)
+    Route::middleware('permission:users.manage')->group(function () {
+        Route::get('/approval-levels', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'index']);
+        Route::post('/approval-levels', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'store']);
+        Route::get('/approval-levels/{id}', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'show']);
+        Route::put('/approval-levels/{id}', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'update']);
+        Route::delete('/approval-levels/{id}', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'destroy']);
+        Route::get('/approval-levels/{id}/approvers', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'getApprovers']);
+        Route::put('/approval-levels/{id}/toggle-active', [App\Http\Controllers\Admin\ApprovalLevelController::class, 'toggleActive']);
+    });
+
     // Export routes
     Route::get('/quotations/{id}/export-pdf', [QuotationController::class, 'exportPDF']);
     Route::get('/quotations/{id}/export-excel', [QuotationController::class, 'exportExcel']);
@@ -148,14 +159,31 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::get('/reports/stock', [DashboardController::class, 'stockReports']);
     Route::get('/reports/sales', [DashboardController::class, 'salesReports']);
 
+    // Advanced Reports routes
+    Route::get('/reports/sales-performance', [ReportController::class, 'salesPerformance'])->middleware('permission:reports.read');
+    Route::get('/reports/inventory-turnover', [ReportController::class, 'inventoryTurnover'])->middleware('permission:reports.read');
+    Route::get('/reports/financial-performance', [ReportController::class, 'financialPerformance'])->middleware('permission:reports.read');
+    Route::get('/reports/customer-analysis', [ReportController::class, 'customerAnalysis'])->middleware('permission:reports.read');
+    Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
+
     // Company Settings routes (Admin only)
     Route::apiResource('company-settings', CompanySettingsController::class)->middleware('permission:users.update');
     Route::post('/company-settings/upload-logo', [CompanySettingsController::class, 'uploadLogo'])->middleware('permission:users.update');
     Route::delete('/company-settings/{id}/delete-logo', [CompanySettingsController::class, 'deleteLogo'])->middleware('permission:users.update');
 
-    // Inventory Management routes
-    Route::post('/inventory/deduct', [InventoryController::class, 'deductStock'])->middleware('permission:inventory.update');
-    Route::post('/inventory/reserve', [InventoryController::class, 'reserveStock'])->middleware('permission:inventory.update');
-    Route::get('/inventory/stock-levels', [InventoryController::class, 'getStockLevels'])->middleware('permission:inventory.read');
-    Route::get('/inventory/product-movements/{product_id}', [InventoryController::class, 'getProductMovements'])->middleware('permission:inventory.read');
+    // Inventory Management routes - Commented out (InventoryController not implemented yet)
+    // Route::post('/inventory/deduct', [InventoryController::class, 'deductStock'])->middleware('permission:inventory.update');
+    // Route::post('/inventory/reserve', [InventoryController::class, 'reserveStock'])->middleware('permission:inventory.update');
+    // Route::get('/inventory/stock-levels', [InventoryController::class, 'getStockLevels'])->middleware('permission:inventory.read'));
+    // Route::get('/inventory/product-movements/{product_id}', [InventoryController::class, 'getProductMovements'])->middleware('permission:inventory.read');
+
+    // Warehouse Transfer Management
+    Route::get('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'index'])->middleware('permission:product-stock.read');
+    Route::post('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'store'])->middleware('permission:product-stock.create');
+    Route::get('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'show'])->middleware('permission:product-stock.read');
+    Route::post('/warehouse-transfers/{id}/approve', [App\Http\Controllers\API\WarehouseTransferController::class, 'approve'])->middleware('permission:product-stock.update');
+    Route::post('/warehouse-transfers/{id}/deliver', [App\Http\Controllers\API\WarehouseTransferController::class, 'deliver'])->middleware('permission:product-stock.update');
+    Route::post('/warehouse-transfers/{id}/receive', [App\Http\Controllers\API\WarehouseTransferController::class, 'receive'])->middleware('permission:product-stock.update');
+    Route::post('/warehouse-transfers/{id}/cancel', [App\Http\Controllers\API\WarehouseTransferController::class, 'cancel'])->middleware('permission:product-stock.delete');
+    Route::get('/warehouse-transfers/statistics', [App\Http\Controllers\API\WarehouseTransferController::class, 'statistics'])->middleware('permission:product-stock.read');
 });

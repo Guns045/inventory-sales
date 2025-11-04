@@ -661,7 +661,7 @@ class DashboardController extends Controller
                 ')
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
                 ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-                ->groupBy('DATE_FORMAT(created_at, "%Y-%m-%d")')
+                ->groupByRaw('DATE_FORMAT(created_at, "%Y-%m-%d")')
                 ->orderBy('date')
                 ->get();
 
@@ -723,7 +723,7 @@ class DashboardController extends Controller
                 ')
                 ->where('created_at', '>=', now()->subMonths(12))
                 ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-                ->groupBy('DATE_FORMAT(created_at, "%Y-%m")')
+                ->groupByRaw('DATE_FORMAT(created_at, "%Y-%m")')
                 ->orderBy('month')
                 ->get();
 

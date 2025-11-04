@@ -21,26 +21,17 @@ class PermissionMiddleware
         $startTime = microtime(true);
         $user = Auth::user();
 
-        // Debug logging
-        \Log::info("PermissionMiddleware: Checking permission: {$permission} for user: " . ($user ? $user->email : 'null'));
-        \Log::info("PermissionMiddleware: Request URI: {$request->getUri()}");
-
         if (!$user) {
-            \Log::warning("PermissionMiddleware: No authenticated user found");
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         // Get user permissions
         $userPermissions = $this->getUserPermissions($user);
-        \Log::info("PermissionMiddleware: User role: " . (is_string($user->role) ? $user->role : $user->role->name));
-        \Log::info("PermissionMiddleware: User permissions: " . json_encode($userPermissions));
 
         // Parse permission (format: resource.action)
         list($resource, $action) = explode('.', $permission);
-        \Log::info("PermissionMiddleware: Required permission - Resource: {$resource}, Action: {$action}");
 
         if (!$this->hasPermission($userPermissions, $resource, $action)) {
-            \Log::warning("PermissionMiddleware: Permission denied for user {$user->email} - missing {$permission}");
             $userRoleName = is_string($user->role) ? $user->role : $user->role->name;
             return response()->json([
                 'message' => 'Forbidden - Insufficient permissions',
@@ -49,10 +40,9 @@ class PermissionMiddleware
             ], 403);
         }
 
-        \Log::info("PermissionMiddleware: Permission granted for user {$user->email} - {$permission}");
         $response = $next($request);
 
-        // Log performance if permission check takes more than 100ms
+        // Log performance only for slow operations (more than 100ms)
         $duration = (microtime(true) - $startTime) * 1000;
         if ($duration > 100) {
             \Log::warning("PermissionMiddleware slow for permission: {$permission}, duration: {$duration}ms");
@@ -84,6 +74,8 @@ class PermissionMiddleware
                 'purchase-orders' => ['read', 'create', 'update', 'delete'],
                 'goods-receipts' => ['read', 'create', 'update', 'delete'],
                 'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
+                'warehouse-transfers' => ['read', 'create', 'update', 'delete'],
                 'activity-logs' => ['read'],
                 'approvals' => ['read', 'approve', 'reject'],
                 'reports' => ['read'],
@@ -94,6 +86,7 @@ class PermissionMiddleware
                 'quotations' => ['read', 'create', 'update'],
                 'sales-orders' => ['read', 'create', 'update'],
                 'delivery-orders' => ['read', 'create'],
+                'invoices' => ['read'],
                 'product-stock' => ['read'],
                 'activity-logs' => ['read'],
                 'reports' => ['read'],

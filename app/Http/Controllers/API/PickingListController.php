@@ -32,6 +32,7 @@ class PickingListController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('picking_list_number', 'like', "%{$search}%")
+                  ->orWhere('notes', 'like', "%{$search}%")
                   ->orWhereHas('salesOrder', function($subQ) use ($search) {
                       $subQ->where('sales_order_number', 'like', "%{$search}%");
                   });

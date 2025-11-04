@@ -162,6 +162,7 @@
             </div>
         </div>
         <div class="info-block">
+            @if($pickingList->salesOrder)
             <div class="info-row">
                 <span><strong>Sales Order Number:</strong></span>
                 <span>{{ $pickingList->salesOrder->sales_order_number }}</span>
@@ -170,6 +171,24 @@
                 <span><strong>SO Status:</strong></span>
                 <span>{{ $pickingList->salesOrder->status }}</span>
             </div>
+            @elseif(str_contains($pickingList->notes, 'warehouse transfer:'))
+            @php
+                $transferNumber = str_replace('For warehouse transfer: ', '', $pickingList->notes);
+            @endphp
+            <div class="info-row">
+                <span><strong>Transfer Number:</strong></span>
+                <span class="urgent">{{ $transferNumber }}</span>
+            </div>
+            <div class="info-row">
+                <span><strong>Transfer Type:</strong></span>
+                <span>Internal Warehouse Transfer</span>
+            </div>
+            @else
+            <div class="info-row">
+                <span><strong>Type:</strong></span>
+                <span>Manual Picking List</span>
+            </div>
+            @endif
             <div class="info-row">
                 <span><strong>Completion Date:</strong></span>
                 <span>{{ $pickingList->completed_at ? date('d M Y H:i', strtotime($pickingList->completed_at)) : '-' }}</span>
@@ -181,6 +200,7 @@
         </div>
     </div>
 
+    @if($pickingList->salesOrder)
     <div class="customer-info">
         <h3>Customer Information:</h3>
         <p><strong>{{ $pickingList->salesOrder->customer->company_name }}</strong></p>
@@ -188,6 +208,21 @@
         <p>{{ $pickingList->salesOrder->customer->address }}</p>
         <p>Telp: {{ $pickingList->salesOrder->customer->phone }} | Email: {{ $pickingList->salesOrder->customer->email }}</p>
     </div>
+    @elseif(str_contains($pickingList->notes, 'warehouse transfer:'))
+    <div class="customer-info">
+        <h3>Transfer Information:</h3>
+        <p><strong>Internal Warehouse Transfer</strong></p>
+        <p><strong>Transfer Number:</strong> {{ str_replace('For warehouse transfer: ', '', $pickingList->notes) }}</p>
+        <p><strong>Type:</strong> Stock movement between warehouses</p>
+        <p><strong>Purpose:</strong> Internal inventory management</p>
+    </div>
+    @else
+    <div class="customer-info">
+        <h3>Information:</h3>
+        <p><strong>Manual Picking List</strong></p>
+        <p>No associated sales order or transfer</p>
+    </div>
+    @endif
 
     <h3>Items to Pick:</h3>
     <table class="items-table">

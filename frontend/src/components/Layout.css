@@ -97,6 +97,42 @@
   box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
 }
 
+/* Submenu Styles */
+.submenu {
+  margin-left: 1rem;
+  margin-top: 0.25rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.submenu-item {
+  font-size: 0.9rem;
+  padding: 0.6rem 0.8rem !important;
+  margin-bottom: 0.2rem !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 6px !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.submenu-item:hover,
+.submenu-item.active {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  transform: translateX(3px) !important;
+}
+
+/* Mobile Submenu Styles */
+@media (max-width: 768px) {
+  .submenu {
+    margin-left: 0.5rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .submenu-item {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.6rem !important;
+  }
+}
+
 .main-content {
   flex: 1;
   padding: 2rem;

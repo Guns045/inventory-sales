@@ -58,7 +58,18 @@ export const PermissionProvider = ({ children }) => {
       return false;
     }
     const [resource, action] = permission.split('.');
-    return userPermissions.permissions[resource]?.includes(action) || false;
+
+    // Check for nested permission structure (e.g., permissions["dashboard"] includes "warehouse")
+    if (userPermissions.permissions[resource]?.includes(action)) {
+      return true;
+    }
+
+    // Check for direct permission structure (e.g., permissions["dashboard.warehouse"] includes "read")
+    if (userPermissions.permissions[permission]?.includes('read')) {
+      return true;
+    }
+
+    return false;
   };
 
   const canRead = (resource) => hasPermission(`${resource}.read`);

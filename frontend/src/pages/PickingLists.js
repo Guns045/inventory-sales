@@ -14,7 +14,7 @@ const PickingLists = () => {
   });
   const [selectedPickingList, setSelectedPickingList] = useState(null);
   const [showItemsModal, setShowItemsModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('pending-orders'); // 'picking-lists' or 'pending-orders'
+  const [activeTab, setActiveTab] = useState('pending-orders'); // 'pending-orders', 'sales-orders', or 'internal-transfers'
 
   useEffect(() => {
     fetchData();
@@ -24,10 +24,15 @@ const PickingLists = () => {
     try {
       setLoading(true);
 
-      // Fetch picking lists
+      // Fetch picking lists based on active tab
       const params = new URLSearchParams();
-      if (filter.status && activeTab === 'picking-lists') params.append('status', filter.status);
-      if (filter.search) params.append('search', filter.search);
+      if (filter.status && (activeTab === 'sales-orders' || activeTab === 'internal-transfers')) params.append('status', filter.status);
+      if (filter.search && activeTab === 'sales-orders') params.append('search', filter.search);
+      if (activeTab === 'internal-transfers') {
+        // For internal transfers, search for 'warehouse transfer' to filter warehouse transfers
+        params.append('search', 'warehouse transfer');
+        if (filter.status) params.append('status', filter.status);
+      }
 
       const [pickingListsResponse, pendingOrdersResponse] = await Promise.allSettled([
         api.get(`/picking-lists?${params.toString()}`),
@@ -35,7 +40,34 @@ const PickingLists = () => {
       ]);
 
       if (pickingListsResponse.status === 'fulfilled') {
-        setPickingLists(pickingListsResponse.value.data.data || pickingListsResponse.value.data || []);
+        const allPickingLists = pickingListsResponse.value.data.data || pickingListsResponse.value.data || [];
+
+        console.log('🔍 Debug Picking Lists:', {
+          activeTab,
+          totalAll: allPickingLists.length,
+          allPickingLists: allPickingLists.map(pl => ({
+            number: pl.picking_list_number,
+            status: pl.status,
+            sales_order_id: pl.sales_order_id,
+            notes: pl.notes
+          }))
+        });
+
+        // Separate by type
+        if (activeTab === 'sales-orders') {
+          // Only show picking lists with sales orders
+          const filtered = allPickingLists.filter(pl => pl.sales_order_id);
+          console.log('🛒 Sales Orders filtered:', filtered.length);
+          setPickingLists(filtered);
+        } else if (activeTab === 'internal-transfers') {
+          // API already filtered for warehouse transfers, use all returned data
+          console.log('🔄 Internal Transfers filtered (from API):', allPickingLists.length);
+          setPickingLists(allPickingLists);
+        } else {
+          // For 'picking-lists' tab, show all
+          console.log('📦 All Picking Lists:', allPickingLists.length);
+          setPickingLists(allPickingLists);
+        }
       }
 
       if (pendingOrdersResponse.status === 'fulfilled') {
@@ -105,6 +137,16 @@ const PickingLists = () => {
     }
   };
 
+  const handleViewPickingList = async (pickingList) => {
+    // For now, just show the items modal
+    handleViewItems(pickingList);
+  };
+
+  const handleEditPickingList = async (pickingList) => {
+    // TODO: Implement edit functionality
+    alert('Edit functionality coming soon!');
+  };
+
   const getStatusClass = (status) => {
     switch (status?.toLowerCase()) {
       case 'draft': return 'status-gray';
@@ -113,6 +155,17 @@ const PickingLists = () => {
       case 'completed': return 'status-green';
       case 'cancelled': return 'status-red';
       default: return 'status-gray';
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'draft': return 'bg-secondary';
+      case 'ready': return 'bg-primary';
+      case 'picking': return 'bg-warning';
+      case 'completed': return 'bg-success';
+      case 'cancelled': return 'bg-danger';
+      default: return 'bg-secondary';
     }
   };
 
@@ -164,10 +217,22 @@ const PickingLists = () => {
           📋 Pending Orders ({pendingOrders.length})
         </button>
         <button
+          className={`tab-btn ${activeTab === 'sales-orders' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sales-orders')}
+        >
+          🛒 Sales Orders
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'internal-transfers' ? 'active' : ''}`}
+          onClick={() => setActiveTab('internal-transfers')}
+        >
+          🔄 Internal Transfers
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'picking-lists' ? 'active' : ''}`}
           onClick={() => setActiveTab('picking-lists')}
         >
-          📦 Picking Lists ({pickingLists.length})
+          📦 All Picking Lists ({pickingLists.length})
         </button>
       </div>
 
@@ -228,6 +293,145 @@ const PickingLists = () => {
                           <i className="bi bi-plus-circle me-1"></i>
                           Create Picking List
                         </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'internal-transfers' && (
+        <>
+          <div className="section-info">
+            <p className="text-muted">
+              <i className="bi bi-info-circle me-2"></i>
+              <strong>Internal Transfer Picking Lists</strong> untuk transfer barang antar gudang.
+              Status DRAFT berarti menunggu picking, COMPLETED berarti barang siap untuk dipindahkan.
+            </p>
+          </div>
+          <div className="filters">
+            <div className="filter-group">
+              <label>Status:</label>
+              <select
+                value={filter.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="form-control"
+              >
+                <option value="">All Status</option>
+                <option value="DRAFT">Draft (Waiting for Picking)</option>
+                <option value="READY">Ready to Pick</option>
+                <option value="PICKING">Picking in Progress</option>
+                <option value="COMPLETED">Completed (Ready for Transfer)</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Transfer Search:</label>
+              <input
+                type="text"
+                value="warehouse transfer"
+                disabled
+                className="form-control"
+              />
+              <small className="text-muted">Auto-filtered for warehouse transfers</small>
+            </div>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Picking List Number</th>
+                  <th>Transfer Number</th>
+                  <th>Product</th>
+                  <th>Status</th>
+                  <th>Created Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pickingLists.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center">
+                      <div className="text-center py-4">
+                        <i className="bi bi-arrow-left-right text-muted fs-1"></i>
+                        <p className="text-muted mt-2">Tidak ada Internal Transfer Picking Lists</p>
+                        <small className="text-muted">
+                          Belum ada Picking Lists untuk Internal Transfer yang ditemukan
+                        </small>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  pickingLists.map((pl) => (
+                    <tr key={pl.id} className="internal-transfer-row">
+                      <td>
+                        <span className="fw-bold">{pl.picking_list_number}</span>
+                        <br/>
+                        <span className="badge bg-warning text-dark">
+                          <i className="bi bi-arrow-left-right me-1"></i>
+                          Internal Transfer
+                        </span>
+                      </td>
+                      <td>
+                        <span className="fw-bold text-primary">
+                          {pl.notes ? pl.notes.replace('For warehouse transfer: ', '') : '-'}
+                        </span>
+                      </td>
+                      <td>
+                        {pl.items && pl.items.length > 0 ? (
+                          <>
+                            <div className="fw-bold">{pl.items[0].product?.name}</div>
+                            <small className="text-muted">SKU: {pl.items[0].product?.sku}</small>
+                            <br/>
+                            <span className="badge bg-info">
+                              Qty: {pl.items[0].quantity_required}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${getStatusBadgeClass(pl.status)}`}>
+                          {pl.status}
+                        </span>
+                        {pl.status === 'COMPLETED' && (
+                          <span className="badge badge-success ms-1">
+                            <i className="bi bi-check-circle me-1"></i>
+                            Ready for Transfer
+                          </span>
+                        )}
+                      </td>
+                      <td>{formatDate(pl.created_at)}</td>
+                      <td>
+                        <div className="btn-group">
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleViewPickingList(pl)}
+                            title="View Details"
+                          >
+                            <i className="bi bi-eye"></i>
+                          </button>
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handlePrintPickingList(pl.id)}
+                            title="Print Picking List"
+                          >
+                            <i className="bi bi-printer"></i>
+                          </button>
+                          {pl.status === 'DRAFT' && (
+                            <button
+                              className="btn btn-sm btn-warning"
+                              onClick={() => handleEditPickingList(pl)}
+                              title="Edit Items"
+                            >
+                              <i className="bi bi-pencil"></i>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

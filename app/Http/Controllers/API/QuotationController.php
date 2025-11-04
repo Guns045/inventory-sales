@@ -355,6 +355,14 @@ class QuotationController extends Controller
                 ], 422);
             }
 
+            // Check if user can approve this quotation
+            if (!$quotation->canBeApprovedBy(auth()->user())) {
+                \Log::warning('User is not authorized to approve this quotation');
+                return response()->json([
+                    'message' => 'You are not authorized to approve this quotation'
+                ], 403);
+            }
+
             if (!$quotation->hasPendingApproval()) {
                 \Log::warning('No pending approval found for quotation');
                 return response()->json([
@@ -362,38 +370,63 @@ class QuotationController extends Controller
                 ], 422);
             }
 
-            $approval = $quotation->latestApproval();
-            if ($approval && $approval->isApproved()) {
-                \Log::warning('Quotation already approved');
+            $currentApproval = $quotation->getCurrentPendingApproval();
+            if ($currentApproval && $currentApproval->isApproved()) {
+                \Log::warning('Quotation already approved at this level');
                 return response()->json([
-                    'message' => 'Quotation is already approved'
+                    'message' => 'This approval level is already completed'
                 ], 422);
             }
 
             \Log::info('Processing approval...');
-            // Process approval using the approval system
-            if ($quotation->approve($request->notes)) {
+            // Process approval using the multi-level approval system
+            if ($quotation->approveCurrentLevel($request->notes)) {
                 \Log::info('Approval successful');
 
-                // Send notification to sales user
-                if ($quotation->user_id) {
-                    Notification::createForUser(
-                        $quotation->user_id,
-                        "Your quotation {$quotation->quotation_number} has been approved!",
-                        'success',
+                // Check if this is final approval
+                $isFinalApproval = $quotation->isApproved();
+                $workflowStatus = $quotation->getApprovalWorkflowStatus();
+
+                // Send notifications based on approval status
+                if ($isFinalApproval) {
+                    // Final approval - notify sales user
+                    if ($quotation->user_id) {
+                        Notification::createForUser(
+                            $quotation->user_id,
+                            "Your quotation {$quotation->quotation_number} has been fully approved!",
+                            'success',
+                            '/quotations'
+                        );
+                    }
+
+                    // Notify admin that quotation is ready for conversion
+                    Notification::createForRole(
+                        'Admin',
+                        "Quotation {$quotation->quotation_number} fully approved and ready to convert to Sales Order",
+                        'info',
                         '/quotations'
                     );
+                } else {
+                    // Partial approval - notify next level approver
+                    $nextApproval = $quotation->getCurrentPendingApproval();
+                    if ($nextApproval && $nextApproval->nextApprover) {
+                        Notification::createForUser(
+                            $nextApproval->nextApprover->id,
+                            "Quotation {$quotation->quotation_number} is ready for your approval (Level {$nextApproval->level_order})",
+                            'info',
+                            '/approvals'
+                        );
+                    }
                 }
 
-                // Notify admin that quotation is ready for conversion
-                Notification::createForRole(
-                    'Admin',
-                    "Quotation {$quotation->quotation_number} approved and ready to convert to Sales Order",
-                    'info',
-                    '/quotations'
-                );
-
-                return response()->json($quotation->load(['customer', 'user', 'quotationItems.product', 'approvals']));
+                return response()->json([
+                    'message' => $isFinalApproval
+                        ? 'Quotation fully approved successfully'
+                        : 'Quotation approved at current level and moved to next level',
+                    'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product', 'approvals.approvalLevel']),
+                    'is_final_approval' => $isFinalApproval,
+                    'workflow_status' => $workflowStatus
+                ]);
             }
 
             \Log::error('Approval process failed');
@@ -445,6 +478,14 @@ class QuotationController extends Controller
                 ], 422);
             }
 
+            // Check if user can approve this quotation
+            if (!$quotation->canBeApprovedBy(auth()->user())) {
+                \Log::warning('User is not authorized to reject this quotation');
+                return response()->json([
+                    'message' => 'You are not authorized to reject this quotation'
+                ], 403);
+            }
+
             if (!$quotation->hasPendingApproval()) {
                 \Log::warning('No pending approval found for quotation');
                 return response()->json([
@@ -452,17 +493,17 @@ class QuotationController extends Controller
                 ], 422);
             }
 
-            $approval = $quotation->latestApproval();
-            if ($approval && $approval->isRejected()) {
-                \Log::warning('Quotation already rejected');
+            $currentApproval = $quotation->getCurrentPendingApproval();
+            if ($currentApproval && $currentApproval->isRejected()) {
+                \Log::warning('Quotation already rejected at this level');
                 return response()->json([
-                    'message' => 'Quotation is already rejected'
+                    'message' => 'This approval level is already completed'
                 ], 422);
             }
 
             \Log::info('Processing rejection...');
-            // Process rejection using the approval system
-            if ($quotation->reject($request->notes)) {
+            // Process rejection using the multi-level approval system
+            if ($quotation->rejectCurrentLevel($request->notes)) {
                 \Log::info('Rejection successful');
 
                 // Send notification to sales user
@@ -475,7 +516,11 @@ class QuotationController extends Controller
                     );
                 }
 
-                return response()->json($quotation->load(['customer', 'user', 'quotationItems.product', 'approvals']));
+                return response()->json([
+                    'message' => 'Quotation rejected successfully',
+                    'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product', 'approvals.approvalLevel']),
+                    'workflow_status' => $quotation->getApprovalWorkflowStatus()
+                ]);
             }
 
             \Log::error('Rejection process failed');

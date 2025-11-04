@@ -164,6 +164,36 @@
             </div>
         </div>
 
+              @if(str_contains($deliveryOrder->notes, 'For warehouse transfer:'))
+        @php
+            $transferNumber = str_replace('For warehouse transfer: ', '', $deliveryOrder->notes);
+        @endphp
+        <div class="info-box">
+            <h3>Transfer Information</h3>
+            <div class="info-grid">
+                <div>
+                    <div class="info-row">
+                        <span class="info-label">Transfer Type:</span>
+                        <strong>Internal Warehouse Transfer</strong>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Transfer Number:</span>
+                        <span style="color: #e74c3c; font-weight: bold;">{{ $transferNumber }}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="info-row">
+                        <span class="info-label">Purpose:</span>
+                        Stock movement between warehouses
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Reference:</span>
+                        {{ $deliveryOrder->notes }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        @else
         <div class="info-box">
             <h3>Customer Information</h3>
             <div class="info-grid">
@@ -189,6 +219,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <h3>Delivery Items</h3>

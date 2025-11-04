@@ -117,8 +117,8 @@ const DashboardFinance = () => {
     window.location.href = '/invoices';
   };
 
-  // Only allow Finance role to access this dashboard
-  if (user?.role?.name !== 'Finance') {
+  // Allow Admin and Finance roles to access this dashboard
+  if (user?.role?.name !== 'Finance' && user?.role?.name !== 'Admin') {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">

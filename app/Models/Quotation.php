@@ -78,33 +78,143 @@ class Quotation extends Model
     public function submitForApproval($notes = null): Approval
     {
         $this->update(['status' => 'SUBMITTED']);
-        return Approval::createRequest($this, $notes);
+
+        // Check if multi-level approval is needed
+        $approvalLevels = $this->getRequiredApprovalLevels();
+
+        if ($approvalLevels->count() > 1) {
+            // Multi-level approval
+            return Approval::createMultiLevelRequest($this, $approvalLevels, $notes);
+        } else {
+            // Single-level approval (legacy)
+            return Approval::createRequest($this, $notes);
+        }
     }
 
     /**
-     * Approve quotation
+     * Get required approval levels based on quotation amount
      */
-    public function approve($approverNotes = null): bool
+    public function getRequiredApprovalLevels()
     {
-        $approval = $this->latestApproval();
+        $rules = ApprovalRule::findApplicableRules('Quotation', $this->total_amount);
+
+        if ($rules->isNotEmpty()) {
+            // Use the first matching rule (most specific)
+            $rule = $rules->first();
+            return $rule->getOrderedApprovalLevels();
+        }
+
+        // Fallback to default approval levels based on amount
+        return ApprovalLevel::active()
+            ->where('min_amount', '<=', $this->total_amount)
+            ->where(function ($query) {
+                $query->whereNull('max_amount')
+                      ->orWhere('max_amount', '>=', $this->total_amount);
+            })
+            ->ordered()
+            ->get();
+    }
+
+    /**
+     * Approve quotation at current level
+     */
+    public function approveCurrentLevel($approverNotes = null): bool
+    {
+        $approval = $this->getCurrentPendingApproval();
         if ($approval && $approval->isPending()) {
-            $approval->approve($approverNotes);
-            $this->update(['status' => 'APPROVED']);
-            return true;
+            return $approval->approveCurrentLevel($approverNotes);
         }
         return false;
     }
 
     /**
-     * Reject quotation
+     * Reject quotation at current level
      */
+    public function rejectCurrentLevel($approverNotes = null): bool
+    {
+        $approval = $this->getCurrentPendingApproval();
+        if ($approval && $approval->isPending()) {
+            return $approval->rejectCurrentLevel($approverNotes);
+        }
+        return false;
+    }
+
+    /**
+     * Get current pending approval
+     */
+    public function getCurrentPendingApproval()
+    {
+        return Approval::getCurrentPending($this);
+    }
+
+    /**
+     * Check if quotation requires multi-level approval
+     */
+    public function requiresMultiLevelApproval(): bool
+    {
+        $approvalLevels = $this->getRequiredApprovalLevels();
+        return $approvalLevels->count() > 1;
+    }
+
+    /**
+     * Get approval workflow status
+     */
+    public function getApprovalWorkflowStatus()
+    {
+        $currentApproval = $this->getCurrentPendingApproval();
+
+        if (!$currentApproval) {
+            $latestApproval = $this->latestApproval();
+            return $latestApproval ? $latestApproval->workflow_status : null;
+        }
+
+        return $currentApproval->workflow_status;
+    }
+
+    /**
+     * Get all approvals in workflow
+     */
+    public function getWorkflowApprovals()
+    {
+        return $this->approvals()->orderBy('level_order')->get();
+    }
+
+    /**
+     * Check if quotation can be approved by current user
+     */
+    public function canBeApprovedBy($user): bool
+    {
+        $currentApproval = $this->getCurrentPendingApproval();
+
+        if (!$currentApproval || !$currentApproval->isPending()) {
+            return false;
+        }
+
+        $approvalLevel = $currentApproval->approvalLevel;
+        if (!$approvalLevel) {
+            return false;
+        }
+
+        return $user->role_id === $approvalLevel->role_id;
+    }
+
+    /**
+     * Legacy methods for backward compatibility
+     */
+    public function approve($approverNotes = null): bool
+    {
+        $approval = $this->latestApproval();
+        if ($approval && $approval->isPending()) {
+            return $approval->approveCurrentLevel($approverNotes);
+        }
+        return false;
+    }
+
     public function reject($approverNotes = null): bool
     {
         $approval = $this->latestApproval();
         if ($approval && $approval->isPending()) {
-            $approval->reject($approverNotes);
-            $this->update(['status' => 'REJECTED']);
-            return true;
+            return $approval->rejectCurrentLevel($approverNotes);
         }
         return false;
     }

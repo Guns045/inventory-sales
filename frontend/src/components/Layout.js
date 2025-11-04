@@ -8,6 +8,7 @@ import NotificationsDropdown from './NotificationsDropdown';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
   const { logout } = useAuth();
   const { user, visibleMenuItems, loading } = usePermissions();
   const { companySettings, getLogoUrl } = useCompany();
@@ -17,6 +18,112 @@ const Layout = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const toggleSubmenu = (menuPath) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuPath]: !prev[menuPath]
+    }));
+  };
+
+  const isMenuActive = (path) => {
+    return location.pathname === path;
+  };
+
+  const isParentMenuActive = (children) => {
+    if (!children || !Array.isArray(children)) return false;
+    return children.some(child => isMenuActive(child.path));
+  };
+
+  const renderMenuItem = (item, isSubmenu = false) => {
+    const hasChildren = item.children && Array.isArray(item.children) && item.children.length > 0;
+    const isActive = isMenuActive(item.path);
+    const isParentActive = hasChildren && isParentMenuActive(item.children);
+    const isExpanded = expandedMenus[item.path] || isParentActive;
+
+    if (item.action === 'logout') {
+      return (
+        <Nav.Item key={item.path}>
+          <Nav.Link
+            className={`mb-1 logout-link ${isActive ? 'active' : ''} ${isSubmenu ? 'submenu-item' : ''}`}
+            title={item.description}
+            onClick={() => {
+              console.log('Layout: Clicking logout');
+              handleLogout();
+            }}
+            style={{ cursor: 'pointer' }}
+          >
+            <i className={`bi ${item.icon} me-3`}></i>
+            <div>
+              {item.title}
+              {item.description && (
+                <small className="d-block text-muted small-desc">
+                  {item.description}
+                </small>
+              )}
+            </div>
+          </Nav.Link>
+        </Nav.Item>
+      );
+    }
+
+    if (hasChildren) {
+      return (
+        <Nav.Item key={item.path}>
+          <Nav.Link
+            className={`mb-1 ${isParentActive ? 'active' : ''} ${isSubmenu ? 'submenu-item' : ''}`}
+            onClick={() => toggleSubmenu(item.path)}
+            style={{ cursor: 'pointer' }}
+            title={item.description}
+          >
+            <i className={`bi ${item.icon} me-3`}></i>
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                {item.title}
+                {item.description && (
+                  <small className="d-block text-muted small-desc">
+                    {item.description}
+                  </small>
+                )}
+              </div>
+              <i className={`bi ${isExpanded ? 'bi-chevron-down' : 'bi-chevron-right'} ms-auto`}></i>
+            </div>
+          </Nav.Link>
+          {isExpanded && (
+            <div className="submenu">
+              {item.children.map(child => renderMenuItem(child, true))}
+            </div>
+          )}
+        </Nav.Item>
+      );
+    }
+
+    return (
+      <Nav.Item key={item.path}>
+        <Nav.Link
+          as={Link}
+          to={item.path}
+          className={`mb-1 ${isActive ? 'active' : ''} ${isSubmenu ? 'submenu-item' : ''}`}
+          title={item.description}
+          onClick={() => {
+            if (sidebarOpen) {
+              setSidebarOpen(false);
+            }
+          }}
+        >
+          <i className={`bi ${item.icon} me-3`}></i>
+          <div>
+            {item.title}
+            {item.description && (
+              <small className="d-block text-muted small-desc">
+                {item.description}
+              </small>
+            )}
+          </div>
+        </Nav.Link>
+      </Nav.Item>
+    );
   };
 
   // Show loading spinner while permissions are loading
@@ -71,48 +178,7 @@ const Layout = () => {
           </small>
         </div>
         <Nav className="flex-column p-3">
-          {visibleMenuItems.map((item) => (
-            <Nav.Item key={item.path}>
-              {item.action === 'logout' ? (
-                <Nav.Link
-                  className={`mb-1 logout-link ${location.pathname === item.path ? 'active' : ''}`}
-                  title={item.description}
-                  onClick={() => {
-                    console.log('Layout: Clicking logout');
-                    handleLogout();
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <i className={`bi ${item.icon} me-3`}></i>
-                  <div>
-                    {item.title}
-                    {item.description && (
-                      <small className="d-block text-muted small-desc">
-                        {item.description}
-                      </small>
-                    )}
-                  </div>
-                </Nav.Link>
-              ) : (
-                <Nav.Link
-                  as={Link}
-                  to={item.path}
-                  className={`mb-1 ${location.pathname === item.path ? 'active' : ''}`}
-                  title={item.description}
-                  >
-                  <i className={`bi ${item.icon} me-3`}></i>
-                  <div>
-                    {item.title}
-                    {item.description && (
-                      <small className="d-block text-muted small-desc">
-                        {item.description}
-                      </small>
-                    )}
-                  </div>
-                </Nav.Link>
-              )}
-            </Nav.Item>
-          ))}
+          {visibleMenuItems.map((item) => renderMenuItem(item))}
         </Nav>
       </div>
 
@@ -168,50 +234,7 @@ const Layout = () => {
           </Button>
         </div>
         <Nav className="flex-column p-3">
-          {visibleMenuItems.map((item) => (
-            <Nav.Item key={item.path}>
-              {item.action === 'logout' ? (
-                <Nav.Link
-                  className={`mb-1 text-white logout-link ${location.pathname === item.path ? 'active' : ''}`}
-                  title={item.description}
-                  onClick={() => {
-                    handleLogout();
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <i className={`bi ${item.icon} me-3`}></i>
-                  <div>
-                    {item.title}
-                    {item.description && (
-                      <small className="d-block text-muted small-desc">
-                        {item.description}
-                      </small>
-                    )}
-                  </div>
-                </Nav.Link>
-              ) : (
-                <Nav.Link
-                  as={Link}
-                  to={item.path}
-                  className={`mb-1 text-white ${location.pathname === item.path ? 'active' : ''}`}
-                  title={item.description}
-                  onClick={() => {
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <i className={`bi ${item.icon} me-3`}></i>
-                  <div>
-                    {item.title}
-                    {item.description && (
-                      <small className="d-block text-muted small-desc">
-                        {item.description}
-                      </small>
-                    )}
-                  </div>
-                </Nav.Link>
-              )}
-            </Nav.Item>
-          ))}
+          {visibleMenuItems.map((item) => renderMenuItem(item))}
         </Nav>
       </div>
 

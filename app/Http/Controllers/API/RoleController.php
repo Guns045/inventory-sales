@@ -102,96 +102,208 @@ class RoleController extends Controller
         $roles = [
             'Admin' => [
                 'dashboard' => ['read', 'create', 'update', 'delete'],
+                'dashboard.sales' => ['read', 'create', 'update', 'delete'],
+                'dashboard.approval' => ['read', 'create', 'update', 'delete'],
+                'dashboard.warehouse' => ['read', 'create', 'update', 'delete'],
+                'dashboard.finance' => ['read', 'create', 'update', 'delete'],
                 'users' => ['read', 'create', 'update', 'delete'],
                 'customers' => ['read', 'create', 'update', 'delete'],
                 'suppliers' => ['read', 'create', 'update', 'delete'],
                 'products' => ['read', 'create', 'update', 'delete'],
                 'categories' => ['read', 'create', 'update', 'delete'],
                 'stock' => ['read', 'create', 'update', 'delete'],
-                'quotations' => ['read', 'create', 'update', 'delete', 'approve', 'reject'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'warehouse-transfers' => ['read', 'create', 'update', 'delete'],
+                'warehouses' => ['read', 'create', 'update', 'delete'],
+                'quotations' => ['read', 'create', 'update', 'delete', 'approve', 'reject', 'submit', 'convert'],
                 'sales_orders' => ['read', 'create', 'update', 'delete'],
+                'delivery_orders' => ['read', 'create', 'update', 'delete'],
                 'invoices' => ['read', 'create', 'update', 'delete'],
+                'payments' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
+                'goods_receipts' => ['read', 'create', 'update'],
                 'approvals' => ['read', 'approve', 'reject'],
-                'reports' => ['read'],
+                'reports' => ['read', 'create', 'update', 'delete'],
                 'settings' => ['read', 'update'],
+                'activity-logs' => ['read'],
+                'notifications' => ['read', 'create', 'update', 'delete'],
+                'company-settings' => ['read', 'update', 'upload-logo', 'delete-logo'],
+                'approval-levels' => ['read', 'create', 'update', 'delete'],
                 'menu_items' => [
                     [
                         'title' => 'Dashboard',
                         'path' => '/dashboard/main',
                         'icon' => 'bi-speedometer2',
-                        'permission' => 'dashboard.read'
+                        'permission' => 'dashboard.read',
+                        'children' => [
+                            [
+                                'title' => 'Dashboard Monitoring',
+                                'path' => '/dashboard/main',
+                                'icon' => 'bi-activity',
+                                'permission' => 'dashboard.read'
+                            ],
+                            [
+                                'title' => 'Dashboard Approval',
+                                'path' => '/dashboard/approval',
+                                'icon' => 'bi-check-square',
+                                'permission' => 'approvals.read'
+                            ]
+                        ]
                     ],
                     [
-                        'title' => 'Dashboard Approval',
-                        'path' => '/dashboard/approval',
-                        'icon' => 'bi-check-square',
-                        'permission' => 'approvals.read'
+                        'title' => 'Sales',
+                        'path' => '/dashboard/sales',
+                        'icon' => 'bi-cart3',
+                        'permission' => 'quotations.read',
+                        'children' => [
+                            [
+                                'title' => 'Customer',
+                                'path' => '/dashboard/customers',
+                                'icon' => 'bi-building',
+                                'permission' => 'customers.read'
+                            ],
+                            [
+                                'title' => 'Quotation',
+                                'path' => '/dashboard/quotations',
+                                'icon' => 'bi-file-text',
+                                'permission' => 'quotations.read'
+                            ],
+                            [
+                                'title' => 'Sales Order',
+                                'path' => '/dashboard/sales-orders',
+                                'icon' => 'bi-cart-check',
+                                'permission' => 'sales_orders.read'
+                            ],
+                            [
+                                'title' => 'Delivery Order',
+                                'path' => '/dashboard/delivery-orders',
+                                'icon' => 'bi-truck',
+                                'permission' => 'delivery_orders.read'
+                            ]
+                        ]
                     ],
                     [
-                        'title' => 'Manajemen User',
+                        'title' => 'Inventory',
+                        'path' => '/dashboard/inventory',
+                        'icon' => 'bi-boxes',
+                        'permission' => 'products.read',
+                        'children' => [
+                            [
+                                'title' => 'Supplier',
+                                'path' => '/dashboard/suppliers',
+                                'icon' => 'bi-truck',
+                                'permission' => 'suppliers.read'
+                            ],
+                            [
+                                'title' => 'Product',
+                                'path' => '/dashboard/products',
+                                'icon' => 'bi-box',
+                                'permission' => 'products.read'
+                            ],
+                            [
+                                'title' => 'On Hand Stock',
+                                'path' => '/dashboard/stock',
+                                'icon' => 'bi-archive',
+                                'permission' => 'stock.read'
+                            ],
+                            [
+                                'title' => 'Warehouse',
+                                'path' => '/dashboard/warehouses',
+                                'icon' => 'bi-building',
+                                'permission' => 'warehouses.read'
+                            ]
+                        ]
+                    ],
+                    [
+                        'title' => 'Purchased',
+                        'path' => '/dashboard/purchased',
+                        'icon' => 'bi-bag-check',
+                        'permission' => 'goods_receipts.read',
+                        'children' => [
+                            [
+                                'title' => 'Goods Receipt',
+                                'path' => '/dashboard/goods-receipts',
+                                'icon' => 'bi-receipt-cutoff',
+                                'permission' => 'goods_receipts.read'
+                            ],
+                            [
+                                'title' => 'Goods Issue',
+                                'path' => '/dashboard/goods-issue',
+                                'icon' => 'bi-box-arrow-left',
+                                'permission' => 'stock.update'
+                            ]
+                        ]
+                    ],
+                    [
+                        'title' => 'Finance',
+                        'path' => '/dashboard/finance',
+                        'icon' => 'bi-credit-card',
+                        'permission' => 'invoices.read',
+                        'children' => [
+                            [
+                                'title' => 'Invoice',
+                                'path' => '/dashboard/invoices',
+                                'icon' => 'bi-receipt',
+                                'permission' => 'invoices.read'
+                            ],
+                            [
+                                'title' => 'Payment',
+                                'path' => '/dashboard/payments',
+                                'icon' => 'bi-credit-card',
+                                'permission' => 'payments.read'
+                            ],
+                            [
+                                'title' => 'Report',
+                                'path' => '/dashboard/reports',
+                                'icon' => 'bi-graph-up',
+                                'permission' => 'reports.read'
+                            ]
+                        ]
+                    ],
+                    [
+                        'title' => 'Warehouse Operations',
+                        'path' => '/dashboard/warehouse-ops',
+                        'icon' => 'bi-truck',
+                        'permission' => 'delivery_orders.read',
+                        'children' => [
+                            [
+                                'title' => 'Picking Lists',
+                                'path' => '/dashboard/picking-lists',
+                                'icon' => 'bi-clipboard-check',
+                                'permission' => 'picking-lists.read'
+                            ],
+                            [
+                                'title' => 'Goods Receipt',
+                                'path' => '/dashboard/goods-receipts',
+                                'icon' => 'bi-receipt-cutoff',
+                                'permission' => 'goods_receipts.read'
+                            ],
+                            [
+                                'title' => 'Internal Transfer',
+                                'path' => '/dashboard/warehouse-transfers',
+                                'icon' => 'bi-arrow-left-right',
+                                'permission' => 'warehouse-transfers.read'
+                            ]
+                        ]
+                    ],
+                    [
+                        'title' => 'Management User',
                         'path' => '/dashboard/users',
                         'icon' => 'bi-people',
                         'permission' => 'users.read'
-                    ],
-                    [
-                        'title' => 'Customers',
-                        'path' => '/dashboard/customers',
-                        'icon' => 'bi-building',
-                        'permission' => 'customers.read'
-                    ],
-                    [
-                        'title' => 'Suppliers',
-                        'path' => '/dashboard/suppliers',
-                        'icon' => 'bi-truck',
-                        'permission' => 'suppliers.read'
-                    ],
-                    [
-                        'title' => 'Products',
-                        'path' => '/dashboard/products',
-                        'icon' => 'bi-box',
-                        'permission' => 'products.read'
-                    ],
-                    [
-                        'title' => 'Stock',
-                        'path' => '/dashboard/stock',
-                        'icon' => 'bi-archive',
-                        'permission' => 'stock.read'
-                    ],
-                    [
-                        'title' => 'Quotations',
-                        'path' => '/dashboard/quotations',
-                        'icon' => 'bi-file-text',
-                        'permission' => 'quotations.read'
-                    ],
-                    [
-                        'title' => 'Sales Orders',
-                        'path' => '/dashboard/sales-orders',
-                        'icon' => 'bi-cart-check',
-                        'permission' => 'sales_orders.read'
-                    ],
-                    [
-                        'title' => 'Invoices',
-                        'path' => '/dashboard/invoices',
-                        'icon' => 'bi-receipt',
-                        'permission' => 'invoices.read'
-                    ],
-                    [
-                        'title' => 'Approvals',
-                        'path' => '/dashboard/approvals',
-                        'icon' => 'bi-check-square',
-                        'permission' => 'approvals.read'
-                    ],
-                    [
-                        'title' => 'Laporan',
-                        'path' => '/dashboard/reports',
-                        'icon' => 'bi-graph-up',
-                        'permission' => 'reports.read'
                     ],
                     [
                         'title' => 'Settings',
                         'path' => '/dashboard/settings',
                         'icon' => 'bi-gear',
                         'permission' => 'settings.read'
+                    ],
+                    [
+                        'title' => 'Logout',
+                        'path' => '/logout',
+                        'icon' => 'bi-box-arrow-right',
+                        'permission' => null,
+                        'action' => 'logout'
                     ]
                 ]
             ],
@@ -259,6 +371,7 @@ class RoleController extends Controller
                 'warehouses' => ['read', 'update'],
                 'stock' => ['read', 'update'],
                 'product-stock' => ['read', 'create', 'update', 'delete'],
+                'warehouse-transfers' => ['read', 'create', 'update'],
                 'sales_orders' => ['read', 'update'],
                 'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
                 'delivery_orders' => ['read', 'create', 'update'],
@@ -292,6 +405,13 @@ class RoleController extends Controller
                         'icon' => 'bi-archive',
                         'permission' => 'stock.read',
                         'description' => 'Kelola stok barang'
+                    ],
+                    [
+                        'title' => 'Internal Transfer',
+                        'path' => '/dashboard/warehouse-transfers',
+                        'icon' => 'bi-arrow-left-right',
+                        'permission' => 'warehouse-transfers.read',
+                        'description' => 'Kelola transfer antar gudang'
                     ],
                     [
                         'title' => 'Delivery Orders',

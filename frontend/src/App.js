@@ -39,6 +39,7 @@ import Users from './pages/Users';
 import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import InternalTransfers from './pages/InternalTransfers';
 
 function App() {
   return (
@@ -72,6 +73,7 @@ function App() {
                   <Route path="sales-orders" element={<SalesOrders />} />
                   <Route path="delivery-orders" element={<DeliveryOrders />} />
                   <Route path="picking-lists" element={<PickingLists />} />
+                  <Route path="warehouse-transfers" element={<InternalTransfers />} />
                   <Route path="purchase-orders" element={<PurchaseOrders />} />
                   <Route path="goods-receipts" element={<GoodsReceipts />} />
                   <Route path="invoices" element={<Invoices />} />

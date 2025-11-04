@@ -298,8 +298,8 @@ const DashboardSales = () => {
     return 'danger';
   };
 
-  // Only allow Sales role to access this dashboard
-  if (user?.role?.name !== 'Sales') {
+  // Allow Admin and Sales roles to access this dashboard
+  if (user?.role?.name !== 'Sales' && user?.role?.name !== 'Admin') {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
