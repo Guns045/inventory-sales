@@ -35,8 +35,11 @@ class GoodsReceiptController extends Controller
         ]);
 
         $goodsReceipt = DB::transaction(function () use ($request) {
+            // Get warehouse code (for now, default to JKT - can be enhanced later)
+            $warehouseCode = 'JKT'; // TODO: Get from PO or user selection
+
             $goodsReceipt = GoodsReceipt::create([
-                'receipt_number' => 'GR-' . date('Y-m') . '-' . str_pad(GoodsReceipt::count() + 1, 4, '0', STR_PAD_LEFT),
+                'receipt_number' => GoodsReceipt::generateReceiptNumber($warehouseCode),
                 'purchase_order_id' => $request->purchase_order_id,
                 'user_id' => auth()->id(),
                 'receipt_date' => $request->receipt_date,

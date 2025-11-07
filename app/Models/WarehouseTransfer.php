@@ -48,21 +48,41 @@ class WarehouseTransfer extends Model
         // Auto-generate transfer number when creating
         static::creating(function ($transfer) {
             if (empty($transfer->transfer_number)) {
-                $transfer->transfer_number = self::generateTransferNumber();
+                $transfer->transfer_number = $transfer->generateTransferNumber();
             }
         });
     }
 
-    public static function generateTransferNumber()
+    public function generateTransferNumber()
     {
-        $prefix = 'IT-' . date('Y-m-d') . '-';
-        $lastTransfer = self::where('transfer_number', 'like', $prefix . '%')
+        // Get warehouse code for the source warehouse (warehouse_from_id)
+        $warehouseCode = 'WH';
+        if ($this->warehouse_from_id) {
+            $warehouse = \App\Models\Warehouse::find($this->warehouse_from_id);
+            $warehouseCode = $warehouse ? $warehouse->code : 'WH';
+        }
+        elseif ($this->warehouseFrom) {
+            $warehouseCode = $this->warehouseFrom->code;
+        }
+
+        $prefix = 'IT-';
+        $monthYear = date('m-Y');
+        $pattern = $prefix . '%/' . $warehouseCode . '/' . $monthYear;
+
+        $lastTransfer = self::where('transfer_number', 'like', $pattern)
             ->orderBy('transfer_number', 'desc')
             ->first();
 
-        $sequence = $lastTransfer ? intval(substr($lastTransfer->transfer_number, -3)) + 1 : 1;
+        if ($lastTransfer) {
+            // Extract sequence from format: IT-XXXX/JKT/11-2025
+            $parts = explode('/', $lastTransfer->transfer_number);
+            $lastSequence = intval(substr($parts[0], 3)); // Get XXXX from IT-XXXX
+            $sequence = $lastSequence + 1;
+        } else {
+            $sequence = 1;
+        }
 
-        return $prefix . str_pad($sequence, 3, '0', STR_PAD_LEFT);
+        return $prefix . str_pad($sequence, 4, '0', STR_PAD_LEFT) . '/' . $warehouseCode . '/' . $monthYear;
     }
 
     public function product(): BelongsTo

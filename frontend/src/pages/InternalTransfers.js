@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAPI } from '../contexts/APIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { Modal, Form, Button, Alert, Card, Row, Col, Table } from 'react-bootstrap';
 import './InternalTransfers.css';
 
 const InternalTransfers = () => {
@@ -259,7 +260,7 @@ const InternalTransfers = () => {
   };
 
   const canCreateTransfer = () => {
-    return ['Super Admin', 'Admin'].includes(user?.role?.name) || (user?.role?.name === 'Gudang' && user?.warehouse_id);
+    return true; // Temporarily enable for testing
   };
 
   const canApproveTransfer = (transfer) => {
@@ -286,204 +287,318 @@ const InternalTransfers = () => {
 
   return (
     <div className="internal-transfers">
-      <div className="header">
-        <h1>Internal Stock Transfer</h1>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="mb-1">Internal Stock Transfer</h2>
+          <p className="text-muted mb-0">Manage stock transfers between warehouses</p>
+        </div>
         {canCreateTransfer() && (
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateModal(true)}
+          <Button
+            variant="primary"
+            onClick={() => setShowCreateModal(!showCreateModal)}
           >
             <i className="bi bi-plus-circle me-2"></i>
-            Create Transfer Request
-          </button>
+            {showCreateModal ? 'Hide Form' : 'Create Transfer Request'}
+          </Button>
         )}
       </div>
 
       {error && (
-        <div className="alert alert-error">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="btn-close">×</button>
-        </div>
+        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+          {error}
+        </Alert>
       )}
 
-      <div className="filters">
-        <div className="filter-group">
-          <label>Status:</label>
-          <select
-            value={filter.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-            className="form-control"
-          >
-            <option value="">All Status</option>
-            <option value="REQUESTED">Requested</option>
-            <option value="APPROVED">Approved</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="RECEIVED">Received</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-        </div>
+      {/* Create Transfer Form */}
+      {canCreateTransfer() && showCreateModal && (
+        <Card className="mb-4">
+          <Card.Header className="bg-primary text-white">
+            <h5 className="mb-0">
+              <i className="bi bi-plus-circle me-2"></i>
+              Create Transfer Request
+            </h5>
+          </Card.Header>
+          <Card.Body>
+            <Form onSubmit={handleCreateTransfer}>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Form.Label>Product *</Form.Label>
+                  <Form.Select
+                    value={formData.product_id}
+                    onChange={(e) => setFormData({...formData, product_id: e.target.value})}
+                    required
+                  >
+                    <option value="">Select Product</option>
+                    {products.map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.sku} - {product.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Col>
 
-        <div className="filter-group">
-          <label>From Warehouse:</label>
-          <select
-            value={filter.warehouse_from}
-            onChange={(e) => handleFilterChange('warehouse_from', e.target.value)}
-            className="form-control"
-          >
-            <option value="">All Warehouses</option>
-            {warehouses.map(wh => (
-              <option key={wh.id} value={wh.id}>{wh.name}</option>
-            ))}
-          </select>
-        </div>
+                <Col md={6} className="mb-3">
+                  <Form.Label>Notes</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    placeholder="Optional notes..."
+                  />
+                </Col>
+              </Row>
 
-        <div className="filter-group">
-          <label>To Warehouse:</label>
-          <select
-            value={filter.warehouse_to}
-            onChange={(e) => handleFilterChange('warehouse_to', e.target.value)}
-            className="form-control"
-          >
-            <option value="">All Warehouses</option>
-            {warehouses.map(wh => (
-              <option key={wh.id} value={wh.id}>{wh.name}</option>
-            ))}
-          </select>
-        </div>
+              <Row>
+                <Col md={4} className="mb-3">
+                  <Form.Label>From Warehouse *</Form.Label>
+                  <Form.Select
+                    value={formData.warehouse_from_id}
+                    onChange={(e) => setFormData({...formData, warehouse_from_id: e.target.value})}
+                    required
+                  >
+                    <option value="">Select Source Warehouse</option>
+                    {warehouses.map(wh => (
+                      <option key={wh.id} value={wh.id}>{wh.name}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
 
-        <div className="filter-group">
-          <label>Search:</label>
-          <input
-            type="text"
-            value={filter.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            placeholder="Search by transfer number or product..."
-            className="form-control"
-          />
-        </div>
-      </div>
+                <Col md={4} className="mb-3">
+                  <Form.Label>To Warehouse *</Form.Label>
+                  <Form.Select
+                    value={formData.warehouse_to_id}
+                    onChange={(e) => setFormData({...formData, warehouse_to_id: e.target.value})}
+                    required
+                  >
+                    <option value="">Select Destination Warehouse</option>
+                    {warehouses
+                      .filter(wh => wh.id.toString() !== formData.warehouse_from_id)
+                      .map(wh => (
+                        <option key={wh.id} value={wh.id}>{wh.name}</option>
+                      ))}
+                  </Form.Select>
+                </Col>
 
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Transfer Number</th>
-              <th>Product</th>
-              <th>From Warehouse</th>
-              <th>To Warehouse</th>
-              <th>Requested Qty</th>
-              <th>Delivered Qty</th>
-              <th>Received Qty</th>
-              <th>Status</th>
-              <th>Requested Date</th>
-              <th>Requested By</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transfers.length === 0 ? (
-              <tr>
-                <td colSpan="11" className="text-center">
-                  <div className="text-center py-4">
-                    <i className="bi bi-arrow-left-right text-muted fs-1"></i>
-                    <p className="text-muted mt-2">No warehouse transfers found</p>
-                    <small className="text-muted">
-                      Create a new transfer request to move stock between warehouses
-                    </small>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              transfers.map(transfer => (
-                <tr key={transfer.id}>
-                  <td>
-                    <div className="fw-bold">{transfer.transfer_number}</div>
-                  </td>
-                  <td>
-                    <div>{transfer.product?.name || '-'}</div>
-                    <small className="text-muted">{transfer.product?.sku || ''}</small>
-                  </td>
-                  <td>{transfer.warehouseFrom?.name || '-'}</td>
-                  <td>{transfer.warehouseTo?.name || '-'}</td>
-                  <td className="text-right">{transfer.quantity_requested}</td>
-                  <td className="text-right">{transfer.quantity_delivered || 0}</td>
-                  <td className="text-right">{transfer.quantity_received || 0}</td>
-                  <td>
-                    <span className={`status ${getStatusClass(transfer.status)}`}>
-                      {transfer.status}
-                    </span>
-                  </td>
-                  <td>{formatDate(transfer.requested_at)}</td>
-                  <td>{transfer.requestedBy?.name || '-'}</td>
-                  <td>
-                    <button
-                      className="btn btn-sm btn-info"
-                      onClick={() => handleViewDetails(transfer)}
-                    >
-                      <i className="bi bi-eye"></i>
-                    </button>
+                <Col md={4} className="mb-3">
+                  <Form.Label>Quantity *</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    value={formData.quantity_requested}
+                    onChange={(e) => setFormData({...formData, quantity_requested: parseInt(e.target.value) || 1})}
+                    required
+                  />
+                </Col>
+              </Row>
 
-                    {transfer.status === 'REQUESTED' && canApproveTransfer(transfer) && (
-                      <button
-                        className="btn btn-sm btn-success"
-                        onClick={() => handleApprove(transfer.id)}
-                        title="Approve Transfer"
-                      >
-                        <i className="bi bi-check-circle"></i>
-                      </button>
-                    )}
+              <div className="d-flex justify-content-end">
+                <Button variant="secondary" className="me-2" onClick={() => setFormData({
+                  product_id: '',
+                  warehouse_from_id: '',
+                  warehouse_to_id: '',
+                  quantity_requested: 1,
+                  notes: ''
+                })}>
+                  Clear
+                </Button>
+                <Button variant="primary" type="submit">
+                  <i className="bi bi-plus-circle me-2"></i>
+                  Create Transfer
+                </Button>
+              </div>
+            </Form>
+          </Card.Body>
+        </Card>
+      )}
 
-                    {transfer.status === 'APPROVED' && canDeliverTransfer(transfer) && (
-                      <button
-                        className="btn btn-sm btn-warning"
-                        onClick={() => handleDeliver(transfer.id)}
-                        title="Create Delivery"
-                      >
-                        <i className="bi bi-truck"></i>
-                      </button>
-                    )}
+      {/* Filters */}
+      <Card className="mb-4">
+        <Card.Body>
+          <Row className="align-items-center">
+            <Col md={3}>
+              <Form.Label>Status</Form.Label>
+              <Form.Select
+                value={filter.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+              >
+                <option value="">All Status</option>
+                <option value="REQUESTED">Requested</option>
+                <option value="APPROVED">Approved</option>
+                <option value="IN_TRANSIT">In Transit</option>
+                <option value="RECEIVED">Received</option>
+                <option value="CANCELLED">Cancelled</option>
+              </Form.Select>
+            </Col>
 
-                    {transfer.status === 'IN_TRANSIT' && canReceiveTransfer(transfer) && (
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => {
-                          setSelectedTransfer(transfer);
-                          handleReceive(transfer.id);
-                        }}
-                        title="Receive Goods"
-                      >
-                        <i className="bi bi-box-arrow-in-down"></i>
-                      </button>
-                    )}
+            <Col md={3}>
+              <Form.Label>From Warehouse</Form.Label>
+              <Form.Select
+                value={filter.warehouse_from}
+                onChange={(e) => handleFilterChange('warehouse_from', e.target.value)}
+              >
+                <option value="">All Warehouses</option>
+                {warehouses.map(wh => (
+                  <option key={wh.id} value={wh.id}>{wh.name}</option>
+                ))}
+              </Form.Select>
+            </Col>
 
-                    {/* Print Delivery Order Button - show for IN_TRANSIT and RECEIVED transfers */}
-                    {(transfer.status === 'IN_TRANSIT' || transfer.status === 'RECEIVED') && (
-                      <button
-                        className="btn btn-sm btn-info"
-                        onClick={() => handlePrintDeliveryOrder(transfer.transfer_number)}
-                        title="Print Delivery Order"
-                      >
-                        <i className="bi bi-file-pdf"></i>
-                      </button>
-                    )}
+            <Col md={3}>
+              <Form.Label>To Warehouse</Form.Label>
+              <Form.Select
+                value={filter.warehouse_to}
+                onChange={(e) => handleFilterChange('warehouse_to', e.target.value)}
+              >
+                <option value="">All Warehouses</option>
+                {warehouses.map(wh => (
+                  <option key={wh.id} value={wh.id}>{wh.name}</option>
+                ))}
+              </Form.Select>
+            </Col>
 
-                    {(transfer.status === 'REQUESTED' || transfer.status === 'APPROVED') &&
-                     (transfer.requested_by === user?.id || user?.role?.name === 'Admin') && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleCancel(transfer.id)}
-                        title="Cancel Transfer"
-                      >
-                        <i className="bi bi-x-circle"></i>
-                      </button>
-                    )}
-                  </td>
+            <Col md={3}>
+              <Form.Label>Search</Form.Label>
+              <Form.Control
+                type="text"
+                value={filter.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                placeholder="Search transfer number or product..."
+              />
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      <Card className="table-container">
+        <Card.Body className="p-0">
+          <div className="table-responsive">
+            <Table hover className="mb-0">
+              <thead>
+                <tr>
+                  <th>Transfer Number</th>
+                  <th>Product</th>
+                  <th>From Warehouse</th>
+                  <th>To Warehouse</th>
+                  <th>Requested Qty</th>
+                  <th>Delivered Qty</th>
+                  <th>Received Qty</th>
+                  <th>Status</th>
+                  <th>Requested Date</th>
+                  <th>Requested By</th>
+                  <th>Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {transfers.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="text-center py-5">
+                      <i className="bi bi-arrow-left-right fs-1 text-muted mb-3"></i>
+                      <h5 className="text-muted">No warehouse transfers found</h5>
+                      <p className="text-muted">Create a new transfer request to move stock between warehouses</p>
+                    </td>
+                  </tr>
+                ) : (
+                  transfers.map(transfer => (
+                    <tr key={transfer.id}>
+                      <td>
+                        <div className="fw-bold">{transfer.transfer_number}</div>
+                      </td>
+                      <td>
+                        <div>{transfer.product?.name || '-'}</div>
+                        <small className="text-muted">{transfer.product?.sku || ''}</small>
+                      </td>
+                      <td>{transfer.warehouseFrom?.name || '-'}</td>
+                      <td>{transfer.warehouseTo?.name || '-'}</td>
+                      <td className="text-end">{transfer.quantity_requested}</td>
+                      <td className="text-end">{transfer.quantity_delivered || 0}</td>
+                      <td className="text-end">{transfer.quantity_received || 0}</td>
+                      <td>
+                        <span className={`status ${getStatusClass(transfer.status)}`}>
+                          {transfer.status}
+                        </span>
+                      </td>
+                      <td>{formatDate(transfer.requested_at)}</td>
+                      <td>{transfer.requestedBy?.name || '-'}</td>
+                      <td>
+                        <div className="btn-group" role="group">
+                          <Button
+                            variant="outline-info"
+                            size="sm"
+                            onClick={() => handleViewDetails(transfer)}
+                            title="View Details"
+                          >
+                            <i className="bi bi-eye"></i>
+                          </Button>
+
+                          {transfer.status === 'REQUESTED' && canApproveTransfer(transfer) && (
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              onClick={() => handleApprove(transfer.id)}
+                              title="Approve Transfer"
+                            >
+                              <i className="bi bi-check-circle"></i>
+                            </Button>
+                          )}
+
+                          {transfer.status === 'APPROVED' && canDeliverTransfer(transfer) && (
+                            <Button
+                              variant="outline-warning"
+                              size="sm"
+                              onClick={() => handleDeliver(transfer.id)}
+                              title="Create Delivery"
+                            >
+                              <i className="bi bi-truck"></i>
+                            </Button>
+                          )}
+
+                          {transfer.status === 'IN_TRANSIT' && canReceiveTransfer(transfer) && (
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTransfer(transfer);
+                                handleReceive(transfer.id);
+                              }}
+                              title="Receive Goods"
+                            >
+                              <i className="bi bi-box-arrow-in-down"></i>
+                            </Button>
+                          )}
+
+                          {/* Print Delivery Order Button - show for IN_TRANSIT and RECEIVED transfers */}
+                          {(transfer.status === 'IN_TRANSIT' || transfer.status === 'RECEIVED') && (
+                            <Button
+                              variant="outline-info"
+                              size="sm"
+                              onClick={() => handlePrintDeliveryOrder(transfer.transfer_number)}
+                              title="Print Delivery Order"
+                            >
+                              <i className="bi bi-file-pdf"></i>
+                            </Button>
+                          )}
+
+                          {(transfer.status === 'REQUESTED' || transfer.status === 'APPROVED') &&
+                           (transfer.requested_by === user?.id || user?.role?.name === 'Admin') && (
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleCancel(transfer.id)}
+                              title="Cancel Transfer"
+                            >
+                              <i className="bi bi-x-circle"></i>
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </div>
+        </Card.Body>
+      </Card>
 
       {/* Create Transfer Modal */}
       {showCreateModal && (

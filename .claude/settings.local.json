@@ -27,7 +27,8 @@
       "Bash(nul)",
       "Bash(php artisan make:migration:*)",
       "Bash(php artisan:*)",
-      "Bash(composer require:*)"
+      "Bash(composer require:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

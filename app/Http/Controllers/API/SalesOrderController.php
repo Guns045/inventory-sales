@@ -318,7 +318,6 @@ class SalesOrderController extends Controller
             DB::beginTransaction();
 
             $pickingList = \App\Models\PickingList::create([
-                'picking_list_number' => \App\Models\PickingList::generateNumber(),
                 'sales_order_id' => $salesOrder->id,
                 'user_id' => auth()->id(),
                 'status' => 'READY',

@@ -22,6 +22,7 @@ use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\CompanySettingsController;
 use App\Http\Controllers\API\PickingListController;
+use App\Http\Controllers\API\SettingsController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -56,6 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/product-stock', [ProductStockController::class, 'store'])->middleware('permission:product-stock.create');
     Route::put('/product-stock/{id}', [ProductStockController::class, 'update'])->middleware('permission:product-stock.update');
     Route::delete('/product-stock/{id}', [ProductStockController::class, 'destroy'])->middleware('permission:product-stock.delete');
+    Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
+    Route::get('/product-stock/{id}/movements', [ProductStockController::class, 'getMovementHistory'])->middleware('permission:product-stock.read');
     
     // Sales management
     Route::apiResource('quotations', QuotationController::class);
@@ -187,4 +190,12 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::post('/warehouse-transfers/{id}/receive', [App\Http\Controllers\API\WarehouseTransferController::class, 'receive'])->middleware('permission:product-stock.update');
     Route::post('/warehouse-transfers/{id}/cancel', [App\Http\Controllers\API\WarehouseTransferController::class, 'cancel'])->middleware('permission:product-stock.delete');
     Route::get('/warehouse-transfers/statistics', [App\Http\Controllers\API\WarehouseTransferController::class, 'statistics'])->middleware('permission:product-stock.read');
+
+    // Master Data Raw Products Management
+    Route::post('/settings/raw-products/upload', [SettingsController::class, 'uploadRawProductsExcel'])->middleware('permission:products.create');
+    Route::get('/settings/raw-products', [SettingsController::class, 'getRawProducts'])->middleware('permission:products.read');
+    Route::get('/settings/raw-products/search', [SettingsController::class, 'searchRawProducts'])->middleware('permission:products.read');
+    Route::get('/settings/raw-products/statistics', [SettingsController::class, 'getRawProductsStatistics'])->middleware('permission:products.read');
+    Route::delete('/settings/raw-products/{id}', [SettingsController::class, 'deleteRawProduct'])->middleware('permission:products.delete');
+    Route::post('/settings/raw-products/bulk-delete', [SettingsController::class, 'bulkDeleteRawProducts'])->middleware('permission:products.delete');
 });

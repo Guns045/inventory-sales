@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Container, Row, Col, Card, Nav, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
 import CompanySettingsPage from './CompanySettings';
+import MasterDataProducts from './MasterDataProducts';
 
 // Import other settings components (will be created later)
 // import SystemSettings from './SystemSettings';
@@ -11,16 +12,24 @@ import CompanySettingsPage from './CompanySettings';
 
 const Settings = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('company');
+  const [activeTab, setActiveTab] = useState('master-data');
 
   const settingsTabs = [
+    {
+      id: 'master-data',
+      title: 'Master Data Products',
+      icon: 'bi-database',
+      description: 'Upload and manage product master data from Excel files',
+      component: <MasterDataProducts />,
+      roles: ['Admin', 'Super Admin']
+    },
     {
       id: 'company',
       title: 'Company Settings',
       icon: 'bi-building',
       description: 'Manage company information, logo, and branding',
       component: <CompanySettingsPage />,
-      roles: ['Admin']
+      roles: ['Admin', 'Super Admin']
     },
     {
       id: 'system',
@@ -43,7 +52,7 @@ const Settings = () => {
           </ul>
         </Alert>
       ),
-      roles: ['Admin']
+      roles: ['Admin', 'Super Admin']
     },
     {
       id: 'backup',
@@ -66,7 +75,7 @@ const Settings = () => {
           </ul>
         </Alert>
       ),
-      roles: ['Admin']
+      roles: ['Admin', 'Super Admin']
     },
     {
       id: 'templates',
@@ -112,7 +121,7 @@ const Settings = () => {
           </ul>
         </Alert>
       ),
-      roles: ['Admin']
+      roles: ['Admin', 'Super Admin']
     }
   ];
 

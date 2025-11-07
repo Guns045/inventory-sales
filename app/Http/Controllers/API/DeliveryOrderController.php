@@ -162,7 +162,6 @@ class DeliveryOrderController extends Controller
 
         $deliveryOrder = DB::transaction(function () use ($request, $pickingList) {
             $deliveryOrder = DeliveryOrder::create([
-                'delivery_order_number' => DeliveryOrder::generateNumber(),
                 'sales_order_id' => $pickingList->sales_order_id,
                 'picking_list_id' => $pickingList->id,
                 'customer_id' => $pickingList->salesOrder->customer_id,
@@ -402,7 +401,6 @@ class DeliveryOrderController extends Controller
 
         $deliveryOrder = DB::transaction(function () use ($request, $salesOrder) {
             $deliveryOrder = DeliveryOrder::create([
-                'delivery_order_number' => DeliveryOrder::generateNumber(),
                 'sales_order_id' => $salesOrder->id,
                 'customer_id' => $salesOrder->customer_id,
                 'shipping_date' => $request->shipping_date,

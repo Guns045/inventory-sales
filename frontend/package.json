@@ -50,6 +50,8 @@
   },
   "proxy": "http://localhost:8000",
   "devDependencies": {
-    "cross-env": "^10.1.0"
+    "autoprefixer": "^10.4.21",
+    "cross-env": "^10.1.0",
+    "postcss": "^8.5.6"
   }
 }

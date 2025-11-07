@@ -80,6 +80,9 @@ tbody tr:hover {
 .status-rejected { background-color: #dc3545; color: white; }
 .status-shipped { background-color: #007bff; color: white; }
 .status-delivered { background-color: #28a745; color: white; }
+.status-in-stock { background-color: #28a745; color: white; }
+.status-low-stock { background-color: #ffc107; color: #212529; }
+.status-out-of-stock { background-color: #dc3545; color: white; }
 
 .loading {
   text-align: center;

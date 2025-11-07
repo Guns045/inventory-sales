@@ -213,7 +213,6 @@ class WarehouseTransferController extends Controller
 
             // Create picking list
             $pickingList = PickingList::create([
-                'picking_list_number' => 'PL-' . date('Y-m-d') . '-' . str_pad(PickingList::count() + 1, 3, '0', STR_PAD_LEFT),
                 'sales_order_id' => null, // Not associated with sales order
                 'user_id' => $user->id,
                 'status' => 'DRAFT',
@@ -326,7 +325,6 @@ class WarehouseTransferController extends Controller
             }
 
             $deliveryOrder = DeliveryOrder::create([
-                'delivery_order_number' => 'DO-' . date('Y-m-d') . '-' . str_pad(DeliveryOrder::count() + 1, 3, '0', STR_PAD_LEFT),
                 'sales_order_id' => $existingSalesOrder->id, // Use existing or created sales order
                 'customer_id' => $defaultCustomer->id, // Use default customer for internal transfers
                 'status' => 'PREPARING', // Use valid enum value for delivery orders

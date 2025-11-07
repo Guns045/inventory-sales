@@ -11,9 +11,23 @@ import {
   InputGroup,
   Badge
 } from 'react-bootstrap';
+import { useAPI } from '../contexts/APIContext';
 import './Products.css';
 
+// Add custom styles for suggestions
+const style = document.createElement('style');
+style.textContent = `
+  .suggestion-item:hover {
+    background-color: #f8f9fa !important;
+  }
+  .suggestion-item:last-child {
+    border-bottom: none !important;
+  }
+`;
+document.head.appendChild(style);
+
 const Products = () => {
+  const { api } = useAPI();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,69 +49,148 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
 
+  // Auto-suggestion states
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [suggestionTimeout, setSuggestionTimeout] = useState(null);
+
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-    fetchSuppliers();
+    console.log('Products component mounted - starting data fetch...');
+    const loadData = async () => {
+      await fetchProducts();
+      await fetchCategories();
+      await fetchSuppliers();
+      console.log('All data fetch completed');
+    };
+    loadData();
   }, []);
 
   const fetchCategories = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/categories', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data.data || []);
-      }
+      console.log('Fetching categories...');
+      const response = await api.get('/categories');
+      console.log('Categories response:', response.data);
+      setCategories(response.data);
+      console.log('Categories set:', response.data);
     } catch (error) {
       console.error('Error fetching categories:', error);
+      setError('Failed to fetch categories');
     }
   };
 
   const fetchSuppliers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/suppliers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSuppliers(data.data || []);
-      }
+      console.log('Fetching suppliers...');
+      const response = await api.get('/suppliers');
+      console.log('Suppliers response:', response.data);
+      setSuppliers(response.data);
+      console.log('Suppliers set:', response.data);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
+      setError('Failed to fetch suppliers');
     }
   };
 
-  
-  const fetchProducts = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/products', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  // Auto-suggestion functions
+  const searchRawProducts = async (query) => {
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      setSearching(true);
+
+      // Clear existing timeout
+      if (suggestionTimeout) {
+        clearTimeout(suggestionTimeout);
       }
 
-      const data = await response.json();
+      // Set new timeout for debouncing
+      const timeoutId = setTimeout(async () => {
+        const response = await api.get(`/settings/raw-products/search?q=${encodeURIComponent(query)}&limit=10`);
+        setSuggestions(response.data.data || []);
+        setShowSuggestions(true);
+        setSearching(false);
+      }, 300);
+
+      setSuggestionTimeout(timeoutId);
+
+    } catch (error) {
+      console.error('Error searching raw products:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setSearching(false);
+    }
+  };
+
+  const handleSkuChange = (value) => {
+    setFormData(prev => ({ ...prev, sku: value }));
+    searchRawProducts(value);
+  };
+
+  const selectSuggestion = (suggestion) => {
+    setFormData(prev => ({
+      ...prev,
+      sku: suggestion.part_number,
+      name: suggestion.part_number,
+      description: suggestion.description
+    }));
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  const handleSkuKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        // Navigate down (implementation would require tracking selected index)
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        // Navigate up (implementation would require tracking selected index)
+        break;
+      case 'Enter':
+        e.preventDefault();
+        // Select first suggestion
+        if (suggestions.length > 0) {
+          selectSuggestion(suggestions[0]);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSuggestions([]);
+        break;
+    }
+  };
+
+  const handleClickOutside = (e) => {
+    if (!e.target.closest('.suggestion-container')) {
+      setShowSuggestions(false);
+      setSuggestions([]);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      if (suggestionTimeout) {
+        clearTimeout(suggestionTimeout);
+      }
+    };
+  }, [suggestionTimeout]);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get('/products');
 
       // Transform API data to match frontend structure
-      const transformedProducts = data.data.map(product => ({
+      const transformedProducts = response.data.data.map(product => ({
         id: product.id,
         sku: product.sku,
         name: product.name,
@@ -118,6 +211,7 @@ const Products = () => {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching products:', error);
+      setError('Failed to fetch products');
       setLoading(false);
     }
   };
@@ -125,46 +219,16 @@ const Products = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-
       if (editingProduct) {
         // Update product
-        const response = await fetch(`/api/products/${editingProduct.id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const updatedProduct = await response.json();
-
-        // Refresh products from database to get latest data
-        await fetchProducts();
+        await api.put(`/products/${editingProduct.id}`, formData);
       } else {
         // Add new product
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Refresh products from database to get latest data
-        await fetchProducts();
+        await api.post('/products', formData);
       }
 
+      // Refresh products from database to get latest data
+      await fetchProducts();
       setShowForm(false);
       resetForm();
       setError(''); // Clear error on success
@@ -192,23 +256,12 @@ const Products = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/products/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        await api.delete(`/products/${id}`);
         // Refresh products from database to get latest data
         await fetchProducts();
       } catch (error) {
         console.error('Error deleting product:', error);
+        setError('Failed to delete product');
       }
     }
   };
@@ -291,14 +344,51 @@ const Products = () => {
             <Form onSubmit={handleSubmit}>
             <Row>
               <Col md={6} className="mb-3">
-                <Form.Label>SKU</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Masukkan SKU"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                  required
-                />
+                <Form.Label>Part Number / SKU</Form.Label>
+                <div className="suggestion-container position-relative">
+                  <Form.Control
+                    type="text"
+                    placeholder="Ketik part number untuk auto-suggest..."
+                    value={formData.sku}
+                    onChange={(e) => handleSkuChange(e.target.value)}
+                    onKeyDown={handleSkuKeyDown}
+                    required
+                  />
+                  {searching && (
+                    <div className="position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>
+                      <Spinner animation="border" size="sm" />
+                    </div>
+                  )}
+
+                  {/* Suggestions Dropdown */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div
+                      className="position-absolute w-100 bg-white border border-top-0 rounded-bottom shadow-sm"
+                      style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
+                    >
+                      {suggestions.map((suggestion, index) => (
+                        <div
+                          key={suggestion.id}
+                          className="px-3 py-2 suggestion-item border-bottom"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => selectSuggestion(suggestion)}
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          <div className="fw-semibold">{suggestion.part_number}</div>
+                          <div className="small text-muted">{suggestion.description}</div>
+                          {suggestion.category && (
+                            <Badge variant="light" size="sm" className="mt-1">
+                              {suggestion.category}
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Form.Text className="text-muted">
+                  Ketik minimal 2 karakter untuk menampilkan suggestions dari master data
+                </Form.Text>
               </Col>
               <Col md={6} className="mb-3">
                 <Form.Label>Nama Produk</Form.Label>
