@@ -153,6 +153,141 @@ const SalesOrders = () => {
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
+  const getOrderActions = (order) => {
+    const userRole = user?.role?.name;
+
+    // Sales Team hanya bisa lihat status dan cetak
+    if (userRole === 'Sales Team') {
+      return (
+        <div className="btn-group" role="group">
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={() => handleView(order)}
+            title="View Details"
+          >
+            <i className="bi bi-eye"></i>
+          </Button>
+          <Button
+            variant="outline-success"
+            size="sm"
+            onClick={() => handlePrint(order)}
+            title="Print Sales Order"
+          >
+            <i className="bi bi-printer"></i>
+          </Button>
+        </div>
+      );
+    }
+
+    // Role lain (Super Admin, Admin, Warehouse Manager, dll) bisa full aksi
+    return (
+      <div className="btn-group" role="group">
+        <Button
+          variant="outline-primary"
+          size="sm"
+          onClick={() => handleView(order)}
+          title="View Details"
+        >
+          <i className="bi bi-eye"></i>
+        </Button>
+
+        {order.status === 'PENDING' && (
+          <Button
+            variant="outline-success"
+            size="sm"
+            onClick={() => handleStatusUpdate(order, 'PROCESSING')}
+            title="Start Processing"
+          >
+            <i className="bi bi-play-circle"></i>
+          </Button>
+        )}
+
+        {order.status === 'PROCESSING' && (
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={() => handleStatusUpdate(order, 'READY_TO_SHIP')}
+            title="Mark as Ready to Ship"
+          >
+            <i className="bi bi-truck"></i>
+          </Button>
+        )}
+
+        {order.status === 'READY_TO_SHIP' && (
+          <Button
+            variant="outline-success"
+            size="sm"
+            onClick={() => handleStatusUpdate(order, 'SHIPPED')}
+            title="Mark as Shipped"
+          >
+            <i className="bi bi-box-seam"></i>
+          </Button>
+        )}
+
+        {order.status === 'SHIPPED' && (
+          <Button
+            variant="outline-success"
+            size="sm"
+            onClick={() => handleStatusUpdate(order, 'COMPLETED')}
+            title="Mark as Completed"
+          >
+            <i className="bi bi-check-circle"></i>
+          </Button>
+        )}
+
+        <Button
+          variant="outline-danger"
+          size="sm"
+          onClick={() => handleDelete(order.id)}
+          disabled={order.status !== 'PENDING'}
+          title="Delete Sales Order"
+        >
+          <i className="bi bi-trash"></i>
+        </Button>
+      </div>
+    );
+  };
+
+  const handlePrint = (order) => {
+    // Fungsi print sederhana - bisa diperluas dengan print library
+    const printWindow = window.open('', '_blank');
+    const salesOrderContent = `
+      <html>
+        <head>
+          <title>Sales Order - ${order.sales_order_number}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .info { margin-bottom: 20px; }
+            .info h2 { color: #333; }
+            .info p { margin: 5px 0; }
+            .items { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .items th, .items td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .items th { background-color: #f2f2f2; }
+            .total { text-align: right; font-weight: bold; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>SALES ORDER</h1>
+          </div>
+          <div class="info">
+            <h2>${order.sales_order_number}</h2>
+            <p><strong>Customer:</strong> ${order.customer?.company_name || 'N/A'}</p>
+            <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString('id-ID')}</p>
+            <p><strong>Status:</strong> ${order.status}</p>
+            <p><strong>Total Amount:</strong> ${formatCurrency(order.total_amount)}</p>
+          </div>
+          <p>This sales order was created by ${order.user?.name || 'Unknown'} (${order.user?.role?.name || ''})</p>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(salesOrderContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -275,70 +410,7 @@ const SalesOrders = () => {
                               </div>
                             </td>
                             <td>
-                              <div className="btn-group" role="group">
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => handleView(order)}
-                                  title="View Details"
-                                >
-                                  <i className="bi bi-eye"></i>
-                                </Button>
-
-                                {order.status === 'PENDING' && (
-                                  <Button
-                                    variant="outline-success"
-                                    size="sm"
-                                    onClick={() => handleStatusUpdate(order, 'PROCESSING')}
-                                    title="Start Processing"
-                                  >
-                                    <i className="bi bi-play-circle"></i>
-                                  </Button>
-                                )}
-
-                                {order.status === 'PROCESSING' && (
-                                  <Button
-                                    variant="outline-primary"
-                                    size="sm"
-                                    onClick={() => handleStatusUpdate(order, 'READY_TO_SHIP')}
-                                    title="Mark as Ready to Ship"
-                                  >
-                                    <i className="bi bi-truck"></i>
-                                  </Button>
-                                )}
-
-                                {order.status === 'READY_TO_SHIP' && (
-                                  <Button
-                                    variant="outline-success"
-                                    size="sm"
-                                    onClick={() => handleStatusUpdate(order, 'SHIPPED')}
-                                    title="Mark as Shipped"
-                                  >
-                                    <i className="bi bi-box-seam"></i>
-                                  </Button>
-                                )}
-
-                                {order.status === 'SHIPPED' && (
-                                  <Button
-                                    variant="outline-success"
-                                    size="sm"
-                                    onClick={() => handleStatusUpdate(order, 'COMPLETED')}
-                                    title="Mark as Completed"
-                                  >
-                                    <i className="bi bi-check-circle"></i>
-                                  </Button>
-                                )}
-
-                                <Button
-                                  variant="outline-danger"
-                                  size="sm"
-                                  onClick={() => handleDelete(order.id)}
-                                  disabled={order.status !== 'PENDING'}
-                                  title="Delete Sales Order"
-                                >
-                                  <i className="bi bi-trash"></i>
-                                </Button>
-                              </div>
+                              {getOrderActions(order)}
                             </td>
                           </tr>
                         ))}

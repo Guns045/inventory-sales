@@ -12,7 +12,22 @@
       "Bash(git commit:*)",
       "Bash(PORT=3001 npm start:*)",
       "Bash(findstr:*)",
-      "Bash(PORT=3002 npm start)"
+      "Bash(PORT=3002 npm start)",
+      "Bash(task-manager list-tasks:*)",
+      "Bash(php artisan migrate:*)",
+      "Bash(php artisan tinker:*)",
+      "Bash(php artisan cache:clear:*)",
+      "Bash(php artisan config:clear:*)",
+      "Bash(php artisan route:clear:*)",
+      "Bash(php artisan db:show:*)",
+      "Bash(mysql:*)",
+      "Bash(sqlite3:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(php artisan make:migration:*)",
+      "Bash(php artisan:*)",
+      "Bash(composer require:*)"
     ],
     "deny": [],
     "ask": []

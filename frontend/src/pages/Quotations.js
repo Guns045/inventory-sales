@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAPI } from '../contexts/APIContext';
+import { useAuth } from '../contexts/AuthContext';
 import './Quotations.css';
 
 const Quotations = () => {
   const { get, post, put, delete: deleteApi } = useAPI();
+  const { user } = useAuth();
   const [quotations, setQuotations] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -11,6 +13,86 @@ const Quotations = () => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState(null);
+  const [rejectionInfo, setRejectionInfo] = useState(null);
+
+  // Format currency for Indonesia
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount || 0);
+  };
+
+  // Get available actions based on user role and quotation status
+  const getAvailableActions = (quotation) => {
+    const userRole = user?.role?.name || user?.role || '';
+    const isSalesTeam = userRole.toLowerCase().includes('sales');
+    const isAdmin = userRole.toLowerCase().includes('admin') || userRole.toLowerCase().includes('manager');
+
+    const actions = {
+      canEdit: false,
+      canDelete: false,
+      canSubmit: false,
+      canApprove: false,
+      canReject: false,
+      canConvertToSO: false,
+      viewOnly: false
+    };
+
+    // Sales Team specific logic
+    if (isSalesTeam) {
+      switch (quotation.status) {
+        case 'DRAFT':
+          actions.canEdit = true;
+          actions.canDelete = true;
+          actions.canSubmit = true;
+          break;
+        case 'SUBMITTED':
+          actions.viewOnly = true;
+          break;
+        case 'APPROVED':
+          actions.canConvertToSO = true;
+          break;
+        case 'REJECTED':
+          actions.canEdit = true;
+          actions.canSubmit = true;
+          break;
+        case 'CONVERTED':
+          actions.viewOnly = true;
+          break;
+      }
+    }
+
+    // Admin/Manager logic (unchanged for now)
+    if (isAdmin) {
+      switch (quotation.status) {
+        case 'DRAFT':
+          actions.canEdit = true;
+          actions.canDelete = true;
+          actions.canSubmit = true;
+          break;
+        case 'SUBMITTED':
+          actions.canApprove = true;
+          actions.canReject = true;
+          break;
+        case 'APPROVED':
+          actions.canConvertToSO = true;
+          break;
+        case 'REJECTED':
+          actions.canEdit = true;
+          actions.canDelete = true;
+          actions.canSubmit = true;
+          break;
+        case 'CONVERTED':
+          actions.viewOnly = true;
+          break;
+      }
+    }
+
+    return actions;
+  };
   const [formData, setFormData] = useState({
     customer_id: '',
     status: 'DRAFT',
@@ -176,6 +258,7 @@ const Quotations = () => {
       setItems([]);
       setShowForm(false);
       setEditingQuotation(null);
+      setRejectionInfo(null);
     } catch (err) {
       let errorMessage = editingQuotation ? 'Failed to update quotation' : 'Failed to create quotation';
       if (err.response?.data?.message) {
@@ -191,15 +274,20 @@ const Quotations = () => {
   };
 
   const handleEdit = async (quotation) => {
-    // Check if quotation can be edited (only DRAFT status can be edited)
-    if (quotation.status !== 'DRAFT') {
-      setError(`Cannot edit quotation with status "${quotation.status}". Only DRAFT quotations can be edited.`);
+    // Check if quotation can be edited (DRAFT and REJECTED status can be edited)
+    if (!['DRAFT', 'REJECTED'].includes(quotation.status)) {
+      setError(`Cannot edit quotation with status "${quotation.status}". Only DRAFT and REJECTED quotations can be edited.`);
       return;
     }
 
     try {
       const response = await get(`/quotations/${quotation.id}`);
       const quotationDetails = response.data;
+
+      // Debug: Log the response data
+      console.log('Quotation Details:', quotationDetails);
+      console.log('Approvals:', quotationDetails.approvals);
+      console.log('Status:', quotationDetails.status);
 
       setFormData({
         customer_id: quotationDetails.customer_id,
@@ -220,6 +308,33 @@ const Quotations = () => {
         tax_rate: item.tax_rate,
         total_price: item.total_price
       })));
+
+      // Capture rejection information if status is REJECTED
+      if (quotationDetails.status === 'REJECTED' && quotationDetails.approvals && quotationDetails.approvals.length > 0) {
+        console.log('Found REJECTED status with approvals, checking for rejected approval...');
+        const latestApproval = quotationDetails.approvals[quotationDetails.approvals.length - 1];
+        console.log('Latest approval:', latestApproval);
+        if (latestApproval.status === 'REJECTED') {
+          console.log('Setting rejection info:', {
+            reason_type: latestApproval.reason_type,
+            notes: latestApproval.notes,
+            rejected_by: latestApproval.approver_name,
+            rejected_at: latestApproval.updated_at
+          });
+          setRejectionInfo({
+            reason_type: latestApproval.reason_type,
+            notes: latestApproval.notes,
+            rejected_by: latestApproval.approver_name,
+            rejected_at: latestApproval.updated_at
+          });
+        } else {
+          console.log('Latest approval is not REJECTED, setting rejectionInfo to null');
+          setRejectionInfo(null);
+        }
+      } else {
+        console.log('No REJECTED status or approvals found, setting rejectionInfo to null');
+        setRejectionInfo(null);
+      }
 
       setEditingQuotation(quotation.id);
       setShowForm(true);
@@ -347,6 +462,7 @@ const Quotations = () => {
     });
     setItems([]);
     setEditingQuotation(null);
+    setRejectionInfo(null);
     setShowForm(true);
   };
 
@@ -378,6 +494,7 @@ const Quotations = () => {
       {showForm && (
         <div className="form-container">
           <h2>{editingQuotation ? 'Edit Quotation' : 'Add New Quotation'}</h2>
+
           <form onSubmit={handleSubmit}>
             <div className="form-row">
               <div className="form-group">
@@ -400,18 +517,31 @@ const Quotations = () => {
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="status">Status:</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="SUBMITTED">Submitted</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
+                {formData.status === 'REJECTED' && rejectionInfo ? (
+                  <div style={{
+                    padding: '10px',
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '4px',
+                    color: '#856404'
+                  }}>
+                    <strong>REJECTED</strong><br/>
+                    Reason: {rejectionInfo.reason_type}
+                  </div>
+                ) : (
+                  <select
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="DRAFT">Draft</option>
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="valid_until">Valid Until:</label>
@@ -441,7 +571,7 @@ const Quotations = () => {
                     <option value="">Select Product</option>
                     {products.map(prod => (
                       <option key={prod.id} value={prod.id}>
-                        {prod.sku} - {prod.name} - Rp {(prod.sell_price).toLocaleString()}
+                        {prod.sku} - {prod.name} - {formatCurrency(prod.sell_price)}
                       </option>
                     ))}
                   </select>
@@ -506,10 +636,10 @@ const Quotations = () => {
                       <tr key={item.id}>
                         <td>{item.product_name}</td>
                         <td>{item.quantity}</td>
-                        <td>Rp {(item.unit_price).toLocaleString()}</td>
+                        <td>{formatCurrency(item.unit_price)}</td>
                         <td>{item.discount_percentage}%</td>
                         <td>{item.tax_rate}%</td>
-                        <td>Rp {(item.total_price).toLocaleString()}</td>
+                        <td>{formatCurrency(item.total_price)}</td>
                         <td>
                           <button 
                             className="btn btn-sm btn-danger" 
@@ -563,61 +693,83 @@ const Quotations = () => {
                   )}
                 </td>
                 <td>{quotation.valid_until}</td>
-                <td>Rp {(quotation.total_amount || 0).toLocaleString()}</td>
+                <td>{formatCurrency(quotation.total_amount)}</td>
                 <td>
-                  <button
-                    className="btn btn-sm btn-primary me-1"
-                    onClick={() => handleEdit(quotation)}
-                    disabled={quotation.status !== 'DRAFT'}
-                  >
-                    Edit
-                  </button>
-                  {quotation.status === 'DRAFT' && (
-                    <button
-                      className="btn btn-sm btn-warning me-1"
-                      onClick={() => handleSubmitForApproval(quotation)}
-                    >
-                      Submit for Approval
-                    </button>
-                  )}
-                  {quotation.status === 'SUBMITTED' && (
-                    <>
-                      <button
-                        className="btn btn-sm btn-success me-1"
-                        onClick={() => handleApprove(quotation.id)}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger me-1"
-                        onClick={() => handleReject(quotation.id)}
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  {quotation.status === 'APPROVED' && (
-                    <button
-                      className="btn btn-sm btn-info me-1"
-                      onClick={() => handleConvertToSO(quotation)}
-                      title="Convert to Sales Order"
-                    >
-                      Convert to SO
-                    </button>
-                  )}
-                  {quotation.status === 'CONVERTED' && (
-                    <span className="badge bg-success me-1">
-                      <i className="bi bi-check-circle me-1"></i>
-                      Converted
-                    </span>
-                  )}
-                  <button
-                    className="btn btn-sm btn-danger"
-                    onClick={() => handleDelete(quotation.id)}
-                    disabled={quotation.status === 'APPROVED' || quotation.status === 'SUBMITTED' || quotation.status === 'CONVERTED'}
-                  >
-                    Delete
-                  </button>
+                  {(() => {
+                    const actions = getAvailableActions(quotation);
+                    return (
+                      <>
+                        {actions.canEdit && (
+                          <button
+                            className="btn btn-sm btn-primary me-1"
+                            onClick={() => handleEdit(quotation)}
+                          >
+                            Edit
+                          </button>
+                        )}
+
+                        {actions.canSubmit && (
+                          <button
+                            className="btn btn-sm btn-warning me-1"
+                            onClick={() => handleSubmitForApproval(quotation)}
+                          >
+                            Submit for Approval
+                          </button>
+                        )}
+
+                        {actions.canApprove && (
+                          <button
+                            className="btn btn-sm btn-success me-1"
+                            onClick={() => handleApprove(quotation.id)}
+                          >
+                            Approve
+                          </button>
+                        )}
+
+                        {actions.canReject && (
+                          <button
+                            className="btn btn-sm btn-danger me-1"
+                            onClick={() => handleReject(quotation.id)}
+                          >
+                            Reject
+                          </button>
+                        )}
+
+                        {actions.canConvertToSO && (
+                          <button
+                            className="btn btn-sm btn-info me-1"
+                            onClick={() => handleConvertToSO(quotation)}
+                            title="Create to Sales Order"
+                          >
+                            Create to SO
+                          </button>
+                        )}
+
+                        {actions.viewOnly && quotation.status === 'SUBMITTED' && (
+                          <span className="badge bg-warning me-1">
+                            <i className="bi bi-clock me-1"></i>
+                            Pending Approval
+                          </span>
+                        )}
+
+                        {quotation.status === 'CONVERTED' && (
+                          <span className="badge bg-success me-1">
+                            <i className="bi bi-check-circle me-1"></i>
+                            Converted
+                          </span>
+                        )}
+
+                        {actions.canDelete && (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(quotation.id)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}

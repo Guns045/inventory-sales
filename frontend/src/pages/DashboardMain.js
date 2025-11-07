@@ -8,17 +8,6 @@ const DashboardMain = () => {
   const { api } = useAPI();
   const { user } = useAuth();
 
-  // Only allow Admin to access this dashboard
-  if (user?.role?.name !== 'Admin') {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
-        <Alert variant="danger">
-          <Alert.Heading>Access Denied</Alert.Heading>
-          <p>You don't have permission to access this dashboard.</p>
-        </Alert>
-      </div>
-    );
-  }
   const [dashboardData, setDashboardData] = useState({
     kpi: {
       total_sales_ytd: 0,
@@ -38,20 +27,10 @@ const DashboardMain = () => {
     loading: true,
     error: null
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchDashboardData();
-    // Set up real-time updates every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setDashboardData(prev => ({ ...prev, loading: true, error: null }));
 
       // Use Promise.allSettled to handle partial failures
       const [kpiResponse, criticalResponse, quotationsResponse, ordersResponse, pipelineResponse, salesResponse] = await Promise.allSettled([
@@ -121,6 +100,26 @@ const DashboardMain = () => {
       }));
     }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+    // Set up real-time updates every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Only allow Admin roles to access this dashboard
+  if (!user?.role?.name || (!['Super Admin', 'Admin', 'manager'].includes(user.role.name))) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+        <Alert variant="danger">
+          <Alert.Heading>Access Denied</Alert.Heading>
+          <p>You don't have permission to access this dashboard.</p>
+          <p className="mb-0">Your role: {user?.role?.name || 'Unknown'}</p>
+        </Alert>
+      </div>
+    );
+  }
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {

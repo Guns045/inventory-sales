@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar, Modal, Form } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const DashboardSales = () => {
   const { api } = useAPI();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [salesData, setSalesData] = useState({
     performance: {
       monthly_target: 0,
@@ -34,6 +36,10 @@ const DashboardSales = () => {
     valid_until: '',
     items: []
   });
+
+  // Edit Quotation Modal State
+  const [showEditQuotationModal, setShowEditQuotationModal] = useState(false);
+  const [editingQuotationId, setEditingQuotationId] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [loadingModal, setLoadingModal] = useState(false);
@@ -49,6 +55,7 @@ const DashboardSales = () => {
     tax_rate: 0
   });
 
+  
   useEffect(() => {
     fetchSalesData();
     // Set up real-time updates every 30 seconds
@@ -58,26 +65,34 @@ const DashboardSales = () => {
 
   const fetchSalesData = async () => {
     try {
-      const [performanceResponse, notificationsResponse, activitiesResponse, quotationsResponse, ordersResponse] = await Promise.all([
+      const [performanceResponse, quotationsResponse, ordersResponse] = await Promise.all([
         api.get('/dashboard/sales'),
-        api.get('/notifications'),
-        api.get('/activity-logs/my'),
         api.get('/quotations'),
         api.get('/sales-orders')
       ]);
 
       // Process API responses
       const salesData = performanceResponse.data || {};
+      const quotationsData = quotationsResponse.data?.data || quotationsResponse.data || [];
+      const ordersData = ordersResponse.data?.data || ordersResponse.data || [];
 
       // Calculate performance metrics from quotations data if not provided by API
       const monthlyTarget = salesData.monthly_target || 50000000; // Default target 50jt
-      const approvedQuotations = salesData.quotations?.approved || 0;
-      const totalQuotations = salesData.quotations?.total || 0;
+
+      // Calculate quotations statistics
+      const quotationsStats = quotationsData.reduce((stats, q) => {
+        stats.total++;
+        if (q.status === 'DRAFT') stats.draft++;
+        else if (q.status === 'SUBMITTED') stats.pending++;
+        else if (q.status === 'APPROVED') stats.approved++;
+        else if (q.status === 'REJECTED') stats.rejected++;
+        return stats;
+      }, { draft: 0, pending: 0, approved: 0, rejected: 0, total: 0 });
 
       // Calculate YTD total from approved quotations
-      const ytdTotal = salesData.recent_quotations?.reduce((total, q) => {
-        return q.status === 'APPROVED' ? total + (q.total_amount || 0) : total;
-      }, 0) || 0;
+      const ytdTotal = quotationsData
+        .filter(q => q.status === 'APPROVED')
+        .reduce((total, q) => total + (q.total_amount || 0), 0);
 
       // Calculate achievement percentage
       const achievementPercentage = monthlyTarget > 0 ? Math.round((ytdTotal / monthlyTarget) * 100) : 0;
@@ -89,15 +104,8 @@ const DashboardSales = () => {
           achievement_percentage: achievementPercentage,
           ytd_total: ytdTotal,
         },
-        notifications: Array.isArray(notificationsResponse.data?.notifications?.data) ? notificationsResponse.data.notifications.data.slice(0, 5) : [], // Latest 5 notifications
-        activities: Array.isArray(activitiesResponse.data) ? activitiesResponse.data.slice(0, 5) : [], // Latest 5 activities
-        quotations: salesData.quotations || {
-          draft: 0,
-          approved: 0,
-          rejected: 0,
-          total: 0,
-        },
-        sales_orders: salesData.recent_sales_orders || [],
+        quotations: quotationsStats,
+        sales_orders: ordersData.slice(0, 5), // Show latest 5 sales orders
         loading: false,
         error: null
       });
@@ -298,8 +306,9 @@ const DashboardSales = () => {
     return 'danger';
   };
 
-  // Allow Admin and Sales roles to access this dashboard
-  if (user?.role?.name !== 'Sales' && user?.role?.name !== 'Admin') {
+  
+  // Allow Super Admin, Admin and Sales Team roles to access this dashboard
+  if (!['Super Admin', 'Admin', 'Sales Team'].includes(user?.role?.name)) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
@@ -474,90 +483,7 @@ const DashboardSales = () => {
         </Col>
       </Row>
 
-      <Row>
-        {/* Approval Notifications */}
-        <Col lg={6} className="mb-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Notifikasi Persetujuan</h6>
-                <Button variant="outline-primary" size="sm">
-                  Lihat Semua
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              {salesData.notifications.length > 0 ? (
-                <div>
-                  {salesData.notifications.map((notification, index) => (
-                    <div key={index} className={`alert alert-${notification.type === 'approved' ? 'success' : notification.type === 'rejected' ? 'danger' : 'info'} alert-sm mb-2`} role="alert">
-                      <div className="d-flex align-items-center">
-                        <i className={`bi bi-${notification.type === 'approved' ? 'check-circle' : notification.type === 'rejected' ? 'x-circle' : 'info-circle'} me-2`}></i>
-                        <div className="flex-grow-1">
-                          <small className="fw-bold">{notification.title}</small>
-                          <div className="small">{notification.message}</div>
-                          <div className="text-muted" style={{ fontSize: '11px' }}>
-                            {new Date(notification.created_at).toLocaleString('id-ID')}
-                          </div>
-                        </div>
-                        <Badge bg={notification.type === 'approved' ? 'success' : notification.type === 'rejected' ? 'danger' : 'info'}>
-                          {notification.type.toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <i className="bi bi-bell text-muted fs-1"></i>
-                  <p className="text-muted mt-2">Tidak ada notifikasi baru</p>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Sales Activities */}
-        <Col lg={6} className="mb-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Aktivitas Penjualan Terkini</h6>
-                <Button variant="outline-primary" size="sm">
-                  Detail Aktivitas
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              {salesData.activities.length > 0 ? (
-                <div className="timeline">
-                  {salesData.activities.map((activity, index) => (
-                    <div key={index} className="d-flex mb-3">
-                      <div className="me-3">
-                        <div className={`bg-${activity.type === 'create' ? 'primary' : activity.type === 'approve' ? 'success' : activity.type === 'convert' ? 'info' : 'secondary'} bg-opacity-10 rounded-circle p-2`}>
-                          <i className={`bi bi-${activity.type === 'create' ? 'plus' : activity.type === 'approve' ? 'check' : activity.type === 'convert' ? 'arrow-right' : 'file-text'} text-${activity.type === 'create' ? 'primary' : activity.type === 'approve' ? 'success' : activity.type === 'convert' ? 'info' : 'secondary'}`}></i>
-                        </div>
-                      </div>
-                      <div className="flex-grow-1">
-                        <div className="fw-bold small">{activity.description}</div>
-                        <div className="text-muted" style={{ fontSize: '11px' }}>
-                          {new Date(activity.created_at).toLocaleString('id-ID')}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <i className="bi bi-activity text-muted fs-1"></i>
-                  <p className="text-muted mt-2">Belum ada aktivitas hari ini</p>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
+  
       {/* Quotations Summary */}
       <Row className="mb-4">
         <Col lg={12}>
@@ -615,7 +541,7 @@ const DashboardSales = () => {
             <Card.Header className="bg-white border-0 pt-3">
               <div className="d-flex justify-content-between align-items-center">
                 <h6 className="mb-0">Sales Order Terkini</h6>
-                <Button variant="outline-primary" size="sm">
+                <Button variant="outline-primary" size="sm" onClick={() => window.location.href = '/sales-orders'}>
                   Lihat Semua SO
                 </Button>
               </div>
@@ -636,28 +562,28 @@ const DashboardSales = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {salesData.sales_orders.map((order, index) => (
-                        <tr key={index}>
-                          <td><small className="fw-bold">{order.so_number}</small></td>
-                          <td><small>{order.quotation_number}</small></td>
-                          <td>{order.customer_name}</td>
-                          <td><small>{new Date(order.so_date).toLocaleDateString('id-ID')}</small></td>
-                          <td className="fw-bold">{formatCurrency(order.total)}</td>
+                      {salesData.sales_orders.map((order) => (
+                        <tr key={order.id}>
+                          <td><small className="fw-bold">{order.sales_order_number}</small></td>
+                          <td><small>{order.quotation?.quotation_number || '-'}</small></td>
+                          <td>{order.customer?.company_name || order.customer?.name || '-'}</td>
+                          <td><small>{new Date(order.created_at).toLocaleDateString('id-ID')}</small></td>
+                          <td className="fw-bold">{formatCurrency(order.total_amount)}</td>
                           <td>
                             <Badge bg={
-                              order.status === 'completed' ? 'success' :
-                              order.status === 'shipped' ? 'info' :
-                              order.status === 'ready_to_ship' ? 'warning' :
-                              order.status === 'processing' ? 'primary' : 'secondary'
+                              order.status === 'COMPLETED' ? 'success' :
+                              order.status === 'SHIPPED' ? 'info' :
+                              order.status === 'READY_TO_SHIP' ? 'warning' :
+                              order.status === 'PROCESSING' ? 'primary' : 'secondary'
                             }>
-                              {order.status.replace('_', ' ').toUpperCase()}
+                              {order.status?.replace('_', ' ')?.toUpperCase() || order.status}
                             </Badge>
                           </td>
                           <td>
-                            <Button variant="outline-primary" size="sm" className="me-1">
+                            <Button variant="outline-primary" size="sm" className="me-1" title="Lihat Detail">
                               <i className="bi bi-eye"></i>
                             </Button>
-                            <Button variant="outline-success" size="sm">
+                            <Button variant="outline-success" size="sm" title="Cetak SO">
                               <i className="bi bi-printer"></i>
                             </Button>
                           </td>
@@ -670,9 +596,9 @@ const DashboardSales = () => {
                 <div className="text-center py-3">
                   <i className="bi bi-box text-muted fs-1"></i>
                   <p className="text-muted mt-2">Belum ada sales order</p>
-                  <Button variant="primary" size="sm">
+                  <Button variant="primary" size="sm" onClick={() => window.location.href = '/quotations'}>
                     <i className="bi bi-plus-circle me-1"></i>
-                    Konversi Penawaran ke SO
+                    Buat Sales Order dari Penawaran
                   </Button>
                 </div>
               )}

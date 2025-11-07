@@ -68,7 +68,7 @@ const DashboardWarehouse = () => {
     }
   };
 
-  if (user?.role?.name !== 'Gudang') {
+  if (!['Super Admin', 'Gudang'].includes(user?.role?.name)) {
     return (
       <div className="text-center mt-5">
         <Alert variant="danger">

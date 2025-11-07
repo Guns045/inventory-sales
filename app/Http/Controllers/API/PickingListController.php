@@ -299,9 +299,11 @@ class PickingListController extends Controller
         ])->findOrFail($id);
 
         $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
-        $filename = "PickingList-{$pickingList->picking_list_number}.pdf";
 
-        return $pdf->stream($filename);
+        // Safe filename for all document types - replace invalid characters
+        $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
+
+        return $pdf->download($filename);
     }
 
     /**

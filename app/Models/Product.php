@@ -61,4 +61,30 @@ class Product extends Model
     {
         return $this->hasMany(StockMovement::class);
     }
+
+    // Accessor untuk current stock (total - reserved)
+    public function getCurrentStockAttribute()
+    {
+        $totalQuantity = $this->productStock->sum('quantity');
+        $totalReserved = $this->productStock->sum('reserved_quantity');
+        return $totalQuantity - $totalReserved;
+    }
+
+    // Accessor untuk total stock
+    public function getTotalStockAttribute()
+    {
+        return $this->productStock->sum('quantity');
+    }
+
+    // Accessor untuk reserved stock
+    public function getReservedStockAttribute()
+    {
+        return $this->productStock->sum('reserved_quantity');
+    }
+
+    // Method untuk check if stock is low
+    public function isStockLow()
+    {
+        return $this->current_stock <= $this->min_stock_level;
+    }
 }

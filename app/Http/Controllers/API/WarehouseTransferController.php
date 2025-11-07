@@ -76,9 +76,18 @@ class WarehouseTransferController extends Controller
 
         // Check if user can create transfers from the source warehouse
         $user = $request->user();
-        if ($user->role === 'Gudang' && $user->warehouse_id != $validated['warehouse_from_id']) {
+
+        // Check warehouse access permissions
+        if (!$user->canManageWarehouse($validated['warehouse_from_id'])) {
             return response()->json([
-                'message' => 'You can only create transfers from your assigned warehouse'
+                'message' => 'You can only create transfers from warehouses you have access to'
+            ], 403);
+        }
+
+        // Check if user has permission to create transfers
+        if (!$user->hasPermission('transfers', 'create')) {
+            return response()->json([
+                'message' => 'You do not have permission to create transfers'
             ], 403);
         }
 
@@ -166,10 +175,17 @@ class WarehouseTransferController extends Controller
         $transfer = WarehouseTransfer::findOrFail($id);
         $user = $request->user();
 
-        // Check if user can approve transfers from the source warehouse
-        if ($user->role === 'Gudang' && $user->warehouse_id != $transfer->warehouse_from_id) {
+        // Check if user can approve transfers
+        if (!$user->canApproveTransfers()) {
             return response()->json([
-                'message' => 'You can only approve transfers from your assigned warehouse'
+                'message' => 'You do not have permission to approve transfers'
+            ], 403);
+        }
+
+        // Check warehouse access permissions
+        if (!$user->canManageWarehouse($transfer->warehouse_from_id)) {
+            return response()->json([
+                'message' => 'You can only approve transfers from warehouses you have access to'
             ], 403);
         }
 

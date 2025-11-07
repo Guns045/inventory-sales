@@ -121,8 +121,8 @@ const Settings = () => {
     tab.roles.includes(user?.role?.name)
   );
 
-  // Only allow Admin role to access this page
-  if (user?.role?.name !== 'Admin') {
+  // Allow Super Admin and Admin roles to access this page
+  if (!['Super Admin', 'Admin'].includes(user?.role?.name)) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">

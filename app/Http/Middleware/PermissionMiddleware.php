@@ -25,18 +25,21 @@ class PermissionMiddleware
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        // Get user permissions
-        $userPermissions = $this->getUserPermissions($user);
+        // Parse permission format (resource.action)
+        list($resource, $action) = explode('.', $permission, 2);
 
-        // Parse permission (format: resource.action)
-        list($resource, $action) = explode('.', $permission);
+        $userPermissions = $this->getUserPermissions($user);
 
         if (!$this->hasPermission($userPermissions, $resource, $action)) {
             $userRoleName = is_string($user->role) ? $user->role : $user->role->name;
+            \Log::error("Permission Denied: role={$userRoleName}, permission={$permission}, resource={$resource}, action={$action}, user_permissions=" . json_encode($userPermissions));
             return response()->json([
                 'message' => 'Forbidden - Insufficient permissions',
                 'required' => $permission,
-                'user_role' => $userRoleName
+                'resource' => $resource,
+                'action' => $action,
+                'user_role' => $userRoleName,
+                'user_permissions' => $userPermissions
             ], 403);
         }
 
@@ -82,17 +85,25 @@ class PermissionMiddleware
                 'dashboard' => ['read', 'admin', 'sales', 'warehouse', 'finance', 'approval']
             ],
             'Sales' => [
-                'customers' => ['read', 'create', 'update'],
-                'quotations' => ['read', 'create', 'update'],
-                'sales-orders' => ['read', 'create', 'update'],
-                'delivery-orders' => ['read', 'create'],
-                'invoices' => ['read'],
-                'product-stock' => ['read'],
-                'activity-logs' => ['read'],
-                'reports' => ['read'],
-                'dashboard' => ['read', 'sales']
+                'dashboard' => ['read', 'sales'],
+                'customers' => ['read', 'create'],
+                'stock' => ['read'],
+                'quotations' => ['read', 'create', 'update', 'submit', 'convert'],
+                'sales_orders' => ['read'],
+                'invoices' => ['read']
             ],
-            'Gudang' => [
+            'Sales Team' => [
+                'dashboard' => ['read', 'sales'],
+                'customers' => ['read', 'create', 'update'],
+                'stock' => ['read'],
+                'quotations' => ['read', 'create', 'update', 'submit', 'convert'],
+                'sales_orders' => ['read'],
+                'sales-orders' => ['read'],
+                'invoices' => ['read'],
+                'activity-logs' => ['read'],
+                'notifications' => ['read']
+            ],
+            'Warehouse Manager Gudang JKT' => [
                 'products' => ['read', 'update'],
                 'categories' => ['read'],
                 'suppliers' => ['read'],
@@ -109,6 +120,77 @@ class PermissionMiddleware
                 'dashboard' => ['read', 'warehouse']
             ],
             'Finance' => [
+                'customers' => ['read'],
+                'suppliers' => ['read'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'invoices' => ['read', 'create', 'update'],
+                'payments' => ['read', 'create', 'update'],
+                'product-stock' => ['read'],
+                'activity-logs' => ['read'],
+                'reports' => ['read'],
+                'dashboard' => ['read', 'finance']
+            ],
+            // New role mappings
+            'Super Admin' => [
+                'users' => ['read', 'create', 'update', 'delete'],
+                'products' => ['read', 'create', 'update', 'delete'],
+                'categories' => ['read', 'create', 'update', 'delete'],
+                'suppliers' => ['read', 'create', 'update', 'delete'],
+                'customers' => ['read', 'create', 'update', 'delete'],
+                'warehouses' => ['read', 'create', 'update', 'delete'],
+                'quotations' => ['read', 'create', 'update', 'delete', 'approve', 'reject'],
+                'sales-orders' => ['read', 'create', 'update', 'delete'],
+                'delivery-orders' => ['read', 'create', 'update', 'delete'],
+                'invoices' => ['read', 'create', 'update', 'delete'],
+                'payments' => ['read', 'create', 'update', 'delete'],
+                'purchase-orders' => ['read', 'create', 'update', 'delete'],
+                'goods-receipts' => ['read', 'create', 'update', 'delete'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
+                'warehouse-transfers' => ['read', 'create', 'update', 'delete', 'approve'],
+                'activity-logs' => ['read'],
+                'approvals' => ['read', 'approve', 'reject'],
+                'reports' => ['read'],
+                'dashboard' => ['read', 'admin', 'sales', 'warehouse', 'finance', 'approval']
+            ],
+            'Warehouse Manager Gudang JKT' => [
+                'products' => ['read', 'update'],
+                'warehouses' => ['read', 'update'],
+                'product-stock' => ['read', 'create', 'update'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
+                'delivery-orders' => ['read', 'create', 'update'],
+                'warehouse-transfers' => ['read', 'create', 'approve'],
+                'goods-receipts' => ['read', 'create', 'update'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'reports' => ['read'],
+                'dashboard' => ['read', 'warehouse']
+            ],
+            'Warehouse Manager Gudang MKS' => [
+                'products' => ['read', 'update'],
+                'warehouses' => ['read', 'update'],
+                'product-stock' => ['read', 'create', 'update'],
+                'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
+                'delivery-orders' => ['read', 'create', 'update'],
+                'warehouse-transfers' => ['read', 'create', 'approve'],
+                'goods-receipts' => ['read', 'create', 'update'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'reports' => ['read'],
+                'dashboard' => ['read', 'warehouse']
+            ],
+            'Warehouse Staff' => [
+                'products' => ['read'],
+                'warehouses' => ['read'],
+                'product-stock' => ['read'],
+                'picking-lists' => ['read', 'create', 'update'],
+                'delivery-orders' => ['read', 'create', 'update'],
+                'goods-receipts' => ['read', 'create', 'update'],
+                'reports' => ['read'],
+                'dashboard' => ['read', 'warehouse']
+            ],
+            'Finance Team' => [
                 'customers' => ['read'],
                 'suppliers' => ['read'],
                 'quotations' => ['read'],

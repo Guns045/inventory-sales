@@ -7,12 +7,14 @@ use App\Models\PickingList;
 use App\Models\PickingListItem;
 use App\Models\SalesOrder;
 use App\Models\ProductStock;
+use App\Traits\DocumentNumberHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PickingListController extends Controller
 {
+    use DocumentNumberHelper;
     public function index(Request $request)
     {
         $query = PickingList::with(['salesOrder.customer', 'user'])
@@ -69,8 +71,11 @@ class PickingListController extends Controller
                 throw new \Exception('Picking List already exists for this Sales Order.');
             }
 
+            // Determine warehouse ID based on user or default to MKS
+            $warehouseId = $this->getUserWarehouseIdForPicking(auth()->user());
+
             $pickingList = PickingList::create([
-                'picking_list_number' => PickingList::generateNumber(),
+                'picking_list_number' => $this->generatePickingListNumber($warehouseId),
                 'sales_order_id' => $salesOrder->id,
                 'user_id' => auth()->id(),
                 'status' => 'READY',
@@ -234,11 +239,12 @@ class PickingListController extends Controller
             'user'
         ]);
 
-        $pdf = PDF::loadView('picking-lists.print', compact('pickingList'));
+        $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
 
-        $filename = "PickingList-{$pickingList->picking_list_number}.pdf";
+        // Safe filename for all document types - replace invalid characters
+        $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
 
-        return $pdf->stream($filename);
+        return $pdf->download($filename);
     }
 
     public function complete(PickingList $pickingList)
@@ -291,5 +297,42 @@ class PickingListController extends Controller
         return response()->json([
             'data' => $items
         ]);
+    }
+
+    /**
+     * Get warehouse code based on user role for picking lists (default to MKS)
+     *
+     * @param User $user
+     * @return string
+     */
+    private function getUserWarehouseIdForPicking($user)
+    {
+        // Check if user has a specific warehouse assignment
+        if ($user->warehouse_id) {
+            return $user->warehouse_id;
+        }
+
+        // Check if user can access all warehouses, default to MKS (ID: 2)
+        if ($user->canAccessAllWarehouses()) {
+            return 2; // MKS Warehouse ID
+        }
+
+        // Check role-based defaults
+        if ($user->role) {
+            switch ($user->role->name) {
+                case 'Warehouse Manager Gudang JKT':
+                    return 1; // JKT Warehouse ID
+                case 'Warehouse Manager Gudang MKS':
+                    return 2; // MKS Warehouse ID
+                case 'Super Admin':
+                case 'Admin':
+                    return 2; // Default to MKS for Picking Lists
+                case 'Warehouse Staff':
+                    return $user->warehouse_id ?: 2; // User's warehouse or MKS
+            }
+        }
+
+        // Default to MKS for picking lists
+        return 2;
     }
 }

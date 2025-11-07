@@ -14,12 +14,26 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         // Log request data untuk debugging
-        \Log::info('Login request', $request->all());
-        
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        \Log::info('Login request', [
+            'email' => $request->email,
+            'password_length' => strlen($request->password ?? ''),
+            'headers' => $request->headers->all(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent()
         ]);
+
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Login validation failed', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            throw $e;
+        }
 
         $user = User::with('role')->where('email', $request->email)->first();
 
@@ -33,9 +47,12 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
 
         \Log::info('Login successful for user', ['email' => $request->email, 'user_id' => $user->id]);
-        
+
+        // Load user with role relationship
+        $userWithRole = User::with('role')->find($user->id);
+
         return response()->json([
-            'user' => $user,
+            'user' => $userWithRole,
             'token' => $token,
         ]);
     }

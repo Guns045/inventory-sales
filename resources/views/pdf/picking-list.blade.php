@@ -280,7 +280,7 @@
         </div>
         <div class="summary-row">
             <span><strong>Completion Progress:</strong></span>
-            <span>{{ number_format($pickingList->items->where('status', 'COMPLETED')->count() / $pickingList->items->count() * 100, 1) }}%</span>
+            <span>{{ $pickingList->items->count() > 0 ? number_format($pickingList->items->where('status', 'COMPLETED')->count() / $pickingList->items->count() * 100, 1) : 0 }}%</span>
         </div>
     </div>
 

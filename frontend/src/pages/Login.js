@@ -37,9 +37,9 @@ const Login = () => {
   };
 
   const demoAccounts = [
-    { email: 'admin@example.com', role: 'Administrator' },
-    { email: 'sales@example.com', role: 'Sales' },
-    { email: 'gudang@example.com', role: 'Gudang' },
+    { email: 'admin@example.com', role: 'Super Admin' },
+    { email: 'sales@example.com', role: 'Sales Team' },
+    { email: 'gudang@example.com', role: 'Warehouse Manager JKT' },
     { email: 'finance@example.com', role: 'Finance' }
   ];
 
@@ -144,7 +144,7 @@ const Login = () => {
                 </div>
                 <div className="password-note">
                   <i className="bi bi-key me-2"></i>
-                  <strong>Password:</strong> <span>password</span>
+                  <strong>Password:</strong> <span>password123</span>
                 </div>
               </div>
 

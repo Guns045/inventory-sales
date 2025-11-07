@@ -19,12 +19,8 @@ const Warehouses = () => {
 
   const fetchData = async () => {
     try {
-      // In a real app, fetch warehouses from the API
-      // For now, using mock data
-      setWarehouses([
-        { id: 1, name: 'Main Warehouse', location: '123 Warehouse St, City' },
-        { id: 2, name: 'Transit Warehouse', location: '456 Transit Ave, City' }
-      ]);
+      const response = await get('/warehouses');
+      setWarehouses(response.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching warehouses:', error);

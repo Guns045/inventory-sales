@@ -433,8 +433,8 @@ const Invoices = () => {
     }
   };
 
-  // Allow Admin and Finance roles to access this page
-  if (user?.role?.name !== 'Finance' && user?.role?.name !== 'Admin') {
+  // Allow Super Admin, Admin and Finance roles to access this page
+  if (!['Super Admin', 'Admin', 'Finance'].includes(user?.role?.name)) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">

@@ -9,6 +9,8 @@ use App\Models\QuotationItem;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Approval;
+use App\Models\ApprovalLevel;
+use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
 use PDF;
 use Excel;
@@ -16,6 +18,25 @@ use App\Exports\QuotationExport;
 
 class QuotationController extends Controller
 {
+    use DocumentNumberHelper;
+
+    /**
+     * Get rejection reasons for dropdown/popup
+     */
+    public function getRejectionReasons()
+    {
+        $reasons = [
+            ['value' => 'No FU', 'label' => 'No FU (No Follow Up)'],
+            ['value' => 'No Stock', 'label' => 'No Stock'],
+            ['value' => 'Price', 'label' => 'Price Issue']
+        ];
+
+        return response()->json([
+            'data' => $reasons,
+            'message' => 'Rejection reasons retrieved successfully'
+        ]);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -52,8 +73,11 @@ class QuotationController extends Controller
         }
 
         $quotation = DB::transaction(function () use ($request) {
+            // Determine warehouse ID based on user or default to JKT
+            $warehouseId = $this->getUserWarehouseId(auth()->user());
+
             $quotation = Quotation::create([
-                'quotation_number' => 'Q-' . date('Y-m') . '-' . str_pad(Quotation::count() + 1, 4, '0', STR_PAD_LEFT),
+                'quotation_number' => $this->generateQuotationNumber($warehouseId),
                 'customer_id' => $request->customer_id,
                 'user_id' => auth()->id(),
                 'status' => $request->status,
@@ -119,12 +143,23 @@ class QuotationController extends Controller
 
             // If status is SUBMITTED, create approval record
             if ($quotation->status === 'SUBMITTED') {
+                // Find appropriate approval level based on amount
+                $approvalLevel = ApprovalLevel::where('min_amount', '<=', $totalAmount)
+                    ->where(function($query) use ($totalAmount) {
+                        $query->whereNull('max_amount')
+                              ->orWhere('max_amount', '>=', $totalAmount);
+                    })
+                    ->first();
+
                 // Create approval record manually to handle auth context properly
                 Approval::create([
                     'user_id' => auth()->id(),
                     'approvable_type' => Quotation::class,
                     'approvable_id' => $quotation->id,
+                    'approval_level_id' => $approvalLevel ? $approvalLevel->id : null,
+                    'level_order' => $approvalLevel ? $approvalLevel->level_order : 1,
                     'status' => 'PENDING',
+                    'workflow_status' => 'IN_PROGRESS',
                     'notes' => null,
                     'ip_address' => $request->ip(),
                     'user_agent' => $request->userAgent(),
@@ -163,7 +198,7 @@ class QuotationController extends Controller
      */
     public function show($id)
     {
-        $quotation = Quotation::with(['customer', 'user', 'quotationItems.product'])->findOrFail($id);
+        $quotation = Quotation::with(['customer', 'user', 'quotationItems.product', 'approvals.approvalLevel', 'approvals.approver'])->findOrFail($id);
         return response()->json($quotation);
     }
 
@@ -174,10 +209,10 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::findOrFail($id);
 
-        // Only allow editing DRAFT quotations
-        if ($quotation->status !== 'DRAFT') {
+        // Allow editing DRAFT and REJECTED quotations (for Sales Team to resubmit)
+        if (!in_array($quotation->status, ['DRAFT', 'REJECTED'])) {
             return response()->json([
-                'message' => 'Only draft quotations can be edited'
+                'message' => 'Only draft and rejected quotations can be edited'
             ], 422);
         }
 
@@ -299,12 +334,13 @@ class QuotationController extends Controller
             ], 422);
         }
 
-        if ($quotation->status === 'REJECTED') {
+        if ($quotation->status === 'CONVERTED') {
             return response()->json([
-                'message' => 'Rejected quotations cannot be resubmitted. Please create a new quotation.'
+                'message' => 'Quotation is already converted to Sales Order'
             ], 422);
         }
 
+        
         try {
             // Submit for approval
             $approval = $quotation->submitForApproval($request->notes);
@@ -363,76 +399,25 @@ class QuotationController extends Controller
                 ], 403);
             }
 
-            if (!$quotation->hasPendingApproval()) {
-                \Log::warning('No pending approval found for quotation');
-                return response()->json([
-                    'message' => 'No pending approval request found for this quotation'
-                ], 422);
-            }
-
-            $currentApproval = $quotation->getCurrentPendingApproval();
-            if ($currentApproval && $currentApproval->isApproved()) {
-                \Log::warning('Quotation already approved at this level');
-                return response()->json([
-                    'message' => 'This approval level is already completed'
-                ], 422);
-            }
-
             \Log::info('Processing approval...');
-            // Process approval using the multi-level approval system
-            if ($quotation->approveCurrentLevel($request->notes)) {
-                \Log::info('Approval successful');
+            // Simple approval - just update status
+            $quotation->update([
+                'status' => 'APPROVED'
+            ]);
 
-                // Check if this is final approval
-                $isFinalApproval = $quotation->isApproved();
-                $workflowStatus = $quotation->getApprovalWorkflowStatus();
+            \Log::info('Approval successful');
 
-                // Send notifications based on approval status
-                if ($isFinalApproval) {
-                    // Final approval - notify sales user
-                    if ($quotation->user_id) {
-                        Notification::createForUser(
-                            $quotation->user_id,
-                            "Your quotation {$quotation->quotation_number} has been fully approved!",
-                            'success',
-                            '/quotations'
-                        );
-                    }
+            // Log activity
+            ActivityLog::log(
+                'APPROVE_QUOTATION',
+                "Approved quotation {$quotation->quotation_number}",
+                $quotation
+            );
 
-                    // Notify admin that quotation is ready for conversion
-                    Notification::createForRole(
-                        'Admin',
-                        "Quotation {$quotation->quotation_number} fully approved and ready to convert to Sales Order",
-                        'info',
-                        '/quotations'
-                    );
-                } else {
-                    // Partial approval - notify next level approver
-                    $nextApproval = $quotation->getCurrentPendingApproval();
-                    if ($nextApproval && $nextApproval->nextApprover) {
-                        Notification::createForUser(
-                            $nextApproval->nextApprover->id,
-                            "Quotation {$quotation->quotation_number} is ready for your approval (Level {$nextApproval->level_order})",
-                            'info',
-                            '/approvals'
-                        );
-                    }
-                }
-
-                return response()->json([
-                    'message' => $isFinalApproval
-                        ? 'Quotation fully approved successfully'
-                        : 'Quotation approved at current level and moved to next level',
-                    'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product', 'approvals.approvalLevel']),
-                    'is_final_approval' => $isFinalApproval,
-                    'workflow_status' => $workflowStatus
-                ]);
-            }
-
-            \Log::error('Approval process failed');
             return response()->json([
-                'message' => 'Failed to approve quotation'
-            ], 500);
+                'message' => 'Quotation approved successfully',
+                'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product'])
+            ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Quotation Approve Validation Error:');
@@ -460,7 +445,8 @@ class QuotationController extends Controller
             \Log::info('Auth User ID: ' . auth()->id());
 
             $request->validate([
-                'notes' => 'required|string|max:500'
+                'notes' => 'required|string|max:500',
+                'reason_type' => 'required|in:No FU,No Stock,Price'
             ]);
 
             $quotation = Quotation::findOrFail($id);
@@ -503,7 +489,7 @@ class QuotationController extends Controller
 
             \Log::info('Processing rejection...');
             // Process rejection using the multi-level approval system
-            if ($quotation->rejectCurrentLevel($request->notes)) {
+            if ($quotation->rejectCurrentLevel($request->notes, $request->reason_type)) {
                 \Log::info('Rejection successful');
 
                 // Send notification to sales user
@@ -538,7 +524,7 @@ class QuotationController extends Controller
             ], 422);
         } catch (\Exception $e) {
             \Log::error('Quotation Reject Error: ' . $e->getMessage());
-            \Log::error('Stack Trace:', $e->getTraceAsString());
+            \Log::error('Stack Trace:', ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'message' => 'Failed to reject quotation: ' . $e->getMessage()
             ], 500);
@@ -700,7 +686,9 @@ class QuotationController extends Controller
             $quotation
         );
 
-        return $pdf->download("quotation-{$quotation->quotation_number}.pdf");
+        // Safe filename - replace invalid characters
+        $safeNumber = str_replace(['/', '\\'], '_', $quotation->quotation_number);
+        return $pdf->download("quotation-{$safeNumber}.pdf");
     }
 
     public function exportExcel($id)
@@ -715,5 +703,46 @@ class QuotationController extends Controller
         );
 
         return Excel::download(new QuotationExport($quotation), "quotation-{$quotation->quotation_number}.xlsx");
+    }
+
+    /**
+     * Get warehouse ID based on user role or default
+     *
+     * @param User $user
+     * @return int
+     */
+    private function getUserWarehouseId($user)
+    {
+        // Check if user has a specific warehouse assignment
+        if ($user->warehouse_id) {
+            return $user->warehouse_id;
+        }
+
+        // Check if user can access all warehouses, default to JKT (ID: 1)
+        if ($user->canAccessAllWarehouses()) {
+            return 1; // JKT Warehouse ID
+        }
+
+        // Check role-based defaults
+        if ($user->role) {
+            switch ($user->role->name) {
+                case 'Warehouse Manager Gudang JKT':
+                    return 1; // JKT Warehouse ID
+                case 'Warehouse Manager Gudang MKS':
+                    return 2; // MKS Warehouse ID
+                case 'Super Admin':
+                case 'Admin':
+                    return 1; // Default to JKT
+                case 'Sales Team':
+                    return $user->warehouse_id ?: 1; // User's warehouse or JKT
+                case 'Finance Team':
+                    return 1; // Default to JKT for Finance
+                case 'Warehouse Staff':
+                    return $user->warehouse_id ?: 1; // User's warehouse or JKT
+            }
+        }
+
+        // Default to JKT if no specific assignment
+        return 1;
     }
 }

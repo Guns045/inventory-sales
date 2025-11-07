@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar, Form } from 'react-bootstrap';
+import { Card, Row, Col, Button, Table, Badge, Alert, ProgressBar, Form, Modal } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,8 +19,16 @@ const DashboardApproval = () => {
     error: null
   });
 
+  // State for rejection modal
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState(null);
+  const [rejectionReasons, setRejectionReasons] = useState([]);
+  const [selectedReason, setSelectedReason] = useState('');
+  const [customNotes, setCustomNotes] = useState('');
+
   useEffect(() => {
     fetchApprovalData();
+    fetchRejectionReasons();
     // Set up real-time updates every 30 seconds
     const interval = setInterval(fetchApprovalData, 30000);
     return () => clearInterval(interval);
@@ -72,6 +80,17 @@ const DashboardApproval = () => {
     }
   };
 
+  const fetchRejectionReasons = async () => {
+    try {
+      const response = await api.get('/quotations/rejection-reasons');
+      setRejectionReasons(response.data.reasons || []);
+    } catch (error) {
+      console.error('Error fetching rejection reasons:', error);
+      // Set default reasons if API fails
+      setRejectionReasons(['No FU', 'No Stock', 'Price']);
+    }
+  };
+
   const handleApprove = async (quotationId) => {
     try {
       await api.post(`/quotations/${quotationId}/approve`, {
@@ -89,29 +108,48 @@ const DashboardApproval = () => {
     }
   };
 
-  const handleReject = async (quotationId, notes = '') => {
-    try {
-      // Always require notes for rejection
-      const rejectNotes = notes || prompt('Alasan penolakan:', 'Penawaran tidak sesuai dengan budget');
+  const handleRejectClick = (quotation) => {
+    setSelectedQuotation(quotation);
+    setSelectedReason('');
+    setCustomNotes('');
+    setShowRejectModal(true);
+  };
 
-      if (!rejectNotes || rejectNotes.trim() === '') {
-        alert('Alasan penolakan harus diisi!');
+  const handleRejectConfirm = async () => {
+    try {
+      if (!selectedReason) {
+        alert('Pilih alasan penolakan terlebih dahulu!');
         return;
       }
 
-      await api.post(`/quotations/${quotationId}/reject`, {
-        notes: rejectNotes.trim()
+      const notes = customNotes.trim() || `Ditolak dengan alasan: ${selectedReason}`;
+
+      await api.post(`/quotations/${selectedQuotation.id}/reject`, {
+        reason_type: selectedReason,
+        notes: notes
       });
 
       // Refresh data after rejection
       fetchApprovalData();
 
-      // Show success notification
+      // Close modal and show success notification
+      setShowRejectModal(false);
+      setSelectedQuotation(null);
+      setSelectedReason('');
+      setCustomNotes('');
+
       alert('Penawaran berhasil ditolak!');
     } catch (error) {
       console.error('Error rejecting quotation:', error);
       alert('Gagal menolak penawaran. Silakan coba lagi.');
     }
+  };
+
+  const handleCloseRejectModal = () => {
+    setShowRejectModal(false);
+    setSelectedQuotation(null);
+    setSelectedReason('');
+    setCustomNotes('');
   };
 
   const formatCurrency = (amount) => {
@@ -122,8 +160,8 @@ const DashboardApproval = () => {
     }).format(amount);
   };
 
-  // Only allow Admin to access this dashboard
-  if (user?.role?.name !== 'Admin') {
+  // Allow Super Admin and Admin to access this dashboard
+  if (!['Super Admin', 'Admin'].includes(user?.role?.name)) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
@@ -295,7 +333,7 @@ const DashboardApproval = () => {
                               <Button
                                 variant="outline-danger"
                                 size="sm"
-                                onClick={() => handleReject(quotation.id)}
+                                onClick={() => handleRejectClick(quotation)}
                                 title="Tolak"
                               >
                                 <i className="bi bi-x-lg"></i>
@@ -402,6 +440,73 @@ const DashboardApproval = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Rejection Modal */}
+      <Modal show={showRejectModal} onHide={handleCloseRejectModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-x-circle text-danger me-2"></i>
+            Tolak Penawaran
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedQuotation && (
+            <div>
+              <div className="mb-3">
+                <small className="text-muted">No. Quotation</small>
+                <div className="fw-bold">{selectedQuotation.quotation_number}</div>
+              </div>
+              <div className="mb-3">
+                <small className="text-muted">Pelanggan</small>
+                <div>{selectedQuotation.customer_name}</div>
+              </div>
+              <div className="mb-3">
+                <small className="text-muted">Total</small>
+                <div className="fw-bold">{formatCurrency(selectedQuotation.total_amount || 0)}</div>
+              </div>
+            </div>
+          )}
+
+          <Form.Group className="mb-3">
+            <Form.Label className="fw-bold">Alasan Penolakan <span className="text-danger">*</span></Form.Label>
+            <Form.Select
+              value={selectedReason}
+              onChange={(e) => setSelectedReason(e.target.value)}
+              required
+            >
+              <option value="">Pilih alasan penolakan...</option>
+              {rejectionReasons.map((reason, index) => (
+                <option key={index} value={reason}>{reason}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Catatan Tambahan (Opsional)</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              placeholder="Tambahkan catatan detail jika diperlukan..."
+              value={customNotes}
+              onChange={(e) => setCustomNotes(e.target.value)}
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseRejectModal}>
+            <i className="bi bi-x-lg me-1"></i>
+            Batal
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleRejectConfirm}
+            disabled={!selectedReason}
+          >
+            <i className="bi bi-x-circle me-1"></i>
+            Konfirmasi Tolak
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

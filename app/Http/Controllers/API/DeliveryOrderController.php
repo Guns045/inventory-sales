@@ -13,11 +13,13 @@ use App\Models\PickingListItem;
 use App\Models\ProductStock;
 use App\Models\ActivityLog;
 use App\Models\Notification;
+use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class DeliveryOrderController extends Controller
 {
+    use DocumentNumberHelper;
     /**
      * Display a listing of the resource.
      */
@@ -45,8 +47,11 @@ class DeliveryOrderController extends Controller
         ]);
 
         $deliveryOrder = DB::transaction(function () use ($request) {
+            // Determine warehouse ID based on user or default to JKT
+            $warehouseId = $this->getUserWarehouseIdForDelivery(auth()->user());
+
             $deliveryOrder = DeliveryOrder::create([
-                'delivery_order_number' => 'SJ-' . date('Y-m') . '-' . str_pad(DeliveryOrder::count() + 1, 4, '0', STR_PAD_LEFT),
+                'delivery_order_number' => $this->generateDeliveryOrderNumber($warehouseId),
                 'sales_order_id' => $request->sales_order_id,
                 'customer_id' => $request->customer_id,
                 'shipping_date' => $request->shipping_date,
@@ -357,7 +362,9 @@ class DeliveryOrderController extends Controller
 
         $pdf = PDF::loadView('pdf.delivery-order', compact('deliveryOrder'));
 
-        return $pdf->stream('delivery-order-' . $deliveryOrder->delivery_order_number . '.pdf');
+        // Safe filename - replace invalid characters
+        $safeNumber = str_replace(['/', '\\'], '_', $deliveryOrder->delivery_order_number);
+        return $pdf->stream('delivery-order-' . $safeNumber . '.pdf');
     }
 
     /**
@@ -459,5 +466,26 @@ class DeliveryOrderController extends Controller
             ->get();
 
         return response()->json($availablePickingLists);
+    }
+
+    /**
+     * Get warehouse code based on user role for delivery orders (default to JKT)
+     *
+     * @param User $user
+     * @return string
+     */
+    private function getUserWarehouseCodeForDelivery($user)
+    {
+        // Check if user has a specific warehouse role
+        if ($user->role && $user->role->name === 'Gudang JKT') {
+            return 'JKT';
+        } elseif ($user->role && $user->role->name === 'Gudang MKS') {
+            return 'MKS';
+        } elseif ($user->role && $user->role->name === 'Admin') {
+            return 'JKT'; // Default to JKT for Admin
+        }
+
+        // Default to JKT for other roles
+        return 'JKT';
     }
 }

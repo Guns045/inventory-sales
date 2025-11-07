@@ -11,21 +11,27 @@ const Dashboard = () => {
 
   const getUserRole = () => {
     if (!user || !user.role) return 'default';
-    return user.role.name.toLowerCase();
+    return user.role.name;
   };
 
   const renderRoleBasedDashboard = () => {
     const role = getUserRole();
 
     switch (role) {
-      case 'sales':
-        return <DashboardSales />;
-      case 'admin':
+      case 'Super Admin':
+      case 'Admin':
       case 'manager':
         return <DashboardAdmin />;
-      case 'gudang':
+      case 'Sales':
+      case 'Sales Team':
+        return <DashboardSales />;
+      case 'Gudang':
+      case 'Warehouse Manager Gudang JKT':
+      case 'Warehouse Manager Gudang MKS':
+      case 'Warehouse Staff':
         return <DashboardWarehouse />;
-      case 'finance':
+      case 'Finance':
+      case 'Finance Team':
         return <DashboardFinance />;
       default:
         return <DefaultDashboard />;
@@ -48,7 +54,7 @@ const Dashboard = () => {
           <p>Role Anda belum dikonfigurasi dengan dashboard khusus. Silakan hubungi administrator untuk mengatur role Anda.</p>
           <hr />
           <p className="mb-0">
-            Role yang tersedia: Sales, Admin/Manager, Gudang, Finance
+            Role Anda: {user?.role?.name || 'Unknown'}
           </p>
         </Alert>
       </div>

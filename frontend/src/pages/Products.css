@@ -55,6 +55,18 @@
   margin-bottom: 1.5rem;
 }
 
+.card-header.bg-primary {
+  background-color: #007bff !important;
+  border-bottom: 1px solid #007bff;
+}
+
+.card-header h5 {
+  color: white;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
 .form-container h2 {
   margin-top: 0;
   margin-bottom: 1rem;
@@ -134,17 +146,26 @@ tbody tr:hover {
   color: #666;
 }
 
+/* Warehouse location badge */
+.warehouse-location {
+  font-size: 0.85rem;
+}
+
+.warehouse-location .badge {
+  font-size: 0.75rem;
+}
+
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
   }
-  
+
   table {
     display: block;
     overflow-x: auto;

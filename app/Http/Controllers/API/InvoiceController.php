@@ -8,11 +8,13 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
+use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
 use PDF;
 
 class InvoiceController extends Controller
 {
+    use DocumentNumberHelper;
     /**
      * Display a listing of the resource.
      */
@@ -177,8 +179,11 @@ class InvoiceController extends Controller
                 $totalAmount += $totalPrice;
             }
 
+            // Determine warehouse ID based on user or default to MKS
+            $warehouseId = $this->getUserWarehouseIdForInvoice(auth()->user());
+
             $invoice = Invoice::create([
-                'invoice_number' => 'INV-' . date('Y-m') . '-' . str_pad(Invoice::count() + 1, 4, '0', STR_PAD_LEFT),
+                'invoice_number' => $this->generateInvoiceNumber($warehouseId),
                 'sales_order_id' => $request->sales_order_id,
                 'customer_id' => $request->customer_id,
                 'issue_date' => $request->issue_date,
@@ -321,6 +326,29 @@ class InvoiceController extends Controller
 
         $pdf = PDF::loadView('pdf.invoice', compact('invoice'));
 
-        return $pdf->stream('invoice-' . $invoice->invoice_number . '.pdf');
+        // Safe filename - replace invalid characters
+        $safeNumber = str_replace(['/', '\\'], '_', $invoice->invoice_number);
+        return $pdf->stream('invoice-' . $safeNumber . '.pdf');
+    }
+
+    /**
+     * Get warehouse code based on user role for invoices (default to MKS)
+     *
+     * @param User $user
+     * @return string
+     */
+    private function getUserWarehouseCodeForInvoice($user)
+    {
+        // Check if user has a specific warehouse role
+        if ($user->role && $user->role->name === 'Gudang JKT') {
+            return 'JKT';
+        } elseif ($user->role && $user->role->name === 'Gudang MKS') {
+            return 'MKS';
+        } elseif ($user->role && $user->role->name === 'Admin') {
+            return 'MKS'; // Default to MKS for Admin
+        }
+
+        // Default to MKS for other roles
+        return 'MKS';
     }
 }

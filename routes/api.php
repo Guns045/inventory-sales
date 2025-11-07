@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/quotations/{id}/submit', [QuotationController::class, 'submit']);
     Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])->middleware('permission:quotations.approve');
     Route::post('/quotations/{id}/reject', [QuotationController::class, 'reject'])->middleware('permission:quotations.reject');
+    Route::get('/quotations/rejection-reasons', [QuotationController::class, 'getRejectionReasons']);
     Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
     Route::get('/quotations/{id}/check-convertibility', [QuotationController::class, 'checkConvertibility']);
     

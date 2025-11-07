@@ -259,23 +259,23 @@ const InternalTransfers = () => {
   };
 
   const canCreateTransfer = () => {
-    return user?.role?.name === 'Admin' || (user?.role?.name === 'Gudang' && user?.warehouse_id);
+    return ['Super Admin', 'Admin'].includes(user?.role?.name) || (user?.role?.name === 'Gudang' && user?.warehouse_id);
   };
 
   const canApproveTransfer = (transfer) => {
-    if (user?.role?.name === 'Admin') return true;
+    if (['Super Admin', 'Admin'].includes(user?.role?.name)) return true;
     if (user?.role?.name === 'Gudang' && user?.warehouse_id === transfer.warehouse_from_id) return true;
     return false;
   };
 
   const canDeliverTransfer = (transfer) => {
-    if (user?.role?.name === 'Admin') return true;
+    if (['Super Admin', 'Admin'].includes(user?.role?.name)) return true;
     if (user?.role?.name === 'Gudang' && user?.warehouse_id === transfer.warehouse_from_id) return true;
     return false;
   };
 
   const canReceiveTransfer = (transfer) => {
-    if (user?.role?.name === 'Admin') return true;
+    if (['Super Admin', 'Admin'].includes(user?.role?.name)) return true;
     if (user?.role?.name === 'Gudang' && user?.warehouse_id === transfer.warehouse_to_id) return true;
     return false;
   };

@@ -19,6 +19,7 @@ class Approval extends Model
         'next_approver_id',
         'status',
         'workflow_status',
+        'reason_type',
         'notes',
         'approved_at',
         'final_approval_at',
@@ -55,6 +56,14 @@ class Approval extends Model
     public function approvable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Get approver name attribute
+     */
+    public function getApproverNameAttribute()
+    {
+        return $this->approver ? $this->approver->name : 'Unknown';
     }
 
     /**
@@ -214,11 +223,12 @@ class Approval extends Model
     /**
      * Reject approval at current level
      */
-    public function rejectCurrentLevel($notes = null): bool
+    public function rejectCurrentLevel($notes = null, $reasonType = null): bool
     {
         $this->update([
             'status' => 'REJECTED',
             'approver_id' => auth()->id(),
+            'reason_type' => $reasonType,
             'notes' => $notes,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),

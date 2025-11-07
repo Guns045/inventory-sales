@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Traits\DocumentNumberHelper;
 
 class Quotation extends Model
 {
+    use DocumentNumberHelper;
     protected $fillable = [
         'quotation_number',
         'customer_id',
@@ -69,7 +71,8 @@ class Quotation extends Model
      */
     public function isApproved(): bool
     {
-        return $this->approvals()->where('status', 'APPROVED')->exists();
+        // Simplified: check if quotation status is APPROVED
+        return $this->status === 'APPROVED';
     }
 
     /**
@@ -130,11 +133,11 @@ class Quotation extends Model
     /**
      * Reject quotation at current level
      */
-    public function rejectCurrentLevel($approverNotes = null): bool
+    public function rejectCurrentLevel($approverNotes = null, $reasonType = null): bool
     {
         $approval = $this->getCurrentPendingApproval();
         if ($approval && $approval->isPending()) {
-            return $approval->rejectCurrentLevel($approverNotes);
+            return $approval->rejectCurrentLevel($approverNotes, $reasonType);
         }
         return false;
     }
@@ -184,18 +187,9 @@ class Quotation extends Model
      */
     public function canBeApprovedBy($user): bool
     {
-        $currentApproval = $this->getCurrentPendingApproval();
-
-        if (!$currentApproval || !$currentApproval->isPending()) {
-            return false;
-        }
-
-        $approvalLevel = $currentApproval->approvalLevel;
-        if (!$approvalLevel) {
-            return false;
-        }
-
-        return $user->role_id === $approvalLevel->role_id;
+        // Only Super Admin and Admin can approve
+        $userRole = $user->role ? $user->role->name : '';
+        return in_array($userRole, ['Super Admin', 'Admin']) && $this->status === 'SUBMITTED';
     }
 
     /**
@@ -232,8 +226,9 @@ class Quotation extends Model
             throw new \Exception('Quotation already converted to Sales Order');
         }
 
-        // Generate Sales Order number
-        $salesOrderNumber = 'SO-' . date('Y-m-d') . '-' . str_pad(SalesOrder::count() + 1, 3, '0', STR_PAD_LEFT);
+        // Generate Sales Order number with new format
+        $warehouseId = $this->getUserWarehouseIdForSO(auth()->user());
+        $salesOrderNumber = $this->generateSalesOrderNumber($warehouseId);
 
         // Create Sales Order
         $salesOrder = SalesOrder::create([
@@ -367,5 +362,40 @@ class Quotation extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Get warehouse ID based on user role for sales orders
+     *
+     * @param User $user
+     * @return int|null
+     */
+    private function getUserWarehouseIdForSO($user)
+    {
+        // Check if user has a specific warehouse assignment
+        if ($user->warehouse_id) {
+            return $user->warehouse_id;
+        }
+
+        // Check if user can access all warehouses, default to JKT (ID: 1)
+        if ($user->canAccessAllWarehouses()) {
+            return 1; // JKT Warehouse ID
+        }
+
+        // Check role-based defaults
+        if ($user->role) {
+            switch ($user->role->name) {
+                case 'Warehouse Manager Gudang JKT':
+                    return 1; // JKT Warehouse ID
+                case 'Warehouse Manager Gudang MKS':
+                    return 2; // MKS Warehouse ID
+                case 'Super Admin':
+                case 'Admin':
+                    return 1; // Default to JKT
+            }
+        }
+
+        // Default to JKT if no specific assignment
+        return 1;
     }
 }
