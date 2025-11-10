@@ -23,23 +23,46 @@ const ProductStock = () => {
   const [productStock, setProductStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [showAdjustForm, setShowAdjustForm] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
+  const [adjustingStockId, setAdjustingStockId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const [formData, setFormData] = useState({
     adjustment_type: 'increase',
     quantity: '',
     reason: '',
     notes: ''
   });
-
+  const [createFormData, setCreateFormData] = useState({
+    product_id: '',
+    product_search: '',
+    warehouse_id: '',
+    quantity: '',
+    reserved_quantity: '0',
+    min_stock_level: '50'
+  });
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [products, setProducts] = useState([]); // eslint-disable-line no-unused-vars
   const [warehouses, setWarehouses] = useState([]);
 
   useEffect(() => {
     fetchProductStock();
     fetchWarehouses();
-  }, []); // Only fetch once on component mount
+    fetchProducts();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get('/products');
+      setProducts(response.data.data || response.data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
 
   const fetchWarehouses = async () => {
     try {
@@ -78,7 +101,26 @@ const ProductStock = () => {
 
   const handleAdjustStock = (stock) => {
     setSelectedStock(stock);
-    setShowAdjustModal(true);
+    setAdjustingStockId(stock.id);
+    setShowAdjustForm(true);
+    setFormData({
+      adjustment_type: 'increase',
+      quantity: '',
+      reason: '',
+      notes: ''
+    });
+  };
+
+  const handleCancelAdjustment = () => {
+    setShowAdjustForm(false);
+    setAdjustingStockId(null);
+    setSelectedStock(null);
+    setFormData({
+      adjustment_type: 'increase',
+      quantity: '',
+      reason: '',
+      notes: ''
+    });
   };
 
   const handleSubmitAdjustment = async (e) => {
@@ -97,7 +139,9 @@ const ProductStock = () => {
       // Refresh data to get latest stock information
       await refreshData();
 
-      setShowAdjustModal(false);
+      setShowAdjustForm(false);
+      setAdjustingStockId(null);
+      setSelectedStock(null);
       setFormData({
         adjustment_type: 'increase',
         quantity: '',
@@ -112,6 +156,107 @@ const ProductStock = () => {
     }
   };
 
+  const handleCreateStock = async (e) => { // eslint-disable-line no-unused-vars
+    e.preventDefault();
+    try {
+      const stockData = {
+        product_id: parseInt(createFormData.product_id),
+        warehouse_id: parseInt(createFormData.warehouse_id),
+        quantity: parseInt(createFormData.quantity),
+        reserved_quantity: parseInt(createFormData.reserved_quantity),
+      };
+
+      await api.post('/product-stock', stockData);
+
+      // Refresh data to get latest stock information
+      await refreshData();
+
+      setShowCreateForm(false);
+      setCreateFormData({
+        product_id: '',
+        product_search: '',
+        warehouse_id: '',
+        quantity: '',
+        reserved_quantity: '0',
+        min_stock_level: '50'
+      });
+
+      alert('Initial stock created successfully!');
+    } catch (error) {
+      console.error('Error creating stock:', error);
+      setError('Failed to create stock record');
+    }
+  };
+
+  // Auto-suggest functions
+  const handleProductSearch = (searchTerm) => {
+    setCreateFormData({...createFormData, product_search: searchTerm});
+    setSelectedSuggestionIndex(0);
+
+    if (!searchTerm) {
+      setFilteredProducts([]);
+      return;
+    }
+
+    const filtered = products.filter(product => {
+      const matchesSearch = product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      if (!matchesSearch) return false;
+
+      // Filter by warehouse if selected
+      if (createFormData.warehouse_id !== '') {
+        return !productStock.some(stock =>
+          stock.product_id === product.id &&
+          stock.warehouse_id === parseInt(createFormData.warehouse_id)
+        );
+      }
+
+      return true;
+    });
+
+    setFilteredProducts(filtered);
+    setShowProductSuggestions(true);
+  };
+
+  const selectProduct = (product) => {
+    setCreateFormData({
+      ...createFormData,
+      product_id: product.id,
+      product_search: `${product.sku} - ${product.description || product.name}`
+    });
+    setShowProductSuggestions(false);
+    setFilteredProducts([]);
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showProductSuggestions || filteredProducts.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev < filteredProducts.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : 0);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (filteredProducts[selectedSuggestionIndex]) {
+          selectProduct(filteredProducts[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowProductSuggestions(false);
+        break;
+    }
+  };
+
   const getStockStatus = (stock) => {
     const available = stock.quantity - stock.reserved_quantity;
     const minStock = stock.min_stock_level || 0;
@@ -121,11 +266,11 @@ const ProductStock = () => {
     return { variant: 'success', text: 'In Stock' };
   };
 
-  const isSuperAdmin = user?.role?.name === 'Super Admin';
-
+  
   const filteredStock = productStock.filter(stock => {
     // Apply search filter
     const searchMatch = !searchTerm ||
+      stock.product?.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.product?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.warehouse?.name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -155,9 +300,13 @@ const ProductStock = () => {
           <h2 className="mb-1">Product Stock Management</h2>
           <p className="text-muted mb-0">Monitor and manage inventory across warehouses</p>
         </div>
-        <Button variant="primary" onClick={() => setShowAdjustModal(true)} disabled={productStock.length === 0}>
-          <i className="bi bi-pencil-square me-2"></i>
-          Adjust Stock
+        <Button
+          variant="success"
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="me-2"
+        >
+          <i className={`bi bi-${showCreateForm ? 'x-circle' : 'plus-circle'} me-2`}></i>
+          {showCreateForm ? 'Cancel' : 'Create Stock'}
         </Button>
       </div>
 
@@ -167,6 +316,157 @@ const ProductStock = () => {
         </div>
       )}
 
+      {/* Create Stock Form */}
+      {showCreateForm && (
+        <Card className="mb-4 border-success">
+          <Card.Header className="bg-success text-white">
+            <i className="bi bi-plus-circle me-2"></i>
+            Create New Stock Record
+          </Card.Header>
+          <Card.Body>
+            <Form onSubmit={handleCreateStock}>
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3 position-relative">
+                    <Form.Label>Product *</Form.Label>
+                    <div className="product-suggest-wrapper">
+                      <Form.Control
+                        type="text"
+                        placeholder="Ketik part number untuk auto-suggest..."
+                        value={createFormData.product_search || ''}
+                        onChange={(e) => handleProductSearch(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => setShowProductSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                        required
+                        className="product-search-input"
+                        autoComplete="off"
+                      />
+                      {showProductSuggestions && (
+                        <div className="product-suggestions-dropdown">
+                          {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product, index) => (
+                              <div
+                                key={product.id}
+                                className={`suggestion-item ${index === selectedSuggestionIndex ? 'active' : ''}`}
+                                onClick={() => selectProduct(product)}
+                                onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                              >
+                                <div className="suggestion-sku">{product.sku}</div>
+                                <div className="suggestion-name">{product.description || product.name}</div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="suggestion-item no-results">
+                              <div className="text-muted">No products found</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Form.Text className="text-muted">
+                      {showProductSuggestions && filteredProducts.length > 0 &&
+                        `Ditemukan ${filteredProducts.length} produk. Gunakan arrow keys untuk navigasi, Enter untuk memilih.`}
+                      {createFormData.product_search && filteredProducts.length === 0 &&
+                        'Tidak ada produk yang ditemukan. Coba kata kunci lain.'}
+                      {!createFormData.product_search && !showProductSuggestions &&
+                        'Ketik SKU atau nama produk untuk mencari...'}
+                      {createFormData.product_id && !showProductSuggestions &&
+                        `✓ Terpilih: ${products.find(p => p.id === createFormData.product_id)?.sku || ''} - ${products.find(p => p.id === createFormData.product_id)?.name || ''}`}
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Warehouse *</Form.Label>
+                    <select
+                      className="form-select scrollable-dropdown"
+                      value={createFormData.warehouse_id}
+                      onChange={(e) => setCreateFormData({...createFormData, warehouse_id: e.target.value})}
+                      required
+                      style={{
+                        height: '40px',
+                        overflowY: 'auto',
+                        resize: 'vertical'
+                      }}
+                    >
+                      <option value="">Select a warehouse</option>
+                      {warehouses.map(warehouse => (
+                        <option key={warehouse.id} value={warehouse.id}>
+                          {warehouse.code} - {warehouse.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Initial Quantity *</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={createFormData.quantity}
+                      onChange={(e) => setCreateFormData({...createFormData, quantity: e.target.value})}
+                      placeholder="Enter initial quantity"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Reserved Quantity</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={createFormData.reserved_quantity}
+                      onChange={(e) => setCreateFormData({...createFormData, reserved_quantity: e.target.value})}
+                      placeholder="Enter reserved quantity"
+                    />
+                    <Form.Text className="text-muted">
+                      Quantity already allocated for orders
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {createFormData.product_id && createFormData.warehouse_id && (
+                <Alert variant="success">
+                  <h6 className="mb-2">Stock Preview</h6>
+                  <div className="row">
+                    <div className="col-6">
+                      <strong>Product:</strong> {products.find(p => p.id === parseInt(createFormData.product_id))?.description || products.find(p => p.id === parseInt(createFormData.product_id))?.name || 'N/A'}
+                    </div>
+                    <div className="col-6">
+                      <strong>SKU:</strong> {products.find(p => p.id === parseInt(createFormData.product_id))?.sku || 'N/A'}
+                    </div>
+                    <div className="col-6">
+                      <strong>Warehouse:</strong> {warehouses.find(w => w.id === parseInt(createFormData.warehouse_id))?.name || 'N/A'}
+                    </div>
+                    <div className="col-6">
+                      <strong>Available:</strong> {parseInt(createFormData.quantity || 0) - parseInt(createFormData.reserved_quantity || 0)} units
+                    </div>
+                  </div>
+                </Alert>
+              )}
+
+              <div className="d-flex gap-2">
+                <Button variant="secondary" onClick={() => setShowCreateForm(false)}>
+                  <i className="bi bi-x-circle me-2"></i>
+                  Cancel
+                </Button>
+                <Button variant="success" type="submit">
+                  <i className="bi bi-check-circle me-2"></i>
+                  Create Stock Record
+                </Button>
+              </div>
+            </Form>
+          </Card.Body>
+        </Card>
+      )}
+
       {/* Search and Filters */}
       <Card className="mb-4">
         <Card.Body>
@@ -174,7 +474,7 @@ const ProductStock = () => {
             <Col md={6}>
               <InputGroup>
                 <Form.Control
-                  placeholder="Search by product name, SKU, or warehouse..."
+                  placeholder="Search by product description, SKU, or warehouse..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -187,6 +487,8 @@ const ProductStock = () => {
               <Form.Select
                 value={selectedWarehouse}
                 onChange={(e) => setSelectedWarehouse(e.target.value)}
+                size="3"
+                className="scrollable-dropdown"
               >
                 <option value="">All Warehouses</option>
                 {warehouses.map(warehouse => (
@@ -234,76 +536,223 @@ const ProductStock = () => {
                 {filteredStock.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="text-center py-5">
-                      <i className="bi bi-search fs-1 text-muted mb-3"></i>
-                      <h5 className="text-muted">No stock data found</h5>
-                      <p className="text-muted">Try adjusting your search criteria</p>
+                      {searchTerm || selectedWarehouse ? (
+                        <>
+                          <i className="bi bi-search fs-1 text-muted mb-3"></i>
+                          <h5 className="text-muted">No stock data found</h5>
+                          <p className="text-muted">Try adjusting your search criteria</p>
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-inbox fs-1 text-muted mb-3"></i>
+                          <h5 className="text-muted">No stock records found</h5>
+                          <p className="text-muted">Create initial stock records to get started</p>
+                          <Button
+                            variant="success"
+                            onClick={() => setShowCreateForm(true)}
+                            className="mt-2"
+                          >
+                            <i className="bi bi-plus-circle me-2"></i>
+                            Create First Stock Record
+                          </Button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ) : (
                   filteredStock.map(stock => {
                     const available = stock.quantity - stock.reserved_quantity;
                     const status = getStockStatus(stock);
+                    const isAdjusting = showAdjustForm && adjustingStockId === stock.id;
+
                     return (
-                      <tr key={stock.id}>
-                        <td>
-                          <code className="text-secondary">{stock.product?.sku || 'N/A'}</code>
-                        </td>
-                        <td>
-                          <div>
-                            <strong>{stock.product?.name || 'N/A'}</strong>
-                            <br />
-                            <small className="text-muted">
-                              {stock.product?.category || 'No Category'}
-                            </small>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="text-primary fw-semibold">{stock.quantity}</span>
-                        </td>
-                        <td>
-                          <span className="text-warning">{stock.reserved_quantity}</span>
-                        </td>
-                        <td>
-                          <span className={`fw-semibold ${available > 0 ? 'text-success' : 'text-danger'}`}>
-                            {available}
-                          </span>
-                        </td>
-                        <td>
-                          <small>{stock.min_stock_level || 0}</small>
-                        </td>
-                        <td>
-                          <div className="warehouse-location">
-                            <Badge bg="light" text="dark">
-                              {stock.warehouse?.code || 'N/A'}
+                      <React.Fragment key={stock.id}>
+                        <tr>
+                          <td>
+                            <code className="text-secondary">{stock.product?.sku || 'N/A'}</code>
+                          </td>
+                          <td>
+                            <div>
+                              <strong>{stock.product?.description || stock.product?.name || 'N/A'}</strong>
+                              <br />
+                              <small className="text-muted">
+                                {stock.product?.category || 'No Category'}
+                              </small>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="text-primary fw-semibold">{stock.quantity}</span>
+                          </td>
+                          <td>
+                            <span className="text-warning">{stock.reserved_quantity}</span>
+                          </td>
+                          <td>
+                            <span className={`fw-semibold ${available > 0 ? 'text-success' : 'text-danger'}`}>
+                              {available}
+                            </span>
+                          </td>
+                          <td>
+                            <small>{stock.min_stock_level || 0}</small>
+                          </td>
+                          <td>
+                            <div className="warehouse-location">
+                              <Badge bg="light" text="dark">
+                                {stock.warehouse?.code || 'N/A'}
+                              </Badge>
+                              <br />
+                              <small className="text-muted">{stock.warehouse?.name || 'N/A'}</small>
+                            </div>
+                          </td>
+                          <td>
+                            <Badge bg={status.variant}>
+                              {status.text}
                             </Badge>
-                            <br />
-                            <small className="text-muted">{stock.warehouse?.name || 'N/A'}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <Badge bg={status.variant}>
-                            {status.text}
-                          </Badge>
-                        </td>
-                        <td>
-                          <div className="btn-group" role="group">
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => handleAdjustStock(stock)}
-                            >
-                              <i className="bi bi-pencil"></i>
-                            </Button>
-                            <Button
-                              variant="outline-info"
-                              size="sm"
-                              title="View Details"
-                            >
-                              <i className="bi bi-eye"></i>
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                          <td>
+                            <div className="btn-group" role="group">
+                              <Button
+                                variant={isAdjusting ? "secondary" : "outline-primary"}
+                                size="sm"
+                                onClick={() => isAdjusting ? handleCancelAdjustment() : handleAdjustStock(stock)}
+                              >
+                                <i className={`bi bi-${isAdjusting ? 'x' : 'pencil'}`}></i>
+                              </Button>
+                              <Button
+                                variant="outline-info"
+                                size="sm"
+                                title="View Details"
+                              >
+                                <i className="bi bi-eye"></i>
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isAdjusting && (
+                          <tr>
+                            <td colSpan="9" className="p-0">
+                              <div className="adjust-stock-form-container p-4 bg-light">
+                                <Card className="border-primary">
+                                  <Card.Header className="bg-primary text-white">
+                                    <i className="bi bi-pencil-square me-2"></i>
+                                    Adjust Stock - {stock.product?.sku}
+                                  </Card.Header>
+                                  <Card.Body>
+                                    <Form onSubmit={handleSubmitAdjustment}>
+                                      <Alert variant="info">
+                                        <div className="row">
+                                          <div className="col-md-3">
+                                            <strong>Product:</strong> {selectedStock.product?.description || selectedStock.product?.name}
+                                          </div>
+                                          <div className="col-md-3">
+                                            <strong>Current Stock:</strong> {selectedStock.quantity}
+                                          </div>
+                                          <div className="col-md-3">
+                                            <strong>Warehouse:</strong> {selectedStock.warehouse?.name}
+                                          </div>
+                                          <div className="col-md-3">
+                                            <strong>Available:</strong> {selectedStock.quantity - selectedStock.reserved_quantity}
+                                          </div>
+                                        </div>
+                                      </Alert>
+
+                                      <Row>
+                                        <Col md={3}>
+                                          <Form.Group className="mb-3">
+                                            <Form.Label>Adjustment Type *</Form.Label>
+                                            <Form.Select
+                                              value={formData.adjustment_type}
+                                              onChange={(e) => setFormData({...formData, adjustment_type: e.target.value})}
+                                              required
+                                            >
+                                              <option value="increase">Increase Stock</option>
+                                              <option value="decrease">Decrease Stock</option>
+                                            </Form.Select>
+                                          </Form.Group>
+                                        </Col>
+                                        <Col md={3}>
+                                          <Form.Group className="mb-3">
+                                            <Form.Label>Quantity *</Form.Label>
+                                            <Form.Control
+                                              type="number"
+                                              min="1"
+                                              value={formData.quantity}
+                                              onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                                              placeholder="Enter quantity"
+                                              required
+                                            />
+                                          </Form.Group>
+                                        </Col>
+                                        <Col md={3}>
+                                          <Form.Group className="mb-3">
+                                            <Form.Label>Reason *</Form.Label>
+                                            <Form.Select
+                                              value={formData.reason}
+                                              onChange={(e) => setFormData({...formData, reason: e.target.value})}
+                                              required
+                                            >
+                                              <option value="">Select a reason</option>
+                                              <option value="count_adjustment">Stock Count Adjustment</option>
+                                              <option value="damaged_goods">Damaged Goods</option>
+                                              <option value="returned_goods">Returned Goods</option>
+                                              <option value="lost_items">Lost Items</option>
+                                              <option value="correction">Data Correction</option>
+                                              <option value="other">Other</option>
+                                            </Form.Select>
+                                          </Form.Group>
+                                        </Col>
+                                        <Col md={3}>
+                                          <Form.Group className="mb-3">
+                                            <Form.Label>Resulting Stock</Form.Label>
+                                            <div className="form-control bg-light">
+                                              {formData.adjustment_type === 'increase'
+                                                ? parseInt(selectedStock.quantity || 0) + parseInt(formData.quantity || 0)
+                                                : parseInt(selectedStock.quantity || 0) - parseInt(formData.quantity || 0)
+                                              } units
+                                            </div>
+                                          </Form.Group>
+                                        </Col>
+                                      </Row>
+
+                                      <Row>
+                                        <Col md={12}>
+                                          <Form.Group className="mb-3">
+                                            <Form.Label>Notes</Form.Label>
+                                            <Form.Control
+                                              as="textarea"
+                                              rows={2}
+                                              value={formData.notes}
+                                              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                              placeholder="Additional notes about this adjustment..."
+                                            />
+                                          </Form.Group>
+                                        </Col>
+                                      </Row>
+
+                                      {formData.adjustment_type === 'decrease' && (
+                                        <Alert variant="warning">
+                                          <i className="bi bi-exclamation-triangle me-2"></i>
+                                          <strong>Warning:</strong> This will reduce the stock quantity from {selectedStock.quantity} to {parseInt(selectedStock.quantity || 0) - parseInt(formData.quantity || 0)} units.
+                                        </Alert>
+                                      )}
+
+                                      <div className="d-flex gap-2">
+                                        <Button variant="secondary" onClick={handleCancelAdjustment}>
+                                          <i className="bi bi-x-circle me-2"></i>
+                                          Cancel
+                                        </Button>
+                                        <Button variant="primary" type="submit">
+                                          <i className="bi bi-check-circle me-2"></i>
+                                          Adjust Stock
+                                        </Button>
+                                      </div>
+                                    </Form>
+                                  </Card.Body>
+                                </Card>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })
                 )}
@@ -312,107 +761,6 @@ const ProductStock = () => {
           </div>
         </Card.Body>
       </Card>
-
-      {/* Stock Adjustment Modal */}
-      <Modal show={showAdjustModal} onHide={() => setShowAdjustModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-pencil-square me-2"></i>
-            Adjust Stock
-          </Modal.Title>
-        </Modal.Header>
-        {selectedStock && (
-          <Form onSubmit={handleSubmitAdjustment}>
-            <Modal.Body>
-              <Alert variant="info">
-                <div className="row">
-                  <div className="col-6">
-                    <strong>Product:</strong> {selectedStock.product?.name}
-                  </div>
-                  <div className="col-6">
-                    <strong>SKU:</strong> {selectedStock.product?.sku}
-                  </div>
-                  <div className="col-6">
-                    <strong>Warehouse:</strong> {selectedStock.warehouse?.name}
-                  </div>
-                  <div className="col-6">
-                    <strong>Current Stock:</strong> {selectedStock.quantity}
-                  </div>
-                </div>
-              </Alert>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Adjustment Type *</Form.Label>
-                <Form.Select
-                  value={formData.adjustment_type}
-                  onChange={(e) => setFormData({...formData, adjustment_type: e.target.value})}
-                  required
-                >
-                  <option value="increase">Increase Stock</option>
-                  <option value="decrease">Decrease Stock</option>
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Quantity *</Form.Label>
-                <Form.Control
-                  type="number"
-                  min="1"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                  placeholder="Enter quantity"
-                  required
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Reason *</Form.Label>
-                <Form.Select
-                  value={formData.reason}
-                  onChange={(e) => setFormData({...formData, reason: e.target.value})}
-                  required
-                >
-                  <option value="">Select a reason</option>
-                  <option value="count_adjustment">Stock Count Adjustment</option>
-                  <option value="damaged_goods">Damaged Goods</option>
-                  <option value="returned_goods">Returned Goods</option>
-                  <option value="lost_items">Lost Items</option>
-                  <option value="correction">Data Correction</option>
-                  <option value="other">Other</option>
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Notes</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  placeholder="Additional notes about this adjustment..."
-                />
-              </Form.Group>
-
-              {formData.adjustment_type === 'decrease' && (
-                <Alert variant="warning">
-                  <i className="bi bi-exclamation-triangle me-2"></i>
-                  <strong>Warning:</strong> This will reduce the stock quantity. Please ensure accuracy.
-                </Alert>
-              )}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowAdjustModal(false)}>
-                <i className="bi bi-x-circle me-2"></i>
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit">
-                <i className="bi bi-check-circle me-2"></i>
-                Adjust Stock
-              </Button>
-            </Modal.Footer>
-          </Form>
-        )}
-      </Modal>
     </Container>
   );
 };

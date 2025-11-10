@@ -169,13 +169,13 @@ class RoleController extends Controller
                                 'icon' => 'bi-file-text',
                                 'permission' => 'quotations.read'
                             ],
-                                [
-                                'title' => 'Delivery Order',
-                                'path' => '/dashboard/delivery-orders',
-                                'icon' => 'bi-truck',
-                                'permission' => 'delivery_orders.read'
-                            ]
-                        ]
+                            [
+                                'title' => 'Sales Orders',
+                                'path' => '/dashboard/sales-orders',
+                                'icon' => 'bi-cart-check',
+                                'permission' => 'sales_orders.read'
+                            ],
+                              ]
                     ],
                     [
                         'title' => 'Inventory',
@@ -262,16 +262,22 @@ class RoleController extends Controller
                         'permission' => 'delivery_orders.read',
                         'children' => [
                             [
-                                'title' => 'Picking Lists',
-                                'path' => '/dashboard/picking-lists',
-                                'icon' => 'bi-list-check',
-                                'permission' => 'picking-lists.read'
-                            ],
-                            [
                                 'title' => 'Warehouse Transfers',
                                 'path' => '/dashboard/warehouse-transfers',
                                 'icon' => 'bi-arrow-left-right',
                                 'permission' => 'warehouse-transfers.read'
+                            ],
+                            [
+                                'title' => 'Delivery Order',
+                                'path' => '/dashboard/delivery-orders',
+                                'icon' => 'bi-truck',
+                                'permission' => 'delivery_orders.read'
+                            ],
+                            [
+                                'title' => 'Picking Lists',
+                                'path' => '/dashboard/picking-lists',
+                                'icon' => 'bi-clipboard-check',
+                                'permission' => 'picking-lists.read'
                             ]
                         ]
                     ],
@@ -292,6 +298,12 @@ class RoleController extends Controller
                                 'path' => '/dashboard/roles',
                                 'icon' => 'bi-shield-check',
                                 'permission' => 'users.read'
+                            ],
+                            [
+                                'title' => 'All Picking Lists',
+                                'path' => '/dashboard/picking-lists',
+                                'icon' => 'bi-clipboard-check',
+                                'permission' => 'picking-lists.read'
                             ],
                             [
                                 'title' => 'Activity Logs',
@@ -384,13 +396,13 @@ class RoleController extends Controller
                                 'icon' => 'bi-file-text',
                                 'permission' => 'quotations.read'
                             ],
-                                [
-                                'title' => 'Delivery Order',
-                                'path' => '/dashboard/delivery-orders',
-                                'icon' => 'bi-truck',
-                                'permission' => 'delivery_orders.read'
-                            ]
-                        ]
+                            [
+                                'title' => 'Sales Orders',
+                                'path' => '/dashboard/sales-orders',
+                                'icon' => 'bi-cart-check',
+                                'permission' => 'sales_orders.read'
+                            ],
+                              ]
                     ],
                     [
                         'title' => 'Inventory',
@@ -476,12 +488,6 @@ class RoleController extends Controller
                         'icon' => 'bi-truck',
                         'permission' => 'delivery_orders.read',
                         'children' => [
-                            [
-                                'title' => 'Picking Lists',
-                                'path' => '/dashboard/picking-lists',
-                                'icon' => 'bi-clipboard-check',
-                                'permission' => 'picking-lists.read'
-                            ],
                             [
                                 'title' => 'Goods Receipt',
                                 'path' => '/dashboard/goods-receipts',

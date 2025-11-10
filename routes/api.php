@@ -89,6 +89,11 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::get('/picking-lists/{picking_list}/print', [PickingListController::class, 'print'])->middleware('permission:picking-lists.print');
     Route::post('/picking-lists/{picking_list}/complete', [PickingListController::class, 'complete'])->middleware('permission:picking-lists.complete');
 
+    // Picking List creation from orders
+    Route::post('/picking-lists/from-sales-order', [PickingListController::class, 'createFromSalesOrder'])->middleware('permission:picking-lists.create');
+    Route::post('/picking-lists/from-transfer', [PickingListController::class, 'createFromTransfer'])->middleware('permission:picking-lists.create');
+    Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery'])->middleware('permission:picking-lists.read');
+
     // Delivery management
     Route::apiResource('delivery-orders', DeliveryOrderController::class);
     Route::get('/delivery-orders/{id}/items', [DeliveryOrderController::class, 'getDeliveryOrderItems']);

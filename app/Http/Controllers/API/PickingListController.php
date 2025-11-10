@@ -378,4 +378,459 @@ class PickingListController extends Controller
 
         return response()->json($availablePickingLists);
     }
+
+    /**
+     * Generate picking list PDF from sales order
+     */
+    public function createFromSalesOrder(Request $request)
+    {
+        $validated = $request->validate([
+            'sales_order_id' => 'required|exists:sales_orders,id'
+        ]);
+
+        $user = $request->user();
+
+        // Check if user has permission to create picking lists
+        if (!$user->hasPermission('picking-lists', 'create')) {
+            return response()->json([
+                'message' => 'You do not have permission to create picking lists'
+            ], 403);
+        }
+
+        try {
+            $salesOrder = SalesOrder::with(['items.product', 'customer'])->findOrFail($validated['sales_order_id']);
+
+            // Generate unique picking list number
+            $pickingListNumber = $this->generatePickingListNumber();
+
+            // Create temporary PickingList object for PDF generation
+            $pickingList = new \stdClass();
+            $pickingList->picking_list_number = $pickingListNumber;
+            $pickingList->salesOrder = $salesOrder;
+            $pickingList->user = $user;
+            $pickingList->created_at = now();
+            $pickingList->completed_at = null;
+            $pickingList->notes = null;
+            $pickingList->status = 'READY';
+            $pickingList->status_label = 'Ready';
+            $pickingList->status_color = 'blue';
+
+            // Create items collection for PDF
+            $items = collect();
+            foreach ($salesOrder->items as $index => $item) {
+                $pickingItem = new \stdClass();
+                $pickingItem->product = $item->product;
+                $pickingItem->location_code = $item->product->location ?? '-';
+                $pickingItem->quantity_required = $item->quantity;
+                $pickingItem->quantity_picked = 0;
+                $pickingItem->remaining_quantity = $item->quantity;
+                $pickingItem->status = 'PENDING';
+                $pickingItem->status_label = 'Pending';
+                $pickingItem->status_color = 'yellow';
+                $pickingItem->notes = null;
+                $items->push($pickingItem);
+            }
+            $pickingList->items = $items;
+
+            // Generate PDF using existing template
+            $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
+            $pdfContent = $pdf->output();
+
+            // Generate filename
+            $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingListNumber) . ".pdf";
+
+            return response()->json([
+                'message' => 'Picking list generated successfully',
+                'picking_list_number' => $pickingListNumber,
+                'pdf_content' => base64_encode($pdfContent),
+                'filename' => $filename
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to generate picking list: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function generatePickingListNumber()
+    {
+        $user = request()->user();
+        $warehouseId = $user->warehouse_id ?? null;
+
+        // Use the existing DocumentCounter::getNextNumber method
+        return \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
+    }
+
+    private function generatePickingListPDF($salesOrder, $pickingListNumber, $user)
+    {
+        $companyName = "PT. JINAN INDO MAKMUR";
+        $companyAddress = "Jl. Raya Kaligawe KM. 5, RT. 4/RW. 1, Tugu, Kec. Semarang Utara, Kota Semarang, Jawa Tengah 50187";
+        $currentDate = date('d-m-Y');
+        $orderDate = date('d-m-Y', strtotime($salesOrder->created_at ?? now()));
+        $userName = $user->name;
+        $customerName = $salesOrder->customer->company_name ?? 'N/A';
+        $orderNumber = $salesOrder->sales_order_number;
+
+        // Start building HTML with proper escaping
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Picking List - ' . htmlspecialchars($pickingListNumber, ENT_QUOTES, 'UTF-8') . '</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+        .company-info { margin-bottom: 10px; line-height: 1.4; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        .info-section { margin-bottom: 30px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .info-item { margin-bottom: 10px; }
+        .info-label { font-weight: bold; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .items-table th { background-color: #f2f2f2; font-weight: bold; }
+        .items-table .number { text-align: center; width: 50px; }
+        .items-table .quantity { text-align: center; width: 80px; }
+        .pickup-section { margin-top: 30px; }
+        .pickup-table { width: 100%; border-collapse: collapse; }
+        .pickup-table th, .pickup-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .pickup-table th { background-color: #e8f4fd; font-weight: bold; }
+        .pickup-table .number { text-align: center; width: 50px; }
+        .pickup-table .checkbox { width: 80px; text-align: center; }
+        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-info">
+            <strong>' . htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8') . '</strong><br>
+            ' . htmlspecialchars($companyAddress, ENT_QUOTES, 'UTF-8') . '
+        </div>
+        <div class="title">PICKING LIST</div>
+    </div>
+
+    <div class="info-section">
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Nomor Picking List:</span> ' . htmlspecialchars($pickingListNumber, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Nomor Pesanan:</span> ' . htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Nama Pelanggan:</span> ' . htmlspecialchars($customerName, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Tanggal Pesanan:</span> ' . htmlspecialchars($orderDate, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Tanggal Pengiriman:</span> ' . htmlspecialchars($currentDate, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Nama Operator:</span> ' . htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') . '
+            </div>
+        </div>
+    </div>';
+
+        // Add items section
+        $html .= '
+    <div class="items-section">
+        <h3>Detail Produk</h3>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="number">No</th>
+                    <th>Part Number</th>
+                    <th>Deskripsi Produk</th>
+                    <th class="quantity">Jumlah</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        $no = 1;
+        foreach ($salesOrder->items as $item) {
+            $partNumber = $item->product->part_number ?? $item->product->code ?? '-';
+            $productName = $item->product->name;
+            $quantity = $item->quantity;
+
+            // Escape all output
+            $html .= '
+                <tr>
+                    <td class="number">' . $no . '</td>
+                    <td>' . htmlspecialchars($partNumber, ENT_QUOTES, 'UTF-8') . '</td>
+                    <td>' . htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="quantity">' . htmlspecialchars($quantity, ENT_QUOTES, 'UTF-8') . '</td>
+                </tr>';
+            $no++;
+        }
+
+        $html .= '
+            </tbody>
+        </table>
+    </div>';
+
+        // Add pickup section
+        $html .= '
+    <div class="pickup-section">
+        <h3>Lokasi dan Pengambilan</h3>
+        <table class="pickup-table">
+            <thead>
+                <tr>
+                    <th class="number">No</th>
+                    <th>Part Number</th>
+                    <th>Lokasi Penyimpanan</th>
+                    <th>Jumlah Terambil</th>
+                    <th class="checkbox">Status</th>
+                    <th>Komentar</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        $no = 1;
+        foreach ($salesOrder->items as $item) {
+            $partNumber = $item->product->part_number ?? $item->product->code ?? '-';
+
+            $html .= '
+                <tr>
+                    <td class="number">' . $no . '</td>
+                    <td>' . htmlspecialchars($partNumber, ENT_QUOTES, 'UTF-8') . '</td>
+                    <td>_____________________</td>
+                    <td>_____</td>
+                    <td class="checkbox">☐</td>
+                    <td></td>
+                </tr>';
+            $no++;
+        }
+
+        $html .= '
+            </tbody>
+        </table>
+    </div>';
+
+        $html .= '
+    <div class="footer">
+        <p>Dokumen ini harus ditandatangani oleh operator dan supervisor gudang</p>
+    </div>
+</body>
+</html>';
+
+        // Return clean HTML content without additional encoding
+        return $html;
+    }
+
+    /**
+     * Generate picking list PDF from warehouse transfer
+     */
+    public function createFromTransfer(Request $request)
+    {
+        $validated = $request->validate([
+            'warehouse_transfer_id' => 'required|exists:warehouse_transfers,id'
+        ]);
+
+        $user = $request->user();
+
+        // Check if user has permission to create picking lists
+        if (!$user->hasPermission('picking-lists', 'create')) {
+            return response()->json([
+                'message' => 'You do not have permission to create picking lists'
+            ], 403);
+        }
+
+        try {
+            $transfer = \App\Models\WarehouseTransfer::with(['product', 'warehouseFrom', 'warehouseTo', 'requestedBy'])->findOrFail($validated['warehouse_transfer_id']);
+
+            // Generate unique picking list number
+            $pickingListNumber = $this->generatePickingListNumber();
+
+            // Create temporary PickingList object for PDF generation
+            $pickingList = new \stdClass();
+            $pickingList->picking_list_number = $pickingListNumber;
+            $pickingList->salesOrder = null; // No sales order for transfer
+            $pickingList->user = $user;
+            $pickingList->created_at = now();
+            $pickingList->completed_at = null;
+            $pickingList->notes = "For warehouse transfer: " . $transfer->transfer_number;
+            $pickingList->status = 'READY';
+            $pickingList->status_label = 'Ready';
+            $pickingList->status_color = 'blue';
+
+            // Create items collection for PDF
+            $items = collect();
+            $pickingItem = new \stdClass();
+            $pickingItem->product = $transfer->product;
+            $pickingItem->location_code = $transfer->product->location ?? '-';
+            $pickingItem->quantity_required = $transfer->quantity_requested;
+            $pickingItem->quantity_picked = 0;
+            $pickingItem->remaining_quantity = $transfer->quantity_requested;
+            $pickingItem->status = 'PENDING';
+            $pickingItem->status_label = 'Pending';
+            $pickingItem->status_color = 'yellow';
+            $pickingItem->notes = "Transfer from " . $transfer->warehouseFrom->name . " to " . $transfer->warehouseTo->name;
+            $items->push($pickingItem);
+            $pickingList->items = $items;
+
+            // Generate PDF using existing template
+            $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
+            $pdfContent = $pdf->output();
+
+            // Generate filename
+            $filename = "PickingList_Transfer_" . str_replace(['/', '\\'], '_', $pickingListNumber) . ".pdf";
+
+            return response()->json([
+                'message' => 'Picking list generated successfully',
+                'picking_list_number' => $pickingListNumber,
+                'pdf_content' => base64_encode($pdfContent),
+                'filename' => $filename
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to generate picking list: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function generateTransferPickingListPDF($transfer, $pickingListNumber, $user)
+    {
+        $companyName = "PT. JINAN INDO MAKMUR";
+        $companyAddress = "Jl. Raya Kaligawe KM. 5, RT. 4/RW. 1, Tugu, Kec. Semarang Utara, Kota Semarang, Jawa Tengah 50187";
+        $currentDate = date('d-m-Y');
+
+        $transferNumber = $transfer->transfer_number;
+        $partNumber = $transfer->product->part_number ?? $transfer->product->code ?? '-';
+        $productName = $transfer->product->name;
+        $quantity = $transfer->quantity_requested;
+        $transferDate = date('d-m-Y', strtotime($transfer->created_at ?? now()));
+        $userName = $user->name;
+        $warehouseFromName = $transfer->warehouseFrom->name . ' (' . $transfer->warehouseFrom->code . ')';
+        $warehouseToName = $transfer->warehouseTo->name . ' (' . $transfer->warehouseTo->code . ')';
+        $requestedByName = $transfer->requestedBy->name;
+
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Picking List Transfer - ' . htmlspecialchars($pickingListNumber, ENT_QUOTES, 'UTF-8') . '</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+        .company-info { margin-bottom: 10px; line-height: 1.4; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        .subtitle { font-size: 16px; color: #666; margin-bottom: 20px; }
+        .info-section { margin-bottom: 30px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .info-item { margin-bottom: 10px; }
+        .info-label { font-weight: bold; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .items-table th { background-color: #f2f2f2; font-weight: bold; }
+        .items-table .number { text-align: center; width: 50px; }
+        .items-table .quantity { text-align: center; width: 80px; }
+        .transfer-info { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #ffc107; }
+        .pickup-section { margin-top: 30px; }
+        .pickup-table { width: 100%; border-collapse: collapse; }
+        .pickup-table th, .pickup-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .pickup-table th { background-color: #e8f4fd; font-weight: bold; }
+        .pickup-table .number { text-align: center; width: 50px; }
+        .pickup-table .checkbox { width: 80px; text-align: center; }
+        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-info">
+            <strong>' . htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8') . '</strong><br>
+            ' . htmlspecialchars($companyAddress, ENT_QUOTES, 'UTF-8') . '
+        </div>
+        <div class="title">PICKING LIST</div>
+        <div class="subtitle">WAREHOUSE TRANSFER</div>
+    </div>';
+
+        $html .= '
+    <div class="transfer-info">
+        <strong>Transfer Information:</strong><br>
+        Nomor Transfer: ' . htmlspecialchars($transferNumber, ENT_QUOTES, 'UTF-8') . '<br>
+        Dari: ' . htmlspecialchars($warehouseFromName, ENT_QUOTES, 'UTF-8') . '<br>
+        Ke: ' . htmlspecialchars($warehouseToName, ENT_QUOTES, 'UTF-8') . '<br>
+        Requested by: ' . htmlspecialchars($requestedByName, ENT_QUOTES, 'UTF-8') . '
+    </div>';
+
+        $html .= '
+    <div class="info-section">
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Nomor Picking List:</span> ' . htmlspecialchars($pickingListNumber, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Tanggal Transfer:</span> ' . htmlspecialchars($transferDate, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Tanggal Pengambilan:</span> ' . htmlspecialchars($currentDate, ENT_QUOTES, 'UTF-8') . '
+            </div>
+            <div class="info-item">
+                <span class="info-label">Nama Operator:</span> ' . htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') . '
+            </div>
+        </div>
+    </div>';
+
+        $html .= '
+    <div class="items-section">
+        <h3>Detail Produk</h3>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="number">No</th>
+                    <th>Part Number</th>
+                    <th>Deskripsi Produk</th>
+                    <th class="quantity">Jumlah</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="number">1</td>
+                    <td>' . htmlspecialchars($partNumber, ENT_QUOTES, 'UTF-8') . '</td>
+                    <td>' . htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="quantity">' . htmlspecialchars($quantity, ENT_QUOTES, 'UTF-8') . '</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>';
+
+        $html .= '
+    <div class="pickup-section">
+        <h3>Lokasi dan Pengambilan</h3>
+        <table class="pickup-table">
+            <thead>
+                <tr>
+                    <th class="number">No</th>
+                    <th>Part Number</th>
+                    <th>Lokasi Penyimpanan (' . htmlspecialchars($transfer->warehouseFrom->name, ENT_QUOTES, 'UTF-8') . ')</th>
+                    <th>Jumlah Terambil</th>
+                    <th class="checkbox">Status</th>
+                    <th>Komentar</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="number">1</td>
+                    <td>' . htmlspecialchars($partNumber, ENT_QUOTES, 'UTF-8') . '</td>
+                    <td>_____________________</td>
+                    <td>_____</td>
+                    <td class="checkbox">☐</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>';
+
+        $html .= '
+    <div class="footer">
+        <p>Dokumen ini harus ditandatangani oleh operator dan supervisor gudang</p>
+    </div>
+</body>
+</html>';
+
+        return $html;
+    }
 }
