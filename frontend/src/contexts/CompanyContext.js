@@ -49,7 +49,12 @@ export const CompanyProvider = ({ children }) => {
       const response = await get('/company-settings/public');
 
       if (response && response.data) {
-        setCompanySettings(response.data);
+        // Handle API response structure: {success: true, data: {...}}
+        if (response.data.data) {
+          setCompanySettings(response.data.data);
+        } else {
+          setCompanySettings(response.data);
+        }
       }
     } catch (err) {
       console.error('Error fetching company settings:', err);
@@ -61,10 +66,8 @@ export const CompanyProvider = ({ children }) => {
 
   const updateCompanySettings = async (settingsData) => {
     try {
-      const response = await get('/company-settings');
-      if (response && response.data) {
-        setCompanySettings(response.data);
-      }
+      // Re-fetch company settings to get the latest data
+      await fetchCompanySettings();
     } catch (err) {
       console.error('Error updating company settings:', err);
       setError(err.message || 'Failed to update company settings');

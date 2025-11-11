@@ -631,7 +631,9 @@ class PickingListController extends Controller
         $user = $request->user();
 
         // Check if user has permission to create picking lists
-        if (!$user->hasPermission('picking-lists', 'create')) {
+        // Super Admin and warehouse admin roles should have full access
+        $isAdmin = in_array($user->role->name, ['Super Admin', 'Admin Jakarta', 'Admin Makassar', 'Manager Jakarta', 'Manager Makassar']);
+        if (!$isAdmin && !$user->hasPermission('picking-lists', 'create')) {
             return response()->json([
                 'message' => 'You do not have permission to create picking lists'
             ], 403);

@@ -77,10 +77,10 @@ class WarehouseTransferController extends Controller
         // Check if user can create transfers from the source warehouse
         $user = $request->user();
 
-        // Check warehouse access permissions
-        if (!$user->canManageWarehouse($validated['warehouse_from_id'])) {
+        // Check warehouse access permissions - users can create transfers FROM their assigned warehouse
+        if (!$user->canAccessWarehouse($validated['warehouse_from_id'])) {
             return response()->json([
-                'message' => 'You can only create transfers from warehouses you have access to'
+                'message' => 'You can only create transfers from your assigned warehouse'
             ], 403);
         }
 

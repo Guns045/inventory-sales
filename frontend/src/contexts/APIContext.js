@@ -18,7 +18,7 @@ export const APIProvider = ({ children }) => {
     const port = window.location.port;
 
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:8000/api';
+      return 'http://127.0.0.1:8000/api';
     } else {
       // Use the same hostname as the frontend for API access
       return `http://${hostname}:8000/api`;
@@ -29,7 +29,6 @@ export const APIProvider = ({ children }) => {
   const api = axios.create({
     baseURL: getBaseURL(),
     headers: {
-      'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
     timeout: 30000, // 30 seconds timeout

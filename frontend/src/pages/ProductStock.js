@@ -471,7 +471,7 @@ const ProductStock = () => {
       <Card className="mb-4">
         <Card.Body>
           <Row className="align-items-center">
-            <Col md={6}>
+            <Col md={user?.role?.name === 'Super Admin' ? 6 : 12}>
               <InputGroup>
                 <Form.Control
                   placeholder="Search by product description, SKU, or warehouse..."
@@ -483,33 +483,37 @@ const ProductStock = () => {
                 </InputGroup.Text>
               </InputGroup>
             </Col>
-            <Col md={4}>
-              <Form.Select
-                value={selectedWarehouse}
-                onChange={(e) => setSelectedWarehouse(e.target.value)}
-                size="3"
-                className="scrollable-dropdown"
-              >
-                <option value="">All Warehouses</option>
-                {warehouses.map(warehouse => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.code} - {warehouse.name}
-                  </option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col md={2} className="text-md-end mt-3 mt-md-0">
-              {selectedWarehouse && (
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => setSelectedWarehouse('')}
-                >
-                  <i className="bi bi-x-circle me-1"></i>
-                  Clear
-                </Button>
-              )}
-            </Col>
+            {user?.role?.name === 'Super Admin' && (
+              <>
+                <Col md={4}>
+                  <Form.Select
+                    value={selectedWarehouse}
+                    onChange={(e) => setSelectedWarehouse(e.target.value)}
+                    size="3"
+                    className="scrollable-dropdown"
+                  >
+                    <option value="">All Warehouses</option>
+                    {warehouses.map(warehouse => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.code} - {warehouse.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={2} className="text-md-end mt-3 mt-md-0">
+                  {selectedWarehouse && (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      onClick={() => setSelectedWarehouse('')}
+                    >
+                      <i className="bi bi-x-circle me-1"></i>
+                      Clear
+                    </Button>
+                  )}
+                </Col>
+              </>
+            )}
           </Row>
         </Card.Body>
       </Card>

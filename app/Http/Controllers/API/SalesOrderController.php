@@ -28,6 +28,15 @@ class SalesOrderController extends Controller
             $query->where('status', $requestedStatus);
         }
 
+        // Filter by user warehouse access
+        $user = $request->user();
+        if ($user && !$user->canAccessAllWarehouses() && $user->warehouse_id) {
+            $query->whereHas('user', function ($q) use ($user) {
+                $q->where('warehouse_id', $user->warehouse_id);
+            });
+            Log::info('SalesOrder index: Filtering by warehouse: ' . $user->warehouse_id);
+        }
+
         $salesOrders = $query->paginate(10);
 
         // Log status distribution for debugging

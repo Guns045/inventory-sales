@@ -176,9 +176,10 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
 
     // Company Settings routes (Admin only)
-    Route::apiResource('company-settings', CompanySettingsController::class)->middleware('permission:users.update');
-    Route::post('/company-settings/upload-logo', [CompanySettingsController::class, 'uploadLogo'])->middleware('permission:users.update');
-    Route::delete('/company-settings/{id}/delete-logo', [CompanySettingsController::class, 'deleteLogo'])->middleware('permission:users.update');
+    Route::apiResource('company-settings', CompanySettingsController::class)->middleware('super.admin.or.company.settings');
+    Route::post('/company-settings/{id}', [CompanySettingsController::class, 'update'])->middleware('super.admin.or.company.settings');
+    Route::post('/company-settings/upload-logo', [CompanySettingsController::class, 'uploadLogo'])->middleware('super.admin.or.company.settings');
+    Route::delete('/company-settings/{id}/delete-logo', [CompanySettingsController::class, 'deleteLogo'])->middleware('super.admin.or.company.settings');
 
     // Inventory Management routes - Commented out (InventoryController not implemented yet)
     // Route::post('/inventory/deduct', [InventoryController::class, 'deductStock'])->middleware('permission:inventory.update');

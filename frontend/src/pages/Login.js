@@ -12,6 +12,13 @@ const Login = () => {
   const { login } = useAuth();
   const { api } = useAPI();
 
+  // Auto-fill demo account
+  const handleDemoAccount = (account) => {
+    setEmail(account.email);
+    setPassword(account.password);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -24,9 +31,14 @@ const Login = () => {
       });
 
       if (response.data.token && response.data.user) {
+        console.log('Login successful - user data:', response.data.user);
+        console.log('User role:', response.data.user.role?.name);
         login(response.data.token, response.data.user);
-        // Force page reload to refresh permissions
-        window.location.href = '/dashboard';
+        console.log('Login function called, token saved to localStorage');
+        // Force redirect after a short delay to ensure state is updated
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 100);
       }
     } catch (err) {
       setError('Login gagal. Silakan periksa kembali email dan password Anda.');
@@ -37,10 +49,11 @@ const Login = () => {
   };
 
   const demoAccounts = [
-    { email: 'admin@example.com', role: 'Super Admin' },
-    { email: 'sales@example.com', role: 'Sales Team' },
-    { email: 'gudang@example.com', role: 'Warehouse Manager JKT' },
-    { email: 'finance@example.com', role: 'Finance' }
+    { email: 'admin@example.com', password: 'password', role: 'Super Admin' },
+    { email: 'sales@example.com', password: 'password', role: 'Sales Team' },
+    { email: 'gudangjkt@example.com', password: 'password', role: 'Admin Jakarta' },
+    { email: 'gudangmks@example.com', password: 'password123', role: 'Admin Makassar' },
+    { email: 'finance@example.com', password: 'password', role: 'Finance' }
   ];
 
   return (
@@ -131,20 +144,21 @@ const Login = () => {
                 </h6>
                 <div className="small">
                   {demoAccounts.map((account, index) => (
-                    <div key={index} className="account-item">
+                    <div key={index} className="account-item" onClick={() => handleDemoAccount(account)}>
                       <span>
                         <i className="bi bi-person-circle me-2"></i>
                         <strong>{account.role}:</strong>
                       </span>
-                      <code>
+                      <span className="clickable-account">
+                        <i className="bi bi-box-arrow-in-right ms-2"></i>
                         {account.email}
-                      </code>
+                      </span>
                     </div>
                   ))}
                 </div>
                 <div className="password-note">
                   <i className="bi bi-key me-2"></i>
-                  <strong>Password:</strong> <span>password123</span>
+                  <strong>Note:</strong> Click on demo accounts above to auto-fill credentials, or use password shown for each role
                 </div>
               </div>
 

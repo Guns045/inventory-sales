@@ -5,28 +5,38 @@ import { useAuth } from '../contexts/AuthContext';
 const RoleBasedRoute = ({ children }) => {
   const { user } = useAuth();
 
+  console.log('RoleBasedRoute - user:', user);
+  console.log('RoleBasedRoute - user.role?.name:', user?.role?.name);
+
   if (!user) {
-    return <Navigate to="/login" />;
+    console.log('No user found, redirecting to login');
+    return <Navigate to="/login" replace />;
   }
 
   // Redirect based on user role
   switch (user?.role?.name) {
     case 'Super Admin':
     case 'Admin':
-      return <Navigate to="/dashboard" />;
+      console.log('Redirecting to /dashboard (Admin)');
+      return <Navigate to="/dashboard" replace />;
     case 'Sales':
     case 'Sales Team':
-      return <Navigate to="/dashboard/sales" />;
-    case 'Gudang':
-    case 'Warehouse Manager Gudang JKT':
-    case 'Warehouse Manager Gudang MKS':
+      console.log('Redirecting to /dashboard/sales');
+      return <Navigate to="/dashboard/sales" replace />;
+    case 'Manager Jakarta':
+    case 'Manager Makassar':
+    case 'Admin Jakarta':
+    case 'Admin Makassar':
     case 'Warehouse Staff':
-      return <Navigate to="/dashboard/warehouse" />;
+      console.log('Redirecting to /dashboard/warehouse');
+      return <Navigate to="/dashboard/warehouse" replace />;
     case 'Finance':
     case 'Finance Team':
-      return <Navigate to="/dashboard/finance" />;
+      console.log('Redirecting to /dashboard/finance');
+      return <Navigate to="/dashboard/finance" replace />;
     default:
-      return <Navigate to="/dashboard" />;
+      console.log('Redirecting to /dashboard (default)');
+      return <Navigate to="/dashboard" replace />;
   }
 };
 

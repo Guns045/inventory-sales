@@ -193,15 +193,28 @@ class WarehouseTransfer extends Model
             return $query;
         }
 
-        // If user is warehouse manager, only show transfers for their warehouse
-        if ($user->role === 'Gudang' && $user->warehouse_id) {
+        // Super Admin and specific admin roles can see all transfers related to their warehouse
+        if (isset($user->role->name) && in_array($user->role->name, ['Super Admin', 'Admin Jakarta', 'Admin Makassar', 'Manager Jakarta', 'Manager Makassar'])) {
+            // For warehouse-specific roles, filter by their assigned warehouse
+            if ($user->role->name !== 'Super Admin' && $user->warehouse_id) {
+                return $query->where(function ($q) use ($user) {
+                    $q->where('warehouse_from_id', $user->warehouse_id)
+                      ->orWhere('warehouse_to_id', $user->warehouse_id);
+                });
+            }
+            // Super Admin can see all transfers
+            return $query;
+        }
+
+        // If user has assigned warehouse, only show transfers for their warehouse
+        if ($user->warehouse_id) {
             return $query->where(function ($q) use ($user) {
                 $q->where('warehouse_from_id', $user->warehouse_id)
                   ->orWhere('warehouse_to_id', $user->warehouse_id);
             });
         }
 
-        // Admin and other roles can see all transfers
+        // Other roles can see all transfers if no warehouse assignment
         return $query;
     }
 

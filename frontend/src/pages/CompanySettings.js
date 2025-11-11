@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { useCompany } from '../contexts/CompanyContext';
@@ -21,6 +21,7 @@ const CompanySettingsPage = () => {
   });
 
   const [logoFile, setLogoFile] = useState(null);
+  const logoFileRef = useRef(null); // Backup untuk file
   const [logoPreview, setLogoPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +52,15 @@ const CompanySettingsPage = () => {
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
+    console.log('handleLogoChange called, file:', file);
+
     if (file) {
+      console.log('File details:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+
       // Validate file
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
@@ -64,8 +73,19 @@ const CompanySettingsPage = () => {
       }
 
       setLogoFile(file);
+      logoFileRef.current = file; // Simpan di ref sebagai backup
       setLogoPreview(URL.createObjectURL(file));
       setError('');
+      console.log('Logo file set successfully');
+      console.log('File stored in ref:', logoFileRef.current);
+
+      // IMMEDIATE TEST: Check state after set
+      setTimeout(() => {
+        console.log('State check after 100ms - logoFile:', logoFile);
+        console.log('Ref check after 100ms - logoFileRef.current:', logoFileRef.current);
+      }, 100);
+    } else {
+      console.log('No file selected');
     }
   };
 
@@ -78,30 +98,59 @@ const CompanySettingsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Debug current state before anything else
+    console.log('=== SUBMIT DEBUG ===');
+    console.log('Current logoFile state:', logoFile);
+    console.log('Current formData:', formData);
+    console.log('companySettings:', companySettings);
+    console.log('====================');
+
     try {
       setLoading(true);
       setError('');
       setSuccess('');
 
-      // Create FormData for file upload
+      // Create clean FormData
       const data = new FormData();
 
-      // Append all form fields
-      Object.keys(formData).forEach(key => {
-        data.append(key, formData[key]);
-      });
+      // Add all text fields
+      data.append('company_name', formData.company_name);
+      data.append('company_address', formData.company_address || '');
+      data.append('company_phone', formData.company_phone || '');
+      data.append('company_email', formData.company_email || '');
+      data.append('company_website', formData.company_website || '');
+      data.append('tax_id', formData.tax_id || '');
+      data.append('theme_color', formData.theme_color);
+      data.append('theme_dark_color', formData.theme_dark_color);
 
-      // Append logo if selected
-      if (logoFile) {
-        data.append('company_logo', logoFile);
+      // Add logo file if selected (check both state and ref)
+      const fileToUpload = logoFile || logoFileRef.current;
+      if (fileToUpload) {
+        console.log('Adding logo file to FormData:', fileToUpload.name);
+        console.log('File type:', fileToUpload.type);
+        console.log('File size:', fileToUpload.size);
+        console.log('Source: logoFile =', !!logoFile, ', logoFileRef.current =', !!logoFileRef.current);
+        data.append('company_logo', fileToUpload);
+        console.log('company_logo appended to FormData');
+      } else {
+        console.log('NO LOGO FILE SELECTED - both logoFile and logoFileRef.current are null/undefined');
+      }
+
+      // Debug logging
+      console.log('Final FormData:');
+      for (let [key, value] of data.entries()) {
+        console.log(`${key}:`, value);
       }
 
       let response;
       if (companySettings?.id) {
         // Update existing settings
-        response = await put(`/company-settings/${companySettings.id}`, data);
+        data.append('_method', 'PUT');
+        console.log('Sending update request to:', `/company-settings/${companySettings.id}`);
+        response = await post(`/company-settings/${companySettings.id}`, data);
       } else {
         // Create new settings
+        console.log('Sending create request to: /company-settings');
         response = await post('/company-settings', data);
       }
 
@@ -158,7 +207,7 @@ const CompanySettingsPage = () => {
                         <div className="text-center">
                           {(logoPreview || companySettings?.company_logo) ? (
                             <Image
-                              src={logoPreview || (companySettings?.company_logo.startsWith('http') ? companySettings.company_logo : `http://localhost:8000/storage/logos/${companySettings?.company_logo}`)}
+                              src={logoPreview || (companySettings?.company_logo && companySettings.company_logo.startsWith('http') ? companySettings.company_logo : companySettings?.company_logo ? `http://localhost:8000/storage/logos/${companySettings.company_logo}` : '')}
                               alt="Company Logo Preview"
                               style={{
                                 maxHeight: '150px',

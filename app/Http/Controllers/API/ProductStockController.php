@@ -34,8 +34,10 @@ class ProductStockController extends Controller
         // Role-based filtering
         $user = Auth::user();
         if ($user && $user->role->name !== 'Super Admin') {
-            // TODO: Implement user warehouse assignment logic
-            // $query->whereIn('warehouse_id', $user->assignedWarehouses);
+            // Filter by assigned warehouse
+            if ($user->warehouse_id) {
+                $query->where('warehouse_id', $user->warehouse_id);
+            }
         }
 
         if ($viewMode === 'consolidated') {

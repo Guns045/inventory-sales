@@ -272,12 +272,6 @@ class RoleController extends Controller
                                 'path' => '/dashboard/delivery-orders',
                                 'icon' => 'bi-truck',
                                 'permission' => 'delivery_orders.read'
-                            ],
-                            [
-                                'title' => 'Picking Lists',
-                                'path' => '/dashboard/picking-lists',
-                                'icon' => 'bi-clipboard-check',
-                                'permission' => 'picking-lists.read'
                             ]
                         ]
                     ],
@@ -298,12 +292,6 @@ class RoleController extends Controller
                                 'path' => '/dashboard/roles',
                                 'icon' => 'bi-shield-check',
                                 'permission' => 'users.read'
-                            ],
-                            [
-                                'title' => 'All Picking Lists',
-                                'path' => '/dashboard/picking-lists',
-                                'icon' => 'bi-clipboard-check',
-                                'permission' => 'picking-lists.read'
                             ],
                             [
                                 'title' => 'Activity Logs',
@@ -626,6 +614,318 @@ class RoleController extends Controller
                     ]
                 ]
             ],
+            'Admin Jakarta' => [
+                'dashboard' => ['read', 'warehouse'],
+                'products' => ['read', 'update'],
+                'warehouses' => ['read', 'update'],
+                'stock_movements' => ['create', 'read', 'update'],
+                'delivery-orders' => ['create', 'read', 'update'],
+                'transfers' => ['create', 'read', 'approve'],
+                'goods-receipts' => ['create', 'read', 'update'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['create', 'read', 'update'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'reports' => ['read'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/warehouse',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.warehouse',
+                        'description' => 'Dashboard Warehouse Jakarta'
+                    ],
+                    [
+                        'title' => 'On Hand Products',
+                        'path' => '/dashboard/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'product-stock.read',
+                        'description' => 'Lihat stok produk tersedia'
+                    ],
+                    [
+                        'title' => 'Warehouse Operations',
+                        'icon' => 'bi-building',
+                        'children' => [
+                            [
+                                'title' => 'Transfers',
+                                'path' => '/dashboard/warehouse-transfers',
+                                'icon' => 'bi-arrow-left-right',
+                                'permission' => 'transfers.read',
+                                'description' => 'Transfer antar gudang'
+                            ],
+                            [
+                                'title' => 'Goods Receipt',
+                                'path' => '/dashboard/goods-receipts',
+                                'icon' => 'bi-receipt-cutoff',
+                                'permission' => 'goods_receipts.read',
+                                'description' => 'Penerimaan barang'
+                            ],
+                            [
+                                'title' => 'Delivery Orders',
+                                'path' => '/dashboard/delivery-orders',
+                                'icon' => 'bi-truck',
+                                'permission' => 'delivery_orders.read',
+                                'description' => 'Pengiriman barang'
+                            ],
+                              ]
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/dashboard/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read',
+                        'description' => 'Lihat sales orders'
+                    ],
+                    [
+                        'title' => 'Reports',
+                        'path' => '/dashboard/reports',
+                        'icon' => 'bi-file-bar-graph',
+                        'permission' => 'reports.read',
+                        'description' => 'Lihat laporan'
+                    ],
+                    [
+                        'title' => 'Logout',
+                        'path' => '/logout',
+                        'icon' => 'bi-box-arrow-right',
+                        'permission' => null,
+                        'action' => 'logout'
+                    ]
+                ]
+            ],
+            'Admin Makassar' => [
+                'dashboard' => ['read', 'warehouse'],
+                'products' => ['read', 'update'],
+                'warehouses' => ['read', 'update'],
+                'stock_movements' => ['create', 'read', 'update'],
+                'delivery-orders' => ['create', 'read', 'update'],
+                'transfers' => ['create', 'read', 'approve'],
+                'goods-receipts' => ['create', 'read', 'update'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['create', 'read', 'update'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'reports' => ['read'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/warehouse',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.warehouse',
+                        'description' => 'Dashboard Warehouse Makassar'
+                    ],
+                    [
+                        'title' => 'On Hand Products',
+                        'path' => '/dashboard/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'product-stock.read',
+                        'description' => 'Lihat stok produk tersedia'
+                    ],
+                    [
+                        'title' => 'Warehouse Operations',
+                        'icon' => 'bi-building',
+                        'children' => [
+                            [
+                                'title' => 'Transfers',
+                                'path' => '/dashboard/warehouse-transfers',
+                                'icon' => 'bi-arrow-left-right',
+                                'permission' => 'transfers.read',
+                                'description' => 'Transfer antar gudang'
+                            ],
+                            [
+                                'title' => 'Goods Receipt',
+                                'path' => '/dashboard/goods-receipts',
+                                'icon' => 'bi-receipt-cutoff',
+                                'permission' => 'goods_receipts.read',
+                                'description' => 'Penerimaan barang'
+                            ],
+                            [
+                                'title' => 'Delivery Orders',
+                                'path' => '/dashboard/delivery-orders',
+                                'icon' => 'bi-truck',
+                                'permission' => 'delivery_orders.read',
+                                'description' => 'Pengiriman barang'
+                            ],
+                              ]
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/dashboard/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read',
+                        'description' => 'Lihat sales orders'
+                    ],
+                    [
+                        'title' => 'Reports',
+                        'path' => '/dashboard/reports',
+                        'icon' => 'bi-file-bar-graph',
+                        'permission' => 'reports.read',
+                        'description' => 'Lihat laporan'
+                    ],
+                    [
+                        'title' => 'Logout',
+                        'path' => '/logout',
+                        'icon' => 'bi-box-arrow-right',
+                        'permission' => null,
+                        'action' => 'logout'
+                    ]
+                ]
+            ],
+            'Manager Jakarta' => [
+                'dashboard' => ['read', 'warehouse'],
+                'products' => ['read', 'update'],
+                'warehouses' => ['read', 'update'],
+                'stock_movements' => ['create', 'read', 'update'],
+                'delivery-orders' => ['create', 'read', 'update'],
+                'transfers' => ['create', 'read', 'approve'],
+                'goods-receipts' => ['create', 'read', 'update'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['create', 'read', 'update'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'reports' => ['read'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/warehouse',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.warehouse',
+                        'description' => 'Dashboard Manager Jakarta'
+                    ],
+                    [
+                        'title' => 'On Hand Products',
+                        'path' => '/dashboard/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'product-stock.read',
+                        'description' => 'Lihat stok produk tersedia'
+                    ],
+                    [
+                        'title' => 'Warehouse Operations',
+                        'icon' => 'bi-building',
+                        'children' => [
+                            [
+                                'title' => 'Transfers',
+                                'path' => '/dashboard/warehouse-transfers',
+                                'icon' => 'bi-arrow-left-right',
+                                'permission' => 'transfers.read',
+                                'description' => 'Transfer antar gudang'
+                            ],
+                            [
+                                'title' => 'Goods Receipt',
+                                'path' => '/dashboard/goods-receipts',
+                                'icon' => 'bi-receipt-cutoff',
+                                'permission' => 'goods_receipts.read',
+                                'description' => 'Penerimaan barang'
+                            ],
+                            [
+                                'title' => 'Delivery Orders',
+                                'path' => '/dashboard/delivery-orders',
+                                'icon' => 'bi-truck',
+                                'permission' => 'delivery_orders.read',
+                                'description' => 'Pengiriman barang'
+                            ],
+                              ]
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/dashboard/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read',
+                        'description' => 'Lihat sales orders'
+                    ],
+                    [
+                        'title' => 'Reports',
+                        'path' => '/dashboard/reports',
+                        'icon' => 'bi-file-bar-graph',
+                        'permission' => 'reports.read',
+                        'description' => 'Lihat laporan'
+                    ],
+                    [
+                        'title' => 'Logout',
+                        'path' => '/logout',
+                        'icon' => 'bi-box-arrow-right',
+                        'permission' => null,
+                        'action' => 'logout'
+                    ]
+                ]
+            ],
+            'Manager Makassar' => [
+                'dashboard' => ['read', 'warehouse'],
+                'products' => ['read', 'update'],
+                'warehouses' => ['read', 'update'],
+                'stock_movements' => ['create', 'read', 'update'],
+                'delivery-orders' => ['create', 'read', 'update'],
+                'transfers' => ['create', 'read', 'approve'],
+                'goods-receipts' => ['create', 'read', 'update'],
+                'product-stock' => ['read', 'create', 'update', 'delete'],
+                'picking-lists' => ['create', 'read', 'update'],
+                'quotations' => ['read'],
+                'sales-orders' => ['read'],
+                'reports' => ['read'],
+                'menu_items' => [
+                    [
+                        'title' => 'Dashboard',
+                        'path' => '/dashboard/warehouse',
+                        'icon' => 'bi-speedometer2',
+                        'permission' => 'dashboard.warehouse',
+                        'description' => 'Dashboard Manager Makassar'
+                    ],
+                    [
+                        'title' => 'On Hand Products',
+                        'path' => '/dashboard/stock',
+                        'icon' => 'bi-archive',
+                        'permission' => 'product-stock.read',
+                        'description' => 'Lihat stok produk tersedia'
+                    ],
+                    [
+                        'title' => 'Warehouse Operations',
+                        'icon' => 'bi-building',
+                        'children' => [
+                            [
+                                'title' => 'Transfers',
+                                'path' => '/dashboard/warehouse-transfers',
+                                'icon' => 'bi-arrow-left-right',
+                                'permission' => 'transfers.read',
+                                'description' => 'Transfer antar gudang'
+                            ],
+                            [
+                                'title' => 'Goods Receipt',
+                                'path' => '/dashboard/goods-receipts',
+                                'icon' => 'bi-receipt-cutoff',
+                                'permission' => 'goods_receipts.read',
+                                'description' => 'Penerimaan barang'
+                            ],
+                            [
+                                'title' => 'Delivery Orders',
+                                'path' => '/dashboard/delivery-orders',
+                                'icon' => 'bi-truck',
+                                'permission' => 'delivery_orders.read',
+                                'description' => 'Pengiriman barang'
+                            ],
+                              ]
+                    ],
+                    [
+                        'title' => 'Sales Orders',
+                        'path' => '/dashboard/sales-orders',
+                        'icon' => 'bi-cart-check',
+                        'permission' => 'sales_orders.read',
+                        'description' => 'Lihat sales orders'
+                    ],
+                    [
+                        'title' => 'Reports',
+                        'path' => '/dashboard/reports',
+                        'icon' => 'bi-file-bar-graph',
+                        'permission' => 'reports.read',
+                        'description' => 'Lihat laporan'
+                    ],
+                    [
+                        'title' => 'Logout',
+                        'path' => '/logout',
+                        'icon' => 'bi-box-arrow-right',
+                        'permission' => null,
+                        'action' => 'logout'
+                    ]
+                ]
+            ],
             'Gudang' => [
                 'dashboard' => ['read'],
                 'dashboard.warehouse' => ['read'],
@@ -645,13 +945,6 @@ class RoleController extends Controller
                         'icon' => 'bi-speedometer2',
                         'permission' => 'dashboard.warehouse',
                         'description' => 'Dashboard Gudang'
-                    ],
-                    [
-                        'title' => 'Picking Lists',
-                        'path' => '/dashboard/picking-lists',
-                        'icon' => 'bi-clipboard-check',
-                        'permission' => 'picking-lists.read',
-                        'description' => 'Kelola pengambilan barang'
                     ],
                     [
                         'title' => 'Warehouses',

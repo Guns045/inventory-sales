@@ -47,7 +47,15 @@ class CompanySettingsController extends Controller
     public function store(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
+            // Log request data for debugging
+            \Log::info('CompanySettings store request', [
+                'data' => $request->all(),
+                'files' => $request->allFiles(),
+                'method' => $request->method()
+            ]);
+
+            // Custom validation to handle company_logo properly
+            $rules = [
                 'company_name' => 'required|string|max:255',
                 'company_address' => 'nullable|string',
                 'company_phone' => 'nullable|string|max:20',
@@ -55,22 +63,36 @@ class CompanySettingsController extends Controller
                 'company_website' => 'nullable|url|max:255',
                 'tax_id' => 'nullable|string|max:50',
                 'theme_color' => 'nullable|string|max:7',
-                'theme_dark_color' => 'nullable|string|max:7',
-                'company_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
-            ]);
+                'theme_dark_color' => 'nullable|string|max:7'
+            ];
+
+            // Only add company_logo validation if it's present and not an empty array
+            if ($request->hasFile('company_logo') && is_array($request->input('company_logo')) === false) {
+                $rules['company_logo'] = 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048';
+            }
+
+            $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
+                    'debug_data' => $request->all()
                 ], 422);
+            }
+
+            // Check if there's already an active settings record and update it instead
+            $existingSettings = CompanySettings::getActive();
+            if ($existingSettings) {
+                return $this->update($request, $existingSettings->id);
             }
 
             // Deactivate all existing settings
             CompanySettings::where('is_active', true)->update(['is_active' => false]);
 
             $settingsData = $request->except('company_logo');
+            $settingsData['is_active'] = true;
 
             // Handle logo upload
             if ($request->hasFile('company_logo')) {
@@ -124,9 +146,19 @@ class CompanySettingsController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            // Log request data for debugging
+            \Log::info('CompanySettings update request', [
+                'id' => $id,
+                'data' => $request->all(),
+                'files' => $request->allFiles(),
+                'method' => $request->method(),
+                'has_company_logo' => $request->hasFile('company_logo')
+            ]);
+
             $settings = CompanySettings::findOrFail($id);
 
-            $validator = Validator::make($request->all(), [
+            // Custom validation to handle company_logo properly
+            $rules = [
                 'company_name' => 'required|string|max:255',
                 'company_address' => 'nullable|string',
                 'company_phone' => 'nullable|string|max:20',
@@ -135,18 +167,27 @@ class CompanySettingsController extends Controller
                 'tax_id' => 'nullable|string|max:50',
                 'theme_color' => 'nullable|string|max:7',
                 'theme_dark_color' => 'nullable|string|max:7',
-                'company_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
-            ]);
+                '_method' => 'sometimes|string'
+            ];
+
+            // Only add company_logo validation if it's present and not an empty array
+            if ($request->hasFile('company_logo') && is_array($request->input('company_logo')) === false) {
+                $rules['company_logo'] = 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048';
+            }
+
+            $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
+                    'debug_data' => $request->all()
                 ], 422);
             }
 
-            $settingsData = $request->except('company_logo');
+            $settingsData = $request->except(['company_logo', '_method']);
+            $settingsData['is_active'] = true;
 
             // Handle logo upload
             if ($request->hasFile('company_logo')) {

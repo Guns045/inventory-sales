@@ -233,11 +233,19 @@
   transition: all 0.2s ease;
   flex-wrap: wrap;
   gap: 0.5rem;
+  cursor: pointer;
 }
 
 .demo-accounts .account-item:hover {
   transform: translateX(4px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #f8fafc;
+}
+
+.demo-accounts .clickable-account {
+  color: #3182ce;
+  cursor: pointer;
+  text-decoration: underline dotted;
 }
 
 .demo-accounts .account-item span {

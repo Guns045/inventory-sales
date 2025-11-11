@@ -48,8 +48,8 @@ class AuthController extends Controller
 
         \Log::info('Login successful for user', ['email' => $request->email, 'user_id' => $user->id]);
 
-        // Load user with role relationship
-        $userWithRole = User::with('role')->find($user->id);
+        // Load user with role and warehouse relationships
+        $userWithRole = User::with(['role', 'warehouse'])->find($user->id);
 
         return response()->json([
             'user' => $userWithRole,
