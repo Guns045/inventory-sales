@@ -13,12 +13,18 @@ class Quotation extends Model
         'quotation_number',
         'customer_id',
         'user_id',
+        'warehouse_id', // Tambah warehouse_id
         'status',
         'valid_until',
         'subtotal',
         'discount',
         'tax',
         'total_amount',
+        'tax_rate', // Tambah field tax
+        'other_costs', // Tambah field other costs
+        'payment_term', // Tambah field payment term
+        'terms', // Tambah field terms
+        'notes', // Tambah field notes
     ];
 
     protected $casts = [
@@ -43,6 +49,11 @@ class Quotation extends Model
     public function salesOrder()
     {
         return $this->hasOne(SalesOrder::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function approvals(): MorphMany

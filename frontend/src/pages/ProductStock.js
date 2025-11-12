@@ -78,14 +78,7 @@ const ProductStock = () => {
       setLoading(true);
       let endpoint = '/product-stock';
 
-      const params = new URLSearchParams();
-
-      if (user?.role?.name !== 'Super Admin') {
-        // TODO: Get user's assigned warehouses
-        // params.append('warehouse_ids', user.warehouse_ids);
-      }
-
-      const response = await api.get(`${endpoint}?${params.toString()}`);
+      const response = await api.get(endpoint);
       setProductStock(response.data.data || response.data);
     } catch (error) {
       console.error('Error fetching product stock:', error);
@@ -300,13 +293,19 @@ const ProductStock = () => {
           <h2 className="mb-1">Product Stock Management</h2>
           <p className="text-muted mb-0">Monitor and manage inventory across warehouses</p>
         </div>
-        <Button
-          variant="success"
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="me-2"
-        >
-          <i className={`bi bi-${showCreateForm ? 'x-circle' : 'plus-circle'} me-2`}></i>
-          {showCreateForm ? 'Cancel' : 'Create Stock'}
+        {(['Super Admin', 'Admin'].includes(user?.role?.name)) && (
+          <Button
+            variant="success"
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="me-2"
+          >
+            <i className={`bi bi-${showCreateForm ? 'x-circle' : 'plus-circle'} me-2`}></i>
+            {showCreateForm ? 'Cancel' : 'Create Stock'}
+          </Button>
+        )}
+        <Button variant="outline-primary" onClick={refreshData}>
+          <i className="bi bi-arrow-clockwise me-2"></i>
+          Refresh
         </Button>
       </div>
 
@@ -317,7 +316,7 @@ const ProductStock = () => {
       )}
 
       {/* Create Stock Form */}
-      {showCreateForm && (
+      {showCreateForm && (['Super Admin', 'Admin'].includes(user?.role?.name)) && (
         <Card className="mb-4 border-success">
           <Card.Header className="bg-success text-white">
             <i className="bi bi-plus-circle me-2"></i>
@@ -471,7 +470,7 @@ const ProductStock = () => {
       <Card className="mb-4">
         <Card.Body>
           <Row className="align-items-center">
-            <Col md={user?.role?.name === 'Super Admin' ? 6 : 12}>
+            <Col md={6}>
               <InputGroup>
                 <Form.Control
                   placeholder="Search by product description, SKU, or warehouse..."
@@ -483,7 +482,7 @@ const ProductStock = () => {
                 </InputGroup.Text>
               </InputGroup>
             </Col>
-            {user?.role?.name === 'Super Admin' && (
+            {(['Super Admin', 'Admin', 'Sales Team'].includes(user?.role?.name)) && (
               <>
                 <Col md={4}>
                   <Form.Select
@@ -550,15 +549,17 @@ const ProductStock = () => {
                         <>
                           <i className="bi bi-inbox fs-1 text-muted mb-3"></i>
                           <h5 className="text-muted">No stock records found</h5>
-                          <p className="text-muted">Create initial stock records to get started</p>
-                          <Button
-                            variant="success"
-                            onClick={() => setShowCreateForm(true)}
-                            className="mt-2"
-                          >
-                            <i className="bi bi-plus-circle me-2"></i>
-                            Create First Stock Record
-                          </Button>
+                          <p className="text-muted">No stock records available in the system</p>
+                          {(['Super Admin', 'Admin'].includes(user?.role?.name)) && (
+                            <Button
+                              variant="success"
+                              onClick={() => setShowCreateForm(true)}
+                              className="mt-2"
+                            >
+                              <i className="bi bi-plus-circle me-2"></i>
+                              Create First Stock Record
+                            </Button>
+                          )}
                         </>
                       )}
                     </td>

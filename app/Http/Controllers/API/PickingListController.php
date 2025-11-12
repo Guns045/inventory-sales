@@ -10,6 +10,7 @@ use App\Models\SalesOrderItem;
 use App\Models\ProductStock;
 use App\Models\ActivityLog;
 use App\Models\Notification;
+use App\Transformers\PickingListTransformer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -286,9 +287,9 @@ class PickingListController extends Controller
     }
 
     /**
-     * Print picking list as PDF
+     * Print picking list dengan template lama
      */
-    public function print($id)
+    public function printOld($id)
     {
         $pickingList = PickingList::with([
             'salesOrder.customer',
@@ -303,6 +304,43 @@ class PickingListController extends Controller
         $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Print picking list dengan template baru
+     */
+    public function print($id)
+    {
+        // Load picking list dengan relationships
+        $pickingList = PickingList::with([
+            'salesOrder',
+            'internalTransfer',
+            'pickingListItems.product',
+            'warehouse',
+            'user'
+        ])->findOrFail($id);
+
+        // Transform data untuk template
+        $pickingListData = PickingListTransformer::transform($pickingList);
+        $companyData = PickingListTransformer::getCompanyData();
+
+        // Log activity
+        ActivityLog::log(
+            'PRINT_PICKING_LIST_PDF',
+            "User printed picking list {$pickingList->picking_list_number}",
+            $pickingList
+        );
+
+        // Generate PDF dengan template baru
+        $pdf = PDF::loadView('pdf.picking-list', [
+            'company' => $companyData,
+            'pl' => $pickingListData
+        ])->setPaper('a4', 'portrait');
+
+        // Safe filename
+        $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
+
+        return $pdf->stream($filename);
     }
 
     /**

@@ -443,18 +443,12 @@ const SalesOrders = () => {
         <Col lg={12}>
           <Card className="border-0 shadow-sm">
             <Card.Header className="bg-white border-0 pt-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h3 className="mb-0">
-                    <i className="bi bi-cart-check me-2"></i>
-                    Sales Orders
-                  </h3>
-                  <p className="text-muted mb-0">Manage and track all sales orders</p>
-                </div>
-                <Button variant="primary">
-                  <i className="bi bi-plus-circle me-2"></i>
-                  Create Sales Order
-                </Button>
+              <div>
+                <h3 className="mb-0">
+                  <i className="bi bi-cart-check me-2"></i>
+                  Sales Orders
+                </h3>
+                <p className="text-muted mb-0">Manage and track all sales orders</p>
               </div>
             </Card.Header>
 
@@ -470,7 +464,7 @@ const SalesOrders = () => {
                 <div className="text-center py-5">
                   <i className="bi bi-cart-x fs-1 text-muted mb-3 d-block"></i>
                   <h5 className="text-muted">No Sales Orders Found</h5>
-                  <p className="text-muted">Create your first sales order or convert a quotation to get started.</p>
+                  <p className="text-muted">Convert a quotation to create a sales order.</p>
                 </div>
               ) : (
                 <>

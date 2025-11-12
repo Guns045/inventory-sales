@@ -102,7 +102,8 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::post('/delivery-orders/{id}/mark-as-shipped', [DeliveryOrderController::class, 'markAsShipped']);
     Route::post('/delivery-orders/{id}/mark-as-delivered', [DeliveryOrderController::class, 'markAsDelivered']);
     Route::get('/delivery-orders/{id}/print', [DeliveryOrderController::class, 'print']);
-      Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
+    Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate']);
+    Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery']);
     
     // Finance management
@@ -143,6 +144,7 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
 
     // Export routes
     Route::get('/quotations/{id}/export-pdf', [QuotationController::class, 'exportPDF']);
+    Route::get('/quotations/{id}/print', [QuotationController::class, 'print']); // Template baru
     Route::get('/quotations/{id}/export-excel', [QuotationController::class, 'exportExcel']);
 
     // Dashboard routes

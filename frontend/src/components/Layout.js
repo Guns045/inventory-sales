@@ -145,36 +145,33 @@ const Layout = () => {
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar */}
       <div className={`sidebar d-none d-lg-block ${sidebarOpen ? 'show' : ''}`} style={{ width: '280px' }}>
-        <div className="sidebar-header">
-          <div className="d-flex align-items-center mb-2">
+        <div className="sidebar-header text-center">
+          <div className="mb-3">
             {getLogoUrl() ? (
               <Image
                 src={getLogoUrl()}
                 alt="Company Logo"
                 style={{
-                  height: '40px',
+                  height: '50px',
                   width: 'auto',
-                  maxWidth: '200px',
-                  objectFit: 'contain',
-                  marginRight: '10px'
+                  maxWidth: '180px',
+                  objectFit: 'contain'
                 }}
                 onError={(e) => {
                   e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
+                  e.target.nextSibling.style.display = 'inline-block';
                 }}
               />
             ) : null}
             <i
-              className={`bi bi-box-seam me-2 ${getLogoUrl() ? 'd-none' : ''}`}
+              className={`bi bi-box-seam fs-2 ${getLogoUrl() ? 'd-none' : ''}`}
               style={{ display: getLogoUrl() ? 'none' : 'inline-block' }}
             ></i>
-            <div className="flex-grow-1">
-              <h5 className="mb-0 fw-bold">
-                {companySettings?.company_name || 'Inventory System'}
-              </h5>
-            </div>
           </div>
-          <small className="text-muted d-block">
+          <h5 className="mb-2 fw-bold">
+            PT. Jinan Truck Power Indonesia
+          </h5>
+          <small className="text-muted">
             Role: {user?.role || 'Unknown'}
           </small>
         </div>
@@ -194,45 +191,44 @@ const Layout = () => {
 
       {/* Mobile Sidebar */}
       <div className={`sidebar d-lg-none position-fixed top-0 start-0 h-100 ${sidebarOpen ? 'show' : ''}`} style={{ zIndex: 1045 }}>
-        <div className="sidebar-header d-flex justify-content-between align-items-center">
-          <div className="d-flex align-items-center">
-            {getLogoUrl() ? (
-              <Image
-                src={getLogoUrl()}
-                alt="Company Logo"
-                style={{
-                  height: '35px',
-                  width: 'auto',
-                  maxWidth: '150px',
-                  objectFit: 'contain',
-                  marginRight: '8px'
-                }}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'inline-block';
-                }}
-              />
-            ) : null}
-            <i
-              className={`bi bi-box-seam me-2 ${getLogoUrl() ? 'd-none' : ''}`}
-              style={{ display: getLogoUrl() ? 'none' : 'inline-block' }}
-            ></i>
-            <div>
-              <h6 className="mb-0 fw-bold text-white">
-                {companySettings?.company_name || 'Inventory'}
-              </h6>
-              <small className="text-muted">
-                Role: {user?.role || 'Unknown'}
-              </small>
+        <div className="sidebar-header">
+          <div className="d-flex justify-content-between align-items-start mb-2">
+            <div className="flex-grow-1 text-center">
+              {getLogoUrl() ? (
+                <Image
+                  src={getLogoUrl()}
+                  alt="Company Logo"
+                  style={{
+                    height: '40px',
+                    width: 'auto',
+                    maxWidth: '150px',
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'inline-block';
+                  }}
+                />
+              ) : null}
+              <i
+                className={`bi bi-box-seam fs-3 ${getLogoUrl() ? 'd-none' : ''}`}
+                style={{ display: getLogoUrl() ? 'none' : 'inline-block' }}
+              ></i>
             </div>
+            <Button
+              variant="link"
+              className="text-white p-0"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <i className="bi bi-x-lg"></i>
+            </Button>
           </div>
-          <Button
-            variant="link"
-            className="text-white p-0"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <i className="bi bi-x-lg"></i>
-          </Button>
+          <h6 className="mb-1 fw-bold text-white text-center">
+            PT. Jinan Truck Power Indonesia
+          </h6>
+          <small className="text-muted text-center d-block">
+            Role: {user?.role || 'Unknown'}
+          </small>
         </div>
         <Nav className="flex-column p-3">
           {visibleMenuItems.map((item) => renderMenuItem(item))}

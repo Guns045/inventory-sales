@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\Approval;
 use App\Models\ApprovalLevel;
 use App\Traits\DocumentNumberHelper;
+use App\Transformers\QuotationTransformer;
 use Illuminate\Support\Facades\DB;
 use PDF;
 use Excel;
@@ -689,6 +690,41 @@ class QuotationController extends Controller
         // Safe filename - replace invalid characters
         $safeNumber = str_replace(['/', '\\'], '_', $quotation->quotation_number);
         return $pdf->download("quotation-{$safeNumber}.pdf");
+    }
+
+    /**
+     * Print quotation dengan template baru
+     */
+    public function print($id)
+    {
+        // Load quotation dengan relationships
+        $quotation = Quotation::with([
+            'customer',
+            'user',
+            'quotationItems.product',
+            'warehouse'
+        ])->findOrFail($id);
+
+        // Transform data untuk template
+        $quotationData = QuotationTransformer::transform($quotation);
+        $companyData = QuotationTransformer::getCompanyData();
+
+        // Log activity
+        ActivityLog::log(
+            'PRINT_QUOTATION_PDF',
+            "User printed quotation {$quotation->quotation_number}",
+            $quotation
+        );
+
+        // Generate PDF dengan template baru
+        $pdf = PDF::loadView('pdf.quotation', [
+            'company' => $companyData,
+            'quotation' => $quotationData
+        ])->setPaper('a4', 'portrait');
+
+        // Safe filename
+        $safeNumber = str_replace(['/', '\\'], '_', $quotation->quotation_number);
+        return $pdf->stream("quotation-{$safeNumber}.pdf");
     }
 
     public function exportExcel($id)

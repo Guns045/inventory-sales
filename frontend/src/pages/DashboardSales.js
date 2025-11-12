@@ -55,7 +55,12 @@ const DashboardSales = () => {
     tax_rate: 0
   });
 
-  
+  // Sales Order Detail Modal State
+  const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [orderDetailItems, setOrderDetailItems] = useState([]);
+
+    
   useEffect(() => {
     fetchSalesData();
     // Set up real-time updates every 30 seconds
@@ -306,6 +311,65 @@ const DashboardSales = () => {
     return 'danger';
   };
 
+  const handlePrintQuotationFromSalesOrder = async (salesOrder) => {
+    try {
+      // Check if sales order has quotation_id
+      if (!salesOrder.quotation_id) {
+        alert('Sales Order ini tidak terkait dengan quotation.');
+        return;
+      }
+
+      // Generate PDF for quotation using quotation_id from sales order
+      const response = await fetch(`/preview/quotation-db/${salesOrder.quotation_id}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf'
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Quotation-${salesOrder.quotation?.quotation_number || salesOrder.quotation_id}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Failed to generate quotation PDF');
+      }
+    } catch (error) {
+      console.error('Error printing quotation from sales order:', error);
+      alert('Gagal mencetak quotation. Silakan coba lagi.');
+    }
+  };
+
+  const handleViewSalesOrderDetail = async (order) => {
+    try {
+      // Fetch sales order details with items
+      const response = await api.get(`/sales-orders/${order.id}`);
+      if (response.data) {
+        setSelectedOrderDetail(response.data);
+        // Fetch items for this order
+        const itemsResponse = await api.get(`/sales-orders/${order.id}/items`);
+        const items = itemsResponse.data?.data || itemsResponse.data || [];
+        setOrderDetailItems(items);
+        setShowOrderDetailModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching sales order details:', error);
+      alert('Gagal memuat detail sales order.');
+    }
+  };
+
+  const handleCloseOrderDetailModal = () => {
+    setShowOrderDetailModal(false);
+    setSelectedOrderDetail(null);
+    setOrderDetailItems([]);
+  };
+
   
   // Allow Super Admin, Admin and Sales Team roles to access this dashboard
   if (!['Super Admin', 'Admin', 'Sales Team'].includes(user?.role?.name)) {
@@ -350,13 +414,9 @@ const DashboardSales = () => {
           <p className="text-muted mb-0">Selamat datang, {user?.name || 'Sales'} - Ringkasan Kinerja Penjualan</p>
         </div>
         <div>
-          <Button variant="primary" className="me-2" onClick={handleShowQuotationModal}>
+          <Button variant="primary" onClick={handleShowQuotationModal}>
             <i className="bi bi-plus-circle me-1"></i>
             Buat Penawaran Baru
-          </Button>
-          <Button variant="outline-primary" size="sm">
-            <i className="bi bi-arrow-clockwise me-1"></i>
-            Refresh
           </Button>
         </div>
       </div>
@@ -434,56 +494,6 @@ const DashboardSales = () => {
         </Col>
       </Row>
 
-      {/* Achievement Progress */}
-      <Row className="mb-4">
-        <Col lg={12}>
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-3">
-              <h6 className="mb-0">Pencapaian Target Bulanan</h6>
-            </Card.Header>
-            <Card.Body>
-              <div className="mb-3">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="text-muted">Progress Pencapaian</span>
-                  <span className={`fw-bold text-${getAchievementColor(salesData.performance.achievement_percentage)}`}>
-                    {salesData.performance.achievement_percentage}%
-                  </span>
-                </div>
-                <ProgressBar
-                  variant={getAchievementColor(salesData.performance.achievement_percentage)}
-                  now={salesData.performance.achievement_percentage}
-                  style={{ height: '20px' }}
-                  label={`${salesData.performance.achievement_percentage}%`}
-                />
-              </div>
-              <div className="row text-center">
-                <Col>
-                  <small className="text-muted">Target</small>
-                  <div className="fw-bold">{formatCurrency(salesData.performance.monthly_target)}</div>
-                </Col>
-                <Col>
-                  <small className="text-muted">Tercapai</small>
-                  <div className="fw-bold text-success">{formatCurrency(salesData.performance.monthly_achieved)}</div>
-                </Col>
-                <Col>
-                  <small className="text-muted">Sisa Target</small>
-                  <div className="fw-bold text-warning">
-                    {formatCurrency(salesData.performance.monthly_target - salesData.performance.monthly_achieved)}
-                  </div>
-                </Col>
-                <Col>
-                  <small className="text-muted">Hari Tersisa</small>
-                  <div className="fw-bold text-info">
-                    {new Date().getDate()} Okt - 31 Okt
-                  </div>
-                </Col>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-  
       {/* Quotations Summary */}
       <Row className="mb-4">
         <Col lg={12}>
@@ -523,7 +533,7 @@ const DashboardSales = () => {
                 </Col>
               </Row>
 
-              <div className="text-center">
+              <div className="text-center mt-3">
                 <small className="text-muted">
                   Total {salesData.quotations.total} penawaran bulan ini |
                   Rate Approval: {salesData.quotations.total > 0 ? Math.round((salesData.quotations.approved / salesData.quotations.total) * 100) : 0}%
@@ -541,7 +551,7 @@ const DashboardSales = () => {
             <Card.Header className="bg-white border-0 pt-3">
               <div className="d-flex justify-content-between align-items-center">
                 <h6 className="mb-0">Sales Order Terkini</h6>
-                <Button variant="outline-primary" size="sm" onClick={() => window.location.href = '/sales-orders'}>
+                <Button variant="outline-primary" size="sm" onClick={() => navigate('/dashboard/sales-orders')}>
                   Lihat Semua SO
                 </Button>
               </div>
@@ -580,10 +590,21 @@ const DashboardSales = () => {
                             </Badge>
                           </td>
                           <td>
-                            <Button variant="outline-primary" size="sm" className="me-1" title="Lihat Detail">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="me-1"
+                              title="Lihat Detail"
+                              onClick={() => handleViewSalesOrderDetail(order)}
+                            >
                               <i className="bi bi-eye"></i>
                             </Button>
-                            <Button variant="outline-success" size="sm" title="Cetak SO">
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              title="Cetak Quotation"
+                              onClick={() => handlePrintQuotationFromSalesOrder(order)}
+                            >
                               <i className="bi bi-printer"></i>
                             </Button>
                           </td>
@@ -596,7 +617,7 @@ const DashboardSales = () => {
                 <div className="text-center py-3">
                   <i className="bi bi-box text-muted fs-1"></i>
                   <p className="text-muted mt-2">Belum ada sales order</p>
-                  <Button variant="primary" size="sm" onClick={() => window.location.href = '/quotations'}>
+                  <Button variant="primary" size="sm" onClick={() => navigate('/dashboard/quotations')}>
                     <i className="bi bi-plus-circle me-1"></i>
                     Buat Sales Order dari Penawaran
                   </Button>
@@ -794,6 +815,178 @@ const DashboardSales = () => {
             </Form>
           )}
         </Modal.Body>
+      </Modal>
+
+      {/* Sales Order Detail Modal */}
+      <Modal
+        show={showOrderDetailModal}
+        onHide={handleCloseOrderDetailModal}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-cart-check me-2"></i>
+            Detail Sales Order - {selectedOrderDetail?.sales_order_number}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedOrderDetail && (
+            <>
+              <Row className="mb-4">
+                <Col md={6}>
+                  <h6>Informasi Order</h6>
+                  <p><strong>No. SO:</strong> {selectedOrderDetail.sales_order_number}</p>
+                  <p><strong>Customer:</strong> {selectedOrderDetail.customer?.company_name || selectedOrderDetail.customer?.name}</p>
+                  <p><strong>Tanggal:</strong> {new Date(selectedOrderDetail.created_at).toLocaleDateString('id-ID')}</p>
+                </Col>
+                <Col md={6}>
+                  <h6>Status & Total</h6>
+                  <p><strong>Status:</strong> {selectedOrderDetail.status}</p>
+                  <p><strong>Total Amount:</strong> {formatCurrency(selectedOrderDetail.total_amount)}</p>
+                  {selectedOrderDetail.quotation && (
+                    <p><strong>Sumber:</strong> {selectedOrderDetail.quotation.quotation_number}</p>
+                  )}
+                </Col>
+              </Row>
+
+              <h6>Item Order</h6>
+              <Table striped responsive>
+                <thead>
+                  <tr>
+                    <th>Produk</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Discount</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderDetailItems.map((item, index) => (
+                    <tr key={index}>
+                      <td>{item.product?.name || 'N/A'}</td>
+                      <td>{item.quantity}</td>
+                      <td>{formatCurrency(item.unit_price)}</td>
+                      <td>{item.discount_percentage}%</td>
+                      <td className="fw-semibold">{formatCurrency(item.total_price || (item.quantity * item.unit_price))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th colSpan="4">Total:</th>
+                    <th className="text-primary">{formatCurrency(selectedOrderDetail.total_amount)}</th>
+                  </tr>
+                </tfoot>
+              </Table>
+
+              {selectedOrderDetail.notes && (
+                <Row className="mt-3">
+                  <Col>
+                    <h6>Catatan</h6>
+                    <p>{selectedOrderDetail.notes}</p>
+                  </Col>
+                </Row>
+              )}
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseOrderDetailModal}>
+            Tutup
+          </Button>
+          {selectedOrderDetail && (
+            <Button variant="success" onClick={() => handlePrintSalesOrder(selectedOrderDetail)}>
+              <i className="bi bi-printer me-2"></i>
+              Cetak SO
+            </Button>
+          )}
+        </Modal.Footer>
+      </Modal>
+
+      {/* Sales Order Detail Modal */}
+      <Modal
+        show={showOrderDetailModal}
+        onHide={handleCloseOrderDetailModal}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-cart-check me-2"></i>
+            Detail Sales Order - {selectedOrderDetail?.sales_order_number}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedOrderDetail && (
+            <>
+              <Row className="mb-4">
+                <Col md={6}>
+                  <h6>Informasi Order</h6>
+                  <p><strong>No. SO:</strong> {selectedOrderDetail.sales_order_number}</p>
+                  <p><strong>Customer:</strong> {selectedOrderDetail.customer?.company_name || selectedOrderDetail.customer?.name}</p>
+                  <p><strong>Tanggal:</strong> {new Date(selectedOrderDetail.created_at).toLocaleDateString('id-ID')}</p>
+                </Col>
+                <Col md={6}>
+                  <h6>Status & Total</h6>
+                  <p><strong>Status:</strong> {selectedOrderDetail.status}</p>
+                  <p><strong>Total Amount:</strong> {formatCurrency(selectedOrderDetail.total_amount)}</p>
+                  {selectedOrderDetail.quotation && (
+                    <p><strong>Sumber:</strong> {selectedOrderDetail.quotation.quotation_number}</p>
+                  )}
+                </Col>
+              </Row>
+
+              <h6>Item Order</h6>
+              <Table striped responsive>
+                <thead>
+                  <tr>
+                    <th>Produk</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Discount</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderDetailItems.map((item, index) => (
+                    <tr key={index}>
+                      <td>{item.product?.name || 'N/A'}</td>
+                      <td>{item.quantity}</td>
+                      <td>{formatCurrency(item.unit_price)}</td>
+                      <td>{item.discount_percentage}%</td>
+                      <td className="fw-semibold">{formatCurrency(item.total_price || (item.quantity * item.unit_price))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th colSpan="4">Total:</th>
+                    <th className="text-primary">{formatCurrency(selectedOrderDetail.total_amount)}</th>
+                  </tr>
+                </tfoot>
+              </Table>
+
+              {selectedOrderDetail.notes && (
+                <Row className="mt-3">
+                  <Col>
+                    <h6>Catatan</h6>
+                    <p>{selectedOrderDetail.notes}</p>
+                  </Col>
+                </Row>
+              )}
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseOrderDetailModal}>
+            Tutup
+          </Button>
+          {selectedOrderDetail && selectedOrderDetail.quotation_id && (
+            <Button variant="success" onClick={() => handlePrintQuotationFromSalesOrder(selectedOrderDetail)}>
+              <i className="bi bi-printer me-2"></i>
+              Cetak Quotation
+            </Button>
+          )}
+        </Modal.Footer>
       </Modal>
     </div>
   );

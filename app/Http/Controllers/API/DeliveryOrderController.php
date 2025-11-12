@@ -14,6 +14,7 @@ use App\Models\ProductStock;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Traits\DocumentNumberHelper;
+use App\Transformers\DeliveryOrderTransformer;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -27,6 +28,21 @@ class DeliveryOrderController extends Controller
     {
         $deliveryOrders = DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product'])->paginate(10);
         return response()->json($deliveryOrders);
+    }
+
+    /**
+     * Get ready to create delivery orders (SO yang sudah SHIPPED tapi belum ada DO)
+     */
+    public function readyToCreate()
+    {
+        // Get SO yang statusnya SHIPPED dan belum ada DO-nya
+        $shippedSalesOrders = SalesOrder::with(['customer', 'salesOrderItems.product', 'user'])
+            ->where('status', 'SHIPPED')
+            ->whereDoesntHave('deliveryOrder') // Belum ada delivery order
+            ->orderBy('updated_at', 'desc')
+            ->paginate(10);
+
+        return response()->json($shippedSalesOrders);
     }
 
     /**
@@ -347,9 +363,9 @@ class DeliveryOrderController extends Controller
     }
 
     /**
-     * Print delivery order
+     * Print delivery order dengan template lama
      */
-    public function print($id)
+    public function printOld($id)
     {
         $deliveryOrder = DeliveryOrder::with([
             'customer',
@@ -359,11 +375,53 @@ class DeliveryOrderController extends Controller
             'createdBy'
         ])->findOrFail($id);
 
+        // Check if the delivery order has items, if not create from sales order
+        if ($deliveryOrder->deliveryOrderItems->isEmpty() && $deliveryOrder->salesOrder) {
+            $deliveryOrder->items = $deliveryOrder->salesOrder->salesOrderItems;
+        } else {
+            $deliveryOrder->items = $deliveryOrder->deliveryOrderItems;
+        }
+
         $pdf = PDF::loadView('pdf.delivery-order', compact('deliveryOrder'));
 
         // Safe filename - replace invalid characters
         $safeNumber = str_replace(['/', '\\'], '_', $deliveryOrder->delivery_order_number);
         return $pdf->stream('delivery-order-' . $safeNumber . '.pdf');
+    }
+
+    /**
+     * Print delivery order dengan template baru
+     */
+    public function print($id)
+    {
+        // Load delivery order dengan relationships
+        $deliveryOrder = DeliveryOrder::with([
+            'customer',
+            'salesOrder',
+            'deliveryOrderItems.product',
+            'createdBy'
+        ])->findOrFail($id);
+
+        // Transform data untuk template
+        $deliveryData = DeliveryOrderTransformer::transform($deliveryOrder);
+        $companyData = DeliveryOrderTransformer::getCompanyData();
+
+        // Log activity
+        ActivityLog::log(
+            'PRINT_DELIVERY_ORDER_PDF',
+            "User printed delivery order {$deliveryOrder->delivery_order_number}",
+            $deliveryOrder
+        );
+
+        // Generate PDF dengan template baru
+        $pdf = PDF::loadView('pdf.delivery-order', [
+            'company' => $companyData,
+            'delivery' => $deliveryData
+        ])->setPaper('a4', 'portrait');
+
+        // Safe filename
+        $safeNumber = str_replace(['/', '\\'], '_', $deliveryOrder->delivery_order_number);
+        return $pdf->stream("delivery-order-{$safeNumber}.pdf");
     }
 
     /**
