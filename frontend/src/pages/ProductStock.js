@@ -48,6 +48,15 @@ const ProductStock = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [products, setProducts] = useState([]); // eslint-disable-line no-unused-vars
   const [warehouses, setWarehouses] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationInfo, setPaginationInfo] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0
+  });
 
   useEffect(() => {
     fetchProductStock();
@@ -73,13 +82,35 @@ const ProductStock = () => {
     }
   };
 
-  const fetchProductStock = async () => {
+  const fetchProductStock = async (page = 1) => {
     try {
       setLoading(true);
       let endpoint = '/product-stock';
 
-      const response = await api.get(endpoint);
+      // Add pagination parameters
+      const params = new URLSearchParams({
+        page: page,
+        per_page: 10
+      });
+
+      // Add view mode to show all warehouses
+      if (user?.role?.name === 'Sales Team' || user?.role?.name === 'Super Admin') {
+        params.append('view_mode', 'all-warehouses');
+      }
+
+      const response = await api.get(`${endpoint}?${params}`);
+
+      // Set both data and pagination info
       setProductStock(response.data.data || response.data);
+      setPaginationInfo({
+        current_page: response.data.current_page || 1,
+        last_page: response.data.last_page || 1,
+        per_page: response.data.per_page || 10,
+        total: response.data.total || 0,
+        from: response.data.from || 0,
+        to: response.data.to || 0
+      });
+      setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching product stock:', error);
       setError('Failed to fetch product stock data');
@@ -89,7 +120,11 @@ const ProductStock = () => {
   };
 
   const refreshData = async () => {
-    await fetchProductStock();
+    await fetchProductStock(currentPage);
+  };
+
+  const handlePageChange = (page) => {
+    fetchProductStock(page);
   };
 
   const handleAdjustStock = (stock) => {
@@ -532,13 +567,13 @@ const ProductStock = () => {
                   <th>Min Stock</th>
                   <th>Warehouse</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  {user?.role?.name === 'Super Admin' && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {filteredStock.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-5">
+                    <td colSpan={user?.role?.name === 'Super Admin' ? 9 : 8} className="text-center py-5">
                       {searchTerm || selectedWarehouse ? (
                         <>
                           <i className="bi bi-search fs-1 text-muted mb-3"></i>
@@ -613,28 +648,30 @@ const ProductStock = () => {
                               {status.text}
                             </Badge>
                           </td>
-                          <td>
-                            <div className="btn-group" role="group">
-                              <Button
-                                variant={isAdjusting ? "secondary" : "outline-primary"}
-                                size="sm"
-                                onClick={() => isAdjusting ? handleCancelAdjustment() : handleAdjustStock(stock)}
-                              >
-                                <i className={`bi bi-${isAdjusting ? 'x' : 'pencil'}`}></i>
-                              </Button>
-                              <Button
-                                variant="outline-info"
-                                size="sm"
-                                title="View Details"
-                              >
-                                <i className="bi bi-eye"></i>
-                              </Button>
-                            </div>
-                          </td>
+                          {user?.role?.name === 'Super Admin' && (
+                            <td>
+                              <div className="btn-group" role="group">
+                                <Button
+                                  variant={isAdjusting ? "secondary" : "outline-primary"}
+                                  size="sm"
+                                  onClick={() => isAdjusting ? handleCancelAdjustment() : handleAdjustStock(stock)}
+                                >
+                                  <i className={`bi bi-${isAdjusting ? 'x' : 'pencil'}`}></i>
+                                </Button>
+                                <Button
+                                  variant="outline-info"
+                                  size="sm"
+                                  title="View Details"
+                                >
+                                  <i className="bi bi-eye"></i>
+                                </Button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                         {isAdjusting && (
                           <tr>
-                            <td colSpan="9" className="p-0">
+                            <td colSpan={user?.role?.name === 'Super Admin' ? 9 : 8} className="p-0">
                               <div className="adjust-stock-form-container p-4 bg-light">
                                 <Card className="border-primary">
                                   <Card.Header className="bg-primary text-white">
@@ -764,6 +801,54 @@ const ProductStock = () => {
               </tbody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {paginationInfo.total > 0 && (
+            <div className="d-flex justify-content-between align-items-center p-3 border-top">
+              <div className="text-muted">
+                Showing {paginationInfo.from} to {paginationInfo.to} of {paginationInfo.total} entries
+              </div>
+              <div className="btn-group" role="group">
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={paginationInfo.current_page === 1}
+                >
+                  <i className="bi bi-chevron-double-left"></i>
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(paginationInfo.current_page - 1)}
+                  disabled={paginationInfo.current_page === 1}
+                >
+                  <i className="bi bi-chevron-left"></i>
+                </Button>
+
+                <span className="px-3 py-2 bg-light border">
+                  Page {paginationInfo.current_page} of {paginationInfo.last_page}
+                </span>
+
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(paginationInfo.current_page + 1)}
+                  disabled={paginationInfo.current_page === paginationInfo.last_page}
+                >
+                  <i className="bi bi-chevron-right"></i>
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(paginationInfo.last_page)}
+                  disabled={paginationInfo.current_page === paginationInfo.last_page}
+                >
+                  <i className="bi bi-chevron-double-right"></i>
+                </Button>
+              </div>
+            </div>
+          )}
         </Card.Body>
       </Card>
     </Container>

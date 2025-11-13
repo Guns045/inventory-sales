@@ -153,6 +153,21 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Get sales orders ready for invoicing (SHIPPED status)
+     */
+    public function getReadyToCreate()
+    {
+        // Get SO yang statusnya SHIPPED dan belum ada invoice-nya
+        $shippedSalesOrders = SalesOrder::with(['customer', 'salesOrderItems.product', 'user'])
+            ->where('status', 'SHIPPED')
+            ->whereDoesntHave('invoice') // Belum ada invoice
+            ->orderBy('updated_at', 'desc')
+            ->paginate(10);
+
+        return response()->json($shippedSalesOrders);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
@@ -180,7 +195,7 @@ class InvoiceController extends Controller
             }
 
             // Determine warehouse ID based on user or default to MKS
-            $warehouseId = $this->getUserWarehouseIdForInvoice(auth()->user());
+            $warehouseId = $this->getUserWarehouseCodeForInvoice(auth()->user());
 
             $invoice = Invoice::create([
                 'invoice_number' => $this->generateInvoiceNumber($warehouseId),
@@ -332,23 +347,27 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Get warehouse code based on user role for invoices (default to MKS)
+     * Get warehouse ID based on user role for invoices (default to MKS)
      *
      * @param User $user
-     * @return string
+     * @return int|null
      */
     private function getUserWarehouseCodeForInvoice($user)
     {
+        // Map role names to warehouse IDs based on actual data
+        // ID 1: Main Warehouse JKT (code: JKT)
+        // ID 2: Transit Warehouse MKS (code: MKS)
+
         // Check if user has a specific warehouse role
         if ($user->role && $user->role->name === 'Gudang JKT') {
-            return 'JKT';
+            return 1; // JKT warehouse ID
         } elseif ($user->role && $user->role->name === 'Gudang MKS') {
-            return 'MKS';
+            return 2; // MKS warehouse ID
         } elseif ($user->role && $user->role->name === 'Admin') {
-            return 'MKS'; // Default to MKS for Admin
+            return 2; // Default to MKS warehouse ID for Admin
         }
 
-        // Default to MKS for other roles
-        return 'MKS';
+        // Default to MKS warehouse ID for other roles
+        return 2;
     }
 }

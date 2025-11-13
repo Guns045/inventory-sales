@@ -13,6 +13,8 @@ class DeliveryOrder extends Model
         'sales_order_id',
         'picking_list_id',
         'customer_id',
+        'source_type',
+        'source_id',
         'shipping_date',
         'shipping_contact_person',
         'shipping_address',

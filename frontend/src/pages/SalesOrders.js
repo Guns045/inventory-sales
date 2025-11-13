@@ -171,8 +171,8 @@ const SalesOrders = () => {
           <Button
             variant="outline-success"
             size="sm"
-            onClick={() => handlePrint(order)}
-            title="Print Sales Order"
+            onClick={() => handlePrintQuotationFromSalesOrder(order)}
+            title="Print Quotation"
           >
             <i className="bi bi-printer"></i>
           </Button>
@@ -180,7 +180,7 @@ const SalesOrders = () => {
       );
     }
 
-    // Role lain (Super Admin, Admin, Warehouse Manager, dll) bisa full aksi
+    // Super Admin & Admin: View + Update Status + Delete (only for PENDING)
     return (
       <div className="btn-group" role="group">
         <Button
@@ -203,50 +203,6 @@ const SalesOrders = () => {
           </Button>
         )}
 
-        {order.status === 'PROCESSING' && (
-          <Button
-            variant="outline-primary"
-            size="sm"
-            onClick={() => handleStatusUpdate(order, 'READY_TO_SHIP')}
-            title="Mark as Ready to Ship"
-          >
-            <i className="bi bi-truck"></i>
-          </Button>
-        )}
-
-        {order.status === 'READY_TO_SHIP' && (
-          <Button
-            variant="outline-success"
-            size="sm"
-            onClick={() => handleStatusUpdate(order, 'SHIPPED')}
-            title="Mark as Shipped"
-          >
-            <i className="bi bi-box-seam"></i>
-          </Button>
-        )}
-
-        {order.status === 'SHIPPED' && (
-          <Button
-            variant="outline-success"
-            size="sm"
-            onClick={() => handleStatusUpdate(order, 'COMPLETED')}
-            title="Mark as Completed"
-          >
-            <i className="bi bi-check-circle"></i>
-          </Button>
-        )}
-
-        {(order.status === 'PROCESSING') && (['Super Admin', 'Admin', 'Gudang'].includes(userRole)) && (
-          <Button
-            variant="outline-info"
-            size="sm"
-            onClick={() => handleCreatePickingList(order)}
-            title="Create Picking List"
-          >
-            <i className="bi bi-clipboard-check"></i>
-          </Button>
-        )}
-
         <Button
           variant="outline-danger"
           size="sm"
@@ -260,114 +216,41 @@ const SalesOrders = () => {
     );
   };
 
-  const handleCreatePickingList = async (order) => {
+  
+  
+  const handlePrintQuotationFromSalesOrder = async (salesOrder) => {
     try {
-      // Generate picking list PDF from sales order
-      const response = await post('/picking-lists/from-sales-order', {
-        sales_order_id: order.id
+      // Check if sales order has quotation_id
+      if (!salesOrder.quotation_id) {
+        alert('Sales Order ini tidak terkait dengan quotation.');
+        return;
+      }
+
+      // Generate PDF for quotation using quotation_id from sales order
+      const response = await fetch(`/preview/quotation-db/${salesOrder.quotation_id}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf'
+        }
       });
 
-      console.log('API Response:', response.data);
-
-      if (response.data) {
-        alert(`✅ Picking List ${response.data.picking_list_number} generated successfully!`);
-
-        // Check if pdf_content exists
-        if (!response.data.pdf_content) {
-          console.error('Response data missing pdf_content. Available keys:', Object.keys(response.data));
-          throw new Error('No PDF content received from server');
-        }
-
-        // Download and open the PDF
-        downloadAndOpenPDF(response.data.pdf_content, response.data.filename);
-      }
-    } catch (err) {
-      console.error('Error generating picking list:', err);
-      alert('❌ Failed to generate picking list: ' + (err.response?.data?.message || err.message));
-    }
-  };
-
-  const downloadAndOpenPDF = (base64Content, filename) => {
-    try {
-      // Check if content is provided
-      if (!base64Content) {
-        throw new Error('No content provided for download');
-      }
-
-      // Clean the base64 content - remove any whitespace/newlines
-      const cleanBase64 = base64Content.replace(/\s/g, '');
-
-      console.log('PDF Base64 content length:', cleanBase64.length);
-      console.log('PDF Base64 starts with:', cleanBase64.substring(0, 50));
-
-      // Validate base64 content
-      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
-        throw new Error('Invalid base64 content format');
-      }
-
-      // Convert base64 to binary string
-      let binaryData;
-      try {
-        binaryData = atob(cleanBase64);
-      } catch (e) {
-        console.error('atob error:', e);
-        throw new Error('Failed to decode base64 content: ' + e.message);
-      }
-
-      // Create bytes array
-      const bytes = new Uint8Array(binaryData.length);
-      for (let i = 0; i < binaryData.length; i++) {
-        bytes[i] = binaryData.charCodeAt(i);
-      }
-
-      // Create PDF blob
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-
-      // Create download link
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Open PDF in new window for printing (fallback)
-      setTimeout(() => {
-        const printWindow = window.open(url, '_blank', 'width=800,height=600');
-        if (printWindow) {
-          printWindow.onload = function() {
-            setTimeout(() => {
-              printWindow.print();
-            }, 1000);
-          };
-        }
-      }, 100);
-
-      // Clean up URL after 5 minutes
-      setTimeout(() => {
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Quotation-${salesOrder.quotation?.quotation_number || salesOrder.quotation_id}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-      }, 300000);
-
+      } else {
+        throw new Error('Failed to generate quotation PDF');
+      }
     } catch (error) {
-      console.error('Picking list download error:', error);
-      console.error('Base64 content sample:', base64Content.substring(0, 100));
-      alert('❌ Failed to download picking list. Please try again.\n\nError: ' + error.message);
+      console.error('Error printing quotation from sales order:', error);
+      alert('Gagal mencetak quotation. Silakan coba lagi.');
     }
-  };
-
-  const downloadAsFile = (content, filename, contentType) => {
-    const blob = new Blob([content], { type: contentType });
-    const url = window.URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    window.URL.revokeObjectURL(url);
   };
 
   const handlePrint = (order) => {

@@ -230,7 +230,7 @@ class DashboardController extends Controller
 
             // Get user's sales orders
             $salesOrders = SalesOrder::where('user_id', $user->id)
-                ->with(['customer', 'salesOrderItems.product'])
+                ->with(['customer', 'salesOrderItems.product', 'quotation'])
                 ->get();
 
             // Calculate quotation statistics
@@ -272,6 +272,7 @@ class DashboardController extends Controller
                 return [
                     'id' => $salesOrder->id,
                     'sales_order_number' => $salesOrder->sales_order_number ?? 'SO-' . date('Y-m-d') . '-' . str_pad($salesOrder->id, 3, '0', STR_PAD_LEFT),
+                    'quotation_number' => $salesOrder->quotation ? $salesOrder->quotation->quotation_number : null,
                     'customer_name' => $salesOrder->customer ? $salesOrder->customer->company_name : 'Unknown Customer',
                     'total_amount' => $salesOrder->total_amount ?? 0,
                     'status' => $salesOrder->status

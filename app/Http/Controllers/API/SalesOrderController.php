@@ -19,7 +19,7 @@ class SalesOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = SalesOrder::with(['customer', 'user', 'items.product']);
+        $query = SalesOrder::with(['customer', 'user', 'items.product', 'quotation']);
 
         // Filter by status if provided
         if ($request->has('status')) {
@@ -267,6 +267,39 @@ class SalesOrderController extends Controller
             ['status' => $oldStatus],
             ['status' => $request->status]
         );
+
+        // Auto-create Delivery Order when status changes to PROCESSING
+        if ($oldStatus !== 'PROCESSING' && $request->status === 'PROCESSING') {
+            try {
+                $deliveryOrder = \App\Models\DeliveryOrder::create([
+                    'delivery_order_number' => \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER'),
+                    'sales_order_id' => $salesOrder->id,
+                    'customer_id' => $salesOrder->customer_id,
+                    'source_type' => 'SO',
+                    'source_id' => $salesOrder->id,
+                    'status' => 'PREPARING',
+                    'created_by' => auth()->id(),
+                ]);
+
+                ActivityLog::log(
+                    'CREATE_DELIVERY_ORDER',
+                    "Auto-created Delivery Order {$deliveryOrder->delivery_order_number} from Sales Order {$salesOrder->sales_order_number}",
+                    $deliveryOrder
+                );
+
+                Log::info('Auto-created delivery order', [
+                    'delivery_order_id' => $deliveryOrder->id,
+                    'delivery_order_number' => $deliveryOrder->delivery_order_number,
+                    'sales_order_id' => $salesOrder->id,
+                    'sales_order_number' => $salesOrder->sales_order_number
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to auto-create delivery order', [
+                    'sales_order_id' => $salesOrder->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         // Create notifications based on status
         if ($request->status === 'READY_TO_SHIP') {

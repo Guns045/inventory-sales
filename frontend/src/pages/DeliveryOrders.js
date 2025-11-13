@@ -8,9 +8,7 @@ const DeliveryOrders = () => {
   const [deliveryOrders, setDeliveryOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('processing'); // 'processing' or 'delivery-orders'
+  const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'transfer'
   const [deliveryForm, setDeliveryForm] = useState({
     shipping_date: new Date().toISOString().split('T')[0],
     driver_name: '',
@@ -19,207 +17,157 @@ const DeliveryOrders = () => {
   });
 
   useEffect(() => {
-    if (activeTab === 'processing') {
-      fetchProcessingOrders();
-    } else {
-      fetchDeliveryOrders();
+    if (activeTab === 'sales') {
+      fetchSalesDeliveryOrders();
+    } else if (activeTab === 'transfer') {
+      fetchTransferDeliveryOrders();
     }
   }, [activeTab]);
 
-  const fetchProcessingOrders = async () => {
+  const fetchSalesDeliveryOrders = async () => {
     try {
       setLoading(true);
-      // Fetch orders with PROCESSING and READY_TO_SHIP status
-      const processingResponse = await api.get('/sales-orders?status=PROCESSING');
-      const readyResponse = await api.get('/sales-orders?status=READY_TO_SHIP');
-
-      const processingOrders = processingResponse.data.data || processingResponse.data || [];
-      const readyOrders = readyResponse.data.data || readyResponse.data || [];
-
-      setSalesOrders([...processingOrders, ...readyOrders]);
+      const response = await api.get('/delivery-orders?source_type=SO');
+      const orders = response.data.data || response.data || [];
+      setSalesOrders(orders);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch processing orders');
-      console.error('Error fetching processing orders:', err);
+      setError(err.response?.data?.message || 'Failed to fetch sales delivery orders');
+      console.error('Error fetching sales delivery orders:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchDeliveryOrders = async () => {
+  const fetchTransferDeliveryOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/delivery-orders');
-      setDeliveryOrders(response.data.data || response.data);
+      const response = await api.get('/delivery-orders?source_type=IT');
+      const orders = response.data.data || response.data || [];
+      setDeliveryOrders(orders);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch delivery orders');
-      console.error('Error fetching delivery orders:', err);
+      setError(err.response?.data?.message || 'Failed to fetch transfer delivery orders');
+      console.error('Error fetching transfer delivery orders:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update status to READY_TO_SHIP
-  const handleUpdateStatus = async (salesOrderId, newStatus) => {
+  // Create Picking List from Sales Order
+  const handleCreatePickingList = async (order) => {
     try {
-      setLoading(true);
-      setError('');
-
-      const response = await api.post(`/sales-orders/${salesOrderId}/update-status`, {
-        status: newStatus,
-        notes: `Status updated to ${newStatus} by ${user?.name || 'Unknown User'}`
+      const response = await api.post('/picking-lists/from-sales-order', {
+        sales_order_id: order.sales_order_id
       });
 
-      // Refresh data
-      await fetchProcessingOrders();
+      if (response.data) {
+        alert(`✅ Picking List ${response.data.picking_list_number} generated successfully!`);
 
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update status');
-      console.error('Error updating status:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Open create delivery order modal
-  const handleCreateDeliveryOrder = (order) => {
-    setSelectedOrder(order);
-    // Reset form dengan default values
-    setDeliveryForm({
-      shipping_date: new Date().toISOString().split('T')[0],
-      driver_name: '',
-      vehicle_plate_number: '',
-      kurir: ''
-    });
-    setShowCreateModal(true);
-  };
-
-  // Create delivery order from sales order
-  const handleCreateDeliveryOrderSubmit = async () => {
-    try {
-      setLoading(true);
-      setError('');
-
-      const deliveryData = {
-        sales_order_id: selectedOrder.id,
-        shipping_date: deliveryForm.shipping_date,
-        driver_name: deliveryForm.driver_name || 'Default Driver',
-        vehicle_plate_number: deliveryForm.vehicle_plate_number || 'B 1234 ABC',
-        kurir: deliveryForm.kurir
-      };
-
-      const response = await api.post('/delivery-orders/from-sales-order', deliveryData);
-
-      if (response && response.data) {
-        setShowCreateModal(false);
-        setSelectedOrder(null);
-        await fetchProcessingOrders();
-        await fetchDeliveryOrders();
-      }
-
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create Delivery Order');
-      console.error('Error creating Delivery Order:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Confirm shipment and deduct stock
-  const handleConfirmShipment = async (deliveryOrderId) => {
-    try {
-      setLoading(true);
-      setError('');
-
-      // Get delivery order details to find sales order ID
-      const deliveryOrder = deliveryOrders.find(order => order.id === deliveryOrderId);
-
-      if (!deliveryOrder) {
-        throw new Error('Delivery order not found');
-      }
-
-      if (!deliveryOrder.sales_order_id) {
-        throw new Error('Sales order ID not found in delivery order');
-      }
-
-      console.log('Confirming shipment for delivery order:', deliveryOrderId);
-      console.log('Sales order ID:', deliveryOrder.sales_order_id);
-
-      // Step 1: Update sales order status ke SHIPPED (harus berhasil dulu sebelum stock deduction)
-      try {
-        await api.post(`/sales-orders/${deliveryOrder.sales_order_id}/update-status`, {
-          status: 'SHIPPED',
-          notes: `Shipment confirmed by ${user?.name || 'Unknown User'}`
-        });
-        console.log('✅ Sales order status updated to SHIPPED');
-      } catch (err) {
-        console.error('❌ Failed to update sales order status:', err.response?.data?.message || err.message);
-        throw new Error('Gagal update status Sales Order: ' + (err.response?.data?.message || err.message));
-      }
-
-      // Step 2: Deduct stock (harus setelah status SHIPPED)
-      try {
-        await api.post(`/inventory/deduct`, {
-          sales_order_id: deliveryOrder.sales_order_id
-        });
-        console.log('✅ Stock deducted successfully');
-      } catch (err) {
-        console.warn('⚠️ Stock deduction failed:', err.response?.data?.message || err.message);
-        console.warn('⚠️ This might be due to missing inventory.update permission');
-        // Continue even if stock deduction fails, but warn user
-      }
-
-      // Step 3: Update delivery order status (try multiple possible endpoints)
-      try {
-        await api.put(`/delivery-orders/${deliveryOrderId}`, {
-          status: 'SHIPPED',
-          shipped_by: user?.id,
-          shipped_at: new Date().toISOString()
-        });
-        console.log('✅ Delivery order status updated (PUT)');
-      } catch (err1) {
-        try {
-          await api.post(`/delivery-orders/${deliveryOrderId}/mark-as-shipped`);
-          console.log('✅ Delivery order status updated (POST)');
-        } catch (err2) {
-          console.warn('⚠️ Failed to update delivery order status:', err2.response?.data?.message || err2.message);
+        if (!response.data.pdf_content) {
+          throw new Error('No PDF content received from server');
         }
+
+        downloadAndOpenPDF(response.data.pdf_content, response.data.filename);
       }
-
-      alert('✅ Order berhasil dikirim! Status diperbarui ke SHIPPED.');
-
-      // Refresh data
-      await fetchProcessingOrders();
-      await fetchDeliveryOrders();
-
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to confirm shipment';
-      setError(errorMessage);
-      console.error('❌ Error confirming shipment:', err);
-      alert('❌ Gagal mengkonfirmasi pengiriman: ' + errorMessage);
-    } finally {
-      setLoading(false);
+      console.error('Error generating picking list:', err);
+      alert('❌ Failed to generate picking list: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  const handlePrintDeliveryOrder = async (id) => {
+  // Print Delivery Order
+  const handlePrintDeliveryOrder = async (order) => {
     try {
-      const response = await api.get(`/delivery-orders/${id}/print`, {
+      const response = await api.get(`/delivery-orders/${order.id}/print`, {
         responseType: 'blob'
       });
 
-      // Create blob URL and download
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      if (response.data) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Content = e.target.result.split(',')[1];
+          const filename = `delivery-order-${order.delivery_order_number.replace(/\//g, '_')}.pdf`;
+          downloadAndOpenPDF(base64Content, filename);
+        };
+        reader.readAsDataURL(response.data);
+      }
+    } catch (error) {
+      console.error('Error printing delivery order:', error);
+      alert('❌ Failed to print delivery order: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  // View Delivery Order Details
+  const handleView = (order) => {
+    alert(`Viewing details for ${order.delivery_order_number}\n\nCustomer: ${order.customer?.company_name || 'N/A'}\nStatus: ${order.status}\nCreated: ${formatDate(order.created_at)}`);
+  };
+
+  // Download and Open PDF
+  const downloadAndOpenPDF = (base64Content, filename) => {
+    try {
+      const cleanBase64 = base64Content.replace(/\s/g, '');
+      const binaryData = atob(cleanBase64);
+      const bytes = new Uint8Array(binaryData.length);
+
+      for (let i = 0; i < binaryData.length; i++) {
+        bytes[i] = binaryData.charCodeAt(i);
+      }
+
+      const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `delivery-order-${id}.pdf`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error printing delivery order:', err);
-      setError('Failed to print delivery order');
+    } catch (error) {
+      console.error('PDF download error:', error);
+      alert('❌ Failed to download PDF: ' + error.message);
+    }
+  };
+
+  // Update Delivery Order Status
+  const handleUpdateStatus = async (order, status) => {
+    try {
+      setLoading(true);
+
+      const response = await api.put(`/delivery-orders/${order.id}/status`, {
+        status: status
+      });
+
+      // Update local state
+      if (activeTab === 'sales') {
+        setSalesOrders(salesOrders.map(o =>
+          o.id === order.id ? { ...o, status: status } : o
+        ));
+      } else {
+        setDeliveryOrders(deliveryOrders.map(o =>
+          o.id === order.id ? { ...o, status: status } : o
+        ));
+      }
+
+      // Refresh data
+      if (activeTab === 'sales') {
+        fetchSalesDeliveryOrders();
+      } else {
+        fetchTransferDeliveryOrders();
+      }
+
+      // Show success message with sales order sync info
+      const successMessages = {
+        'READY_TO_SHIP': '✅ Status updated to READY_TO_SHIP! Sales Order status has been synchronized.',
+        'SHIPPED': '🚚 Status updated to SHIPPED! Sales Order status has been synchronized.',
+        'DELIVERED': '✅ Status updated to DELIVERED! Sales Order marked as COMPLETED.'
+      };
+
+      alert(successMessages[status] || '✅ Status updated successfully!');
+
+    } catch (error) {
+      console.error('Error updating delivery order status:', error);
+      setError('Failed to update status: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -227,11 +175,11 @@ const DeliveryOrders = () => {
     switch (status?.toLowerCase()) {
       case 'preparing': return 'status-blue';
       case 'ready': return 'status-green';
+      case 'ready_to_ship': return 'status-green';
       case 'shipped': return 'status-yellow';
       case 'delivered': return 'status-success';
       case 'cancelled': return 'status-red';
       case 'processing': return 'status-blue';
-      case 'ready_to_ship': return 'status-green';
       default: return 'status-gray';
     }
   };
@@ -273,27 +221,28 @@ const DeliveryOrders = () => {
       {/* Tab Navigation */}
       <div className="tab-navigation">
         <button
-          className={`tab-btn ${activeTab === 'processing' ? 'active' : ''}`}
-          onClick={() => setActiveTab('processing')}
+          className={`tab-btn ${activeTab === 'sales' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sales')}
         >
-          Processing Orders ({salesOrders.length})
+          Sales Orders ({salesOrders.length})
         </button>
         <button
-          className={`tab-btn ${activeTab === 'delivery-orders' ? 'active' : ''}`}
-          onClick={() => setActiveTab('delivery-orders')}
+          className={`tab-btn ${activeTab === 'transfer' ? 'active' : ''}`}
+          onClick={() => setActiveTab('transfer')}
         >
-          Delivery Orders ({deliveryOrders.length})
+          Internal Transfer ({deliveryOrders.length})
         </button>
       </div>
 
-      {/* Processing Orders Tab */}
-      {activeTab === 'processing' && (
+      {/* Sales Orders Tab */}
+      {activeTab === 'sales' && (
         <div className="table-container">
-          <h2>Orders Ready for Delivery</h2>
+          <h2>Sales Orders Delivery</h2>
           <table>
             <thead>
               <tr>
-                <th>Order Number</th>
+                <th>DO Number</th>
+                <th>Sales Order</th>
                 <th>Customer</th>
                 <th>Status</th>
                 <th>Total Amount</th>
@@ -304,41 +253,74 @@ const DeliveryOrders = () => {
             <tbody>
               {salesOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center">
-                    No processing orders found.
+                  <td colSpan="8" className="text-center">
+                    No sales delivery orders found.
                   </td>
                 </tr>
               ) : (
                 salesOrders.map(order => (
                   <tr key={order.id}>
-                    <td>{order.sales_order_number}</td>
-                    <td>{order.customer?.company_name || 'N/A'}</td>
+                    <td>{order.delivery_order_number}</td>
+                    <td>{order.sales_order?.sales_order_number || '-'}</td>
+                    <td>{order.customer?.name || order.customer?.company_name || 'N/A'}</td>
                     <td>
                       <span className={`status ${getStatusClass(order.status)}`}>
-                        {order.status === 'PROCESSING' ? 'Processing' : 'Ready to Ship'}
+                        {order.status}
                       </span>
                     </td>
-                    <td>{formatCurrency(order.total_amount)}</td>
+                    <td>{formatCurrency(order.total_amount || 0)}</td>
                     <td>{formatDate(order.created_at)}</td>
                     <td>
-                      {order.status === 'PROCESSING' && (
+                      <div className="btn-group">
                         <button
-                          className="btn btn-sm btn-success"
-                          onClick={() => handleUpdateStatus(order.id, 'READY_TO_SHIP')}
+                          className="btn btn-sm btn-info"
+                          onClick={() => handleView(order)}
                           disabled={loading}
                         >
-                          Ready to Ship
+                          <i className="bi bi-eye"></i>
                         </button>
-                      )}
-                      {order.status === 'READY_TO_SHIP' && (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => handleCreateDeliveryOrder(order)}
-                          disabled={loading}
-                        >
-                          Create Delivery Order
-                        </button>
-                      )}
+                        {order.status === 'PREPARING' && (
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleCreatePickingList(order)}
+                            disabled={loading}
+                            title="Create Picking List"
+                          >
+                            <i className="bi bi-clipboard-check"></i>
+                          </button>
+                        )}
+                        {order.status === 'READY_TO_SHIP' && (
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handlePrintDeliveryOrder(order)}
+                            disabled={loading}
+                            title="Print Delivery Order"
+                          >
+                            <i className="bi bi-printer"></i>
+                          </button>
+                        )}
+                        {/* Status Update Actions */}
+                        {order.status === 'PREPARING' && (
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleUpdateStatus(order, 'READY_TO_SHIP')}
+                            disabled={loading}
+                            title="Ready to Ship"
+                          >
+                            <i className="bi bi-truck"></i>
+                          </button>
+                        )}
+                        {order.status === 'READY_TO_SHIP' && (
+                          <button
+                            className="btn btn-sm btn-warning"
+                            onClick={() => handleUpdateStatus(order, 'SHIPPED')}
+                            disabled={loading}
+                            title="Ship Order"
+                          >
+                            <i className="bi bi-box-seam"></i>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -348,10 +330,10 @@ const DeliveryOrders = () => {
         </div>
       )}
 
-      {/* Delivery Orders Tab */}
-      {activeTab === 'delivery-orders' && (
+      {/* Internal Transfer Tab */}
+      {activeTab === 'transfer' && (
         <div className="table-container">
-          <h2>Delivery Orders</h2>
+          <h2>Internal Transfer Delivery</h2>
           <table>
             <thead>
               <tr>
@@ -385,107 +367,52 @@ const DeliveryOrders = () => {
                     <td>{formatDate(order.shipping_date)}</td>
                     <td>{formatDate(order.created_at)}</td>
                     <td>
-                      <button
-                        className="btn btn-sm btn-info"
-                        onClick={() => handlePrintDeliveryOrder(order.id)}
-                      >
-                        Print
-                      </button>
-                      {order.status === 'PREPARING' && (
+                      <div className="btn-group">
                         <button
-                          className="btn btn-sm btn-warning"
-                          onClick={() => handleConfirmShipment(order.id)}
+                          className="btn btn-sm btn-info"
+                          onClick={() => handleView(order)}
                           disabled={loading}
                         >
-                          Ship & Deduct Stock
+                          <i className="bi bi-eye"></i>
                         </button>
-                      )}
+                        {order.status === 'READY_TO_SHIP' && (
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handlePrintDeliveryOrder(order)}
+                            disabled={loading}
+                            title="Print Delivery Order"
+                          >
+                            <i className="bi bi-printer"></i>
+                          </button>
+                        )}
+                        {/* Status Update Actions */}
+                        {order.status === 'PREPARING' && (
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleUpdateStatus(order, 'READY_TO_SHIP')}
+                            disabled={loading}
+                            title="Ready to Ship"
+                          >
+                            <i className="bi bi-truck"></i>
+                          </button>
+                        )}
+                        {order.status === 'READY_TO_SHIP' && (
+                          <button
+                            className="btn btn-sm btn-warning"
+                            onClick={() => handleUpdateStatus(order, 'SHIPPED')}
+                            disabled={loading}
+                            title="Ship Order"
+                          >
+                            <i className="bi bi-box-seam"></i>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Create Delivery Order Modal */}
-      {showCreateModal && selectedOrder && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>Create Delivery Order</h3>
-              <button
-                className="btn-close"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setSelectedOrder(null);
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="row">
-                <div className="col-md-6">
-                  <h6>Informasi Pengiriman</h6>
-                  <div className="form-group">
-                    <label>No. Surat Jalan</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      defaultValue={`DO-${new Date().toISOString().split('T')[0]}-${String(selectedOrder.id).padStart(3, '0')}`}
-                      readOnly
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Tanggal Kirim</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={deliveryForm.shipping_date}
-                      onChange={(e) => setDeliveryForm({...deliveryForm, shipping_date: e.target.value})}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Kurir</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Nama kurir/jasa pengiriman"
-                      value={deliveryForm.kurir}
-                      onChange={(e) => setDeliveryForm({...deliveryForm, kurir: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <h6>Informasi Sales Order</h6>
-                  <p><strong>No. SO:</strong> {selectedOrder.sales_order_number}</p>
-                  <p><strong>Pelanggan:</strong> {selectedOrder.customer?.company_name}</p>
-                  <p><strong>Alamat Kirim:</strong> {selectedOrder.customer?.address || '-'}</p>
-                  <p><strong>Total Amount:</strong> {formatCurrency(selectedOrder.total_amount)}</p>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setSelectedOrder(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleCreateDeliveryOrderSubmit}
-                disabled={loading}
-              >
-                Create & Print Delivery Order
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

@@ -186,10 +186,14 @@ tbody tr:hover {
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+}
+
+.modal-overlay.show {
+  display: flex;
 }
 
 .modal {

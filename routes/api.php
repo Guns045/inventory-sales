@@ -101,17 +101,19 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::post('/delivery-orders/from-sales-order', [DeliveryOrderController::class, 'createFromSalesOrder']);
     Route::post('/delivery-orders/{id}/mark-as-shipped', [DeliveryOrderController::class, 'markAsShipped']);
     Route::post('/delivery-orders/{id}/mark-as-delivered', [DeliveryOrderController::class, 'markAsDelivered']);
+    Route::put('/delivery-orders/{id}/status', [DeliveryOrderController::class, 'updateStatus']);
     Route::get('/delivery-orders/{id}/print', [DeliveryOrderController::class, 'print']);
     Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate']);
     Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery']);
     
     // Finance management
+    Route::get('/invoices/ready-to-create', [InvoiceController::class, 'getReadyToCreate']);
+    Route::get('/invoices/export', [InvoiceController::class, 'export'])->middleware('permission:invoices.read');
     Route::apiResource('invoices', InvoiceController::class);
     Route::get('/invoices/{id}/items', [InvoiceController::class, 'getInvoiceItems']);
     Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->middleware('permission:invoices.read');
     Route::patch('/invoices/{id}/status', [InvoiceController::class, 'updateStatus'])->middleware('permission:invoices.update');
-    Route::get('/invoices/export', [InvoiceController::class, 'export'])->middleware('permission:invoices.read');
     Route::apiResource('payments', PaymentController::class);
     
     // Purchase management

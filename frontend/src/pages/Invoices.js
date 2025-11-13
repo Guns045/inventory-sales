@@ -22,7 +22,6 @@ const Invoices = () => {
   });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentData, setPaymentData] = useState({
     amount: '',
@@ -59,17 +58,49 @@ const Invoices = () => {
       const queryString = params.toString();
       const invoiceUrl = `/invoices${queryString ? '?' + queryString : ''}`;
 
+      console.log('🔄 Starting API calls...');
+      console.log('🔑 Current token exists:', !!localStorage.getItem('token'));
+      console.log('🌐 API base URL:', api.defaults.baseURL);
+
       const [invoicesResponse, shippedOrdersResponse] = await Promise.allSettled([
         api.get(invoiceUrl),
-        api.get('/sales-orders?status=SHIPPED')
+        api.get('/invoices/ready-to-create')
       ]);
+
+      console.log('📥 API responses received:', {
+        invoices: invoicesResponse.status,
+        shippedOrders: shippedOrdersResponse.status
+      });
 
       if (invoicesResponse.status === 'fulfilled') {
         setInvoices(invoicesResponse.value.data.data || invoicesResponse.value.data || []);
       }
 
       if (shippedOrdersResponse.status === 'fulfilled') {
-        setShippedOrders(shippedOrdersResponse.value.data.data || shippedOrdersResponse.value.data || []);
+        console.log('✅ Ready-to-create response:', shippedOrdersResponse.value.data);
+        console.log('✅ Response structure:', {
+          hasData: 'data' in shippedOrdersResponse.value.data,
+          dataIsArray: Array.isArray(shippedOrdersResponse.value.data.data),
+          dataLength: shippedOrdersResponse.value.data.data?.length,
+          total: shippedOrdersResponse.value.data.total
+        });
+
+        const response = shippedOrdersResponse.value.data;
+        let orders = [];
+
+        if (response && response.data && Array.isArray(response.data)) {
+          orders = response.data;
+        } else if (Array.isArray(response)) {
+          orders = response;
+        }
+
+        console.log('📊 Final parsed orders:', orders);
+        console.log('📊 Orders length:', orders.length);
+        setShippedOrders(orders);
+      } else {
+        console.error('❌ Ready-to-create error:', shippedOrdersResponse.reason);
+        console.error('❌ Error details:', shippedOrdersResponse.reason?.response?.data);
+        setShippedOrders([]);
       }
 
     } catch (err) {
@@ -88,6 +119,13 @@ const Invoices = () => {
       const salesOrderResponse = await api.get(`/sales-orders/${salesOrderId}`);
       const salesOrder = salesOrderResponse.data;
 
+      // Confirm before creating invoice
+      const confirmMessage = `Create invoice for:\n\nSO: ${salesOrder.sales_order_number}\nCustomer: ${salesOrder.customer?.company_name || salesOrder.customer?.name}\nAmount: ${formatCurrency(salesOrder.total_amount)}\n\nInvoice will be created with 30 days payment term.`;
+
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
       // Prepare invoice data
       const today = new Date().toISOString().split('T')[0];
       const dueDate = new Date();
@@ -105,10 +143,8 @@ const Invoices = () => {
 
       if (response.data) {
         // The sales order status is automatically updated to COMPLETED in the backend
-        setShowCreateModal(false);
-        setSelectedInvoice(null);
         await fetchData();
-        alert('✅ Invoice berhasil dibuat! Sales Order status diperbarui ke COMPLETED.');
+        alert('✅ Invoice berhasil dibuat! Invoice: ' + response.data.invoice_number + '\nSales Order status diperbarui ke COMPLETED.');
       }
     } catch (error) {
       console.error('Error creating invoice:', error);
@@ -476,11 +512,7 @@ const Invoices = () => {
           <p className="text-muted mb-0">Manajemen Invoice & Pembayaran</p>
         </div>
         <div>
-          <Button variant="primary" className="me-2" onClick={() => setShowCreateModal(true)}>
-            <i className="bi bi-file-earmark-plus me-1"></i>
-            Create Invoice
-          </Button>
-          <Button variant="outline-primary" size="sm">
+          <Button variant="outline-primary" size="sm" onClick={() => fetchData()}>
             <i className="bi bi-arrow-clockwise me-1"></i>
             Refresh
           </Button>
@@ -497,16 +529,10 @@ const Invoices = () => {
       {/* Shipped Orders - Ready for Invoice Creation */}
       <Card className="mb-4">
         <Card.Header className="bg-warning bg-opacity-10 border-warning">
-          <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0 text-warning">
-              <i className="bi bi-truck me-2"></i>
-              Sales Orders Siap Dibuatkan Invoice ({shippedOrders.length})
-            </h5>
-            <Button variant="outline-success" size="sm" onClick={() => setShowCreateModal(true)}>
-              <i className="bi bi-file-earmark-plus me-1"></i>
-              Create Invoice
-            </Button>
-          </div>
+          <h5 className="mb-0 text-warning">
+            <i className="bi bi-truck me-2"></i>
+            Sales Orders Siap Dibuatkan Invoice ({shippedOrders.length})
+          </h5>
         </Card.Header>
         <Card.Body>
           {shippedOrders.length > 0 ? (
@@ -546,14 +572,21 @@ const Invoices = () => {
                       <Button
                         variant="success"
                         size="sm"
-                        onClick={() => {
-                          setSelectedInvoice(order);
-                          setShowCreateModal(true);
-                        }}
+                        onClick={() => handleCreateInvoice(order.id)}
+                        disabled={createLoading}
                         title="Create Invoice"
                       >
-                        <i className="bi bi-file-earmark-plus me-1"></i>
-                        Create Invoice
+                        {createLoading ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-file-earmark-plus me-1"></i>
+                            Create Invoice
+                          </>
+                        )}
                       </Button>
                     </td>
                   </tr>
@@ -772,51 +805,7 @@ const Invoices = () => {
         </Card.Body>
       </Card>
 
-      {/* Create Invoice Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-file-earmark-plus me-2"></i>
-            Create Invoice
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedInvoice ? (
-            <>
-              <h6>Invoice Details</h6>
-              <p><strong>Sales Order:</strong> {selectedInvoice.sales_order_number}</p>
-              <p><strong>Customer:</strong> {selectedInvoice.customer?.company_name || selectedInvoice.customer?.name}</p>
-              <p><strong>Total Amount:</strong> {formatCurrency(selectedInvoice.total_amount)}</p>
-              <hr />
-              <p className="text-muted">Invoice akan dibuat dengan data dari Sales Order di atas.</p>
-            </>
-          ) : (
-            <p>Please select a sales order to create invoice.</p>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-            Cancel
-          </Button>
-          {selectedInvoice && (
-            <Button
-              variant="primary"
-              onClick={() => handleCreateInvoice(selectedInvoice.id)}
-              disabled={createLoading}
-            >
-              {createLoading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                  Creating...
-                </>
-              ) : (
-                'Create Invoice'
-              )}
-            </Button>
-          )}
-        </Modal.Footer>
-      </Modal>
-
+  
       {/* Invoice Detail Modal */}
       <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg">
         <Modal.Header closeButton>

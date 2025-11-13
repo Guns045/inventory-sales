@@ -57,6 +57,62 @@ class PickingListTransformer
     }
 
     /**
+     * Transform SalesOrder langsung untuk picking list (tanpa create PickingList record)
+     * Like Quotation approach - simple & clean
+     */
+    public static function transformFromSalesOrder(\App\Models\SalesOrder $salesOrder): array
+    {
+        // Generate picking list number using DocumentCounter (proper format)
+        try {
+            // Get warehouse ID from sales order user
+            $warehouseId = $salesOrder->user->warehouse_id ?? null;
+            $pickingListNumber = \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
+        } catch (\Exception $e) {
+            // Fallback manual number generation if DocumentCounter fails
+            $pickingListNumber = 'PL-' . date('ymd') . '-' . str_pad((string)mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        }
+
+        // Prepare items data
+        $items = [];
+        foreach ($salesOrder->items as $index => $item) {
+            $items[] = [
+                'no' => $index + 1,
+                'part_number' => $item->product->part_number ?? $item->product->code ?? $item->product->sku ?? 'N/A',
+                'description' => $item->product->description ?? 'No Description',
+                'qty' => $item->quantity,
+                'unit' => $item->product->unit ?? 'pcs',
+                'location' => $item->product->location ?? '-',
+                'notes' => null
+            ];
+        }
+
+        // Get warehouse name from user
+        $warehouseName = 'Main Warehouse';
+        if ($salesOrder->user && $salesOrder->user->warehouse) {
+            $warehouseName = $salesOrder->user->warehouse->name;
+        }
+
+        $result = [
+            'PL' => $pickingListNumber,
+            'IT/SO' => $salesOrder->sales_order_number,
+            'warehouse' => $warehouseName,
+            'date' => date('d M Y'),
+            'status' => 'PENDING',
+            'priority' => 'NORMAL',
+            'target_time' => '16:00',
+            'picker' => auth()->user()->name ?? 'Warehouse Staff',
+            'items' => $items,
+            'notes' => null,
+            'customer_name' => $salesOrder->customer->company_name ?? $salesOrder->customer->name ?? 'N/A'
+        ];
+
+        // Debug: log the result
+        \Log::info('PickingList transform result', ['result' => $result]);
+
+        return $result;
+    }
+
+    /**
      * Get company data untuk template
      */
     public static function getCompanyData(): array

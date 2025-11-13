@@ -436,50 +436,46 @@ class PickingListController extends Controller
         }
 
         try {
-            $salesOrder = SalesOrder::with(['items.product', 'customer'])->findOrFail($validated['sales_order_id']);
+            // Load sales order with relationships (like QuotationController)
+            $salesOrder = SalesOrder::with([
+                'customer',
+                'user.warehouse',  // Include user warehouse relationship
+                'items.product'
+            ])->findOrFail($validated['sales_order_id']);
 
-            // Generate unique picking list number
-            $pickingListNumber = $this->generatePickingListNumber();
-
-            // Create temporary PickingList object for PDF generation
-            $pickingList = new \stdClass();
-            $pickingList->picking_list_number = $pickingListNumber;
-            $pickingList->salesOrder = $salesOrder;
-            $pickingList->user = $user;
-            $pickingList->created_at = now();
-            $pickingList->completed_at = null;
-            $pickingList->notes = null;
-            $pickingList->status = 'READY';
-            $pickingList->status_label = 'Ready';
-            $pickingList->status_color = 'blue';
-
-            // Create items collection for PDF
-            $items = collect();
-            foreach ($salesOrder->items as $index => $item) {
-                $pickingItem = new \stdClass();
-                $pickingItem->product = $item->product;
-                $pickingItem->location_code = $item->product->location ?? '-';
-                $pickingItem->quantity_required = $item->quantity;
-                $pickingItem->quantity_picked = 0;
-                $pickingItem->remaining_quantity = $item->quantity;
-                $pickingItem->status = 'PENDING';
-                $pickingItem->status_label = 'Pending';
-                $pickingItem->status_color = 'yellow';
-                $pickingItem->notes = null;
-                $items->push($pickingItem);
+            // Validate sales order status
+            if ($salesOrder->status !== 'PROCESSING') {
+                return response()->json([
+                    'message' => 'Sales Order is not in PROCESSING status.'
+                ], 422);
             }
-            $pickingList->items = $items;
 
-            // Generate PDF using existing template
-            $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
+            // Transform data menggunakan PickingListTransformer (like QuotationTransformer)
+            $pickingListData = PickingListTransformer::transformFromSalesOrder($salesOrder);
+
+            $companyData = PickingListTransformer::getCompanyData();
+
+            // Log activity (like QuotationController)
+            ActivityLog::log(
+                'CREATE_PICKING_LIST',
+                "User created picking list for sales order {$salesOrder->sales_order_number}",
+                $salesOrder
+            );
+
+            // Generate PDF dengan template (like QuotationController)
+            $pdf = PDF::loadView('pdf.picking-list', [
+                'company' => $companyData,
+                'pl' => $pickingListData  // Use 'pl' to match existing template
+            ])->setPaper('a4', 'portrait');
+
+            // Safe filename (like QuotationController)
+            $safeNumber = str_replace(['/', '\\'], '_', $pickingListData['PL']);
+            $filename = "picking-list-{$safeNumber}.pdf";
             $pdfContent = $pdf->output();
-
-            // Generate filename
-            $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingListNumber) . ".pdf";
 
             return response()->json([
                 'message' => 'Picking list generated successfully',
-                'picking_list_number' => $pickingListNumber,
+                'picking_list_number' => $pickingListData['PL'], // Use 'PL' key from transformer
                 'pdf_content' => base64_encode($pdfContent),
                 'filename' => $filename
             ], 200);

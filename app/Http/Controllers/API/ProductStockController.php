@@ -34,9 +34,14 @@ class ProductStockController extends Controller
         // Role-based filtering
         $user = Auth::user();
         if ($user && $user->role->name !== 'Super Admin') {
-            // Filter by assigned warehouse
-            if ($user->warehouse_id) {
-                $query->where('warehouse_id', $user->warehouse_id);
+            // Sales Team can view all warehouse stock data
+            if ($user->role->name === 'Sales Team') {
+                // Sales Team can see all warehouses - no warehouse filtering
+            } else {
+                // Filter other roles by assigned warehouse
+                if ($user->warehouse_id) {
+                    $query->where('warehouse_id', $user->warehouse_id);
+                }
             }
         }
 
@@ -51,7 +56,7 @@ class ProductStockController extends Controller
                 ')
                 ->groupBy('product_id')
                 ->with('product')
-                ->paginate(20);
+                ->paginate($request->get('per_page', 10));
 
             // Transform data for frontend
             $data = $stocks->getCollection()->map(function($item) {
@@ -73,7 +78,7 @@ class ProductStockController extends Controller
             $stocks->setCollection($data);
         } else {
             // Per-warehouse view
-            $stocks = $query->paginate(20);
+            $stocks = $query->paginate($request->get('per_page', 10));
 
             // Add calculated available quantity
             $data = $stocks->getCollection()->map(function($item) {

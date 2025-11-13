@@ -24,9 +24,16 @@ class DeliveryOrderController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $deliveryOrders = DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product'])->paginate(10);
+        $query = DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product']);
+
+        // Filter by source_type if provided
+        if ($request->has('source_type')) {
+            $query->where('source_type', $request->source_type);
+        }
+
+        $deliveryOrders = $query->paginate(10);
         return response()->json($deliveryOrders);
     }
 
@@ -94,8 +101,8 @@ class DeliveryOrderController extends Controller
                 $totalAmount += $item->quantity * $item->unit_price;
             }
 
-            // Update the sales order status to shipped
-            $salesOrder->update(['status' => 'SHIPPED']);
+            // Update the sales order status to PREPARING (sync with DO status)
+            $salesOrder->update(['status' => 'PREPARING']);
 
             return $deliveryOrder->refresh();
         });
@@ -132,6 +139,88 @@ class DeliveryOrderController extends Controller
         ]);
 
         $deliveryOrder->update($request->all());
+
+        return response()->json($deliveryOrder->load(['customer', 'salesOrder', 'deliveryOrderItems.product']));
+    }
+
+    /**
+     * Update delivery order status
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:PREPARING,READY_TO_SHIP,SHIPPED,DELIVERED,CANCELLED',
+        ]);
+
+        $deliveryOrder = DeliveryOrder::findOrFail($id);
+        $oldStatus = $deliveryOrder->status;
+
+        $deliveryOrder = DB::transaction(function () use ($request, $deliveryOrder, $oldStatus) {
+            $deliveryOrder->update(['status' => $request->status]);
+
+            // Update related sales order status based on delivery order status change
+            if ($deliveryOrder->salesOrder) {
+                $salesOrder = $deliveryOrder->salesOrder;
+
+                // If DO status changes to READY_TO_SHIP, update SO to READY_TO_SHIP
+                if ($oldStatus !== 'READY_TO_SHIP' && $request->status === 'READY_TO_SHIP') {
+                    $salesOrder->update(['status' => 'READY_TO_SHIP']);
+                }
+
+                // If DO status changes to SHIPPED, update SO to SHIPPED
+                if ($oldStatus !== 'SHIPPED' && $request->status === 'SHIPPED') {
+                    $salesOrder->update(['status' => 'SHIPPED']);
+                    $deliveryOrder->update(['shipping_date' => now()]);
+                    $deliveryOrder->deliveryOrderItems()->update(['status' => 'IN_TRANSIT']);
+                }
+            }
+
+            // If status is being updated to DELIVERED, set delivered date
+            if ($oldStatus !== 'DELIVERED' && $request->status === 'DELIVERED') {
+                $deliveryOrder->update(['delivered_at' => now()]);
+                $deliveryOrder->deliveryOrderItems()->update(['status' => 'DELIVERED']);
+
+                // Update related sales order status to COMPLETED
+                if ($deliveryOrder->salesOrder) {
+                    $deliveryOrder->salesOrder->update(['status' => 'COMPLETED']);
+                }
+            }
+
+            // Log activity
+            ActivityLog::log(
+                'UPDATE_DELIVERY_ORDER_STATUS',
+                "User updated Delivery Order {$deliveryOrder->delivery_order_number} status from {$oldStatus} to {$request->status}",
+                $deliveryOrder,
+                ['status' => $oldStatus],
+                ['status' => $request->status]
+            );
+
+            return $deliveryOrder->refresh();
+        });
+
+        // Create notifications based on status
+        if ($request->status === 'READY_TO_SHIP') {
+            Notification::createForRole(
+                'Gudang',
+                "Delivery Order {$deliveryOrder->delivery_order_number} is ready to ship",
+                'info',
+                '/delivery-orders'
+            );
+        } elseif ($request->status === 'SHIPPED') {
+            Notification::createForRole(
+                'Finance',
+                "Delivery Order {$deliveryOrder->delivery_order_number} has been shipped. Ready for invoicing.",
+                'info',
+                '/delivery-orders'
+            );
+        } elseif ($request->status === 'DELIVERED') {
+            Notification::createForRole(
+                'Finance',
+                "Delivery Order {$deliveryOrder->delivery_order_number} delivered. Please ensure invoice is created.",
+                'success',
+                '/delivery-orders'
+            );
+        }
 
         return response()->json($deliveryOrder->load(['customer', 'salesOrder', 'deliveryOrderItems.product']));
     }
@@ -202,8 +291,8 @@ class DeliveryOrderController extends Controller
                 ]);
             }
 
-            // Update the sales order status
-            $pickingList->salesOrder->update(['status' => 'SHIPPED']);
+            // Update the sales order status to PREPARING (sync with DO status)
+            $pickingList->salesOrder->update(['status' => 'PREPARING']);
 
             // Log activity
             ActivityLog::log(
@@ -250,6 +339,11 @@ class DeliveryOrderController extends Controller
 
             // Update all delivery order items status
             $deliveryOrder->deliveryOrderItems()->update(['status' => 'IN_TRANSIT']);
+
+            // Update related sales order status to SHIPPED
+            if ($deliveryOrder->salesOrder) {
+                $deliveryOrder->salesOrder->update(['status' => 'SHIPPED']);
+            }
 
             // Log activity
             ActivityLog::log(
@@ -483,8 +577,8 @@ class DeliveryOrderController extends Controller
                 ]);
             }
 
-            // Update the sales order status
-            $salesOrder->update(['status' => 'SHIPPED']);
+            // Update the sales order status to PREPARING (sync with DO status)
+            $salesOrder->update(['status' => 'PREPARING']);
 
             // Log activity
             ActivityLog::log(

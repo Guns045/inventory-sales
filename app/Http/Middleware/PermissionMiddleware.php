@@ -96,6 +96,7 @@ class PermissionMiddleware
                 'dashboard' => ['read', 'sales'],
                 'customers' => ['read', 'create', 'update'],
                 'stock' => ['read'],
+                'product-stock' => ['read'],  // Read-only access only
                 'quotations' => ['read', 'create', 'update', 'submit', 'convert'],
                 'sales_orders' => ['read'],
                 'sales-orders' => ['read'],

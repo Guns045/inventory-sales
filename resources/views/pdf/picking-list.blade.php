@@ -8,6 +8,7 @@
 <table class="info-table">
   <tr><td>Picking List No.</td><td>: {{ $pl['PL'] }}</td></tr>
   <tr><td>Process No</td><td>: {{ $pl['IT/SO'] }}</td></tr>
+  <tr><td>Customer</td><td>: {{ $pl['customer_name'] ?? 'N/A' }}</td></tr>
   <tr><td>Warehouse</td><td>: {{ $pl['warehouse'] }}</td></tr>
   <tr><td>Date</td><td>: {{ $pl['date'] }}</td></tr>
 </table>
@@ -23,9 +24,9 @@
     </tr>
   </thead>
   <tbody>
-    @foreach($pl['items'] as $i => $item)
+    @foreach($pl['items'] as $item)
     <tr>
-      <td class="text-center">{{ $i+1 }}</td>
+      <td class="text-center">{{ $item['no'] }}</td>
       <td>{{ $item['part_number'] }}</td>
       <td>{{ $item['description'] }}</td>
       <td class="text-center">{{ $item['qty'] }}</td>
@@ -37,20 +38,16 @@
 
 <div class="info-section">
     <div class="info-row">
-        <div class="info-label"><strong>Checked By:</strong></div>
-        <div class="info-value">{{ $pl['picker'] ?? 'Warehouse Staff' }}</div>
-    </div>
-    <div class="info-row">
-        <div class="info-label"><strong>Warehouse Location:</strong></div>
-        <div class="info-value">{{ $pl['warehouse'] ?? 'Main Warehouse' }}</div>
-    </div>
-    <div class="info-row">
-        <div class="info-label"><strong>Date:</strong></div>
-        <div class="info-value">{{ $pl['date'] }}</div>
+        <div class="info-label"><strong>Picker:</strong></div>
+        <div class="info-value">{{ $pl['picker'] }}</div>
     </div>
     <div class="info-row">
         <div class="info-label"><strong>Status:</strong></div>
-        <div class="info-value">{{ $pl['status'] ?? 'PENDING' }}</div>
+        <div class="info-value">{{ $pl['status'] }}</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label"><strong>Priority:</strong></div>
+        <div class="info-value">{{ $pl['priority'] }}</div>
     </div>
     @if($pl['notes'])
     <div class="info-row">
