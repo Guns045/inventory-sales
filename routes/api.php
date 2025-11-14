@@ -71,10 +71,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/quotations/{id}/check-convertibility', [QuotationController::class, 'checkConvertibility']);
     
     Route::get('/sales-orders', [SalesOrderController::class, 'index'])->middleware('permission:sales-orders.read');
-Route::post('/sales-orders', [SalesOrderController::class, 'store']);
-Route::get('/sales-orders/{sales_order}', [SalesOrderController::class, 'show']);
-Route::put('/sales-orders/{sales_order}', [SalesOrderController::class, 'update']);
-Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'destroy']);
+    Route::post('/sales-orders', [SalesOrderController::class, 'store']);
+    Route::get('/sales-orders/{sales_order}', [SalesOrderController::class, 'show']);
+    Route::put('/sales-orders/{sales_order}', [SalesOrderController::class, 'update']);
+    Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'destroy']);
     Route::get('/sales-orders/{id}/items', [SalesOrderController::class, 'getSalesOrderItems']);
     Route::post('/sales-orders/{id}/update-status', [SalesOrderController::class, 'updateStatus']);
     Route::post('/sales-orders/{id}/create-picking-list', [SalesOrderController::class, 'createPickingList']);
@@ -94,8 +94,12 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::post('/picking-lists/from-transfer', [PickingListController::class, 'createFromTransfer'])->middleware('permission:picking-lists.create');
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery'])->middleware('permission:picking-lists.read');
 
-    // Delivery management
-    Route::apiResource('delivery-orders', DeliveryOrderController::class);
+    // Delivery management - explicit routes to ensure all records are returned
+    Route::get('/delivery-orders', [DeliveryOrderController::class, 'index']);
+    Route::post('/delivery-orders', [DeliveryOrderController::class, 'store']);
+    Route::get('/delivery-orders/{id}', [DeliveryOrderController::class, 'show']);
+    Route::put('/delivery-orders/{id}', [DeliveryOrderController::class, 'update']);
+    Route::delete('/delivery-orders/{id}', [DeliveryOrderController::class, 'destroy']);
     Route::get('/delivery-orders/{id}/items', [DeliveryOrderController::class, 'getDeliveryOrderItems']);
     Route::post('/delivery-orders/from-picking-list', [DeliveryOrderController::class, 'createFromPickingList']);
     Route::post('/delivery-orders/from-sales-order', [DeliveryOrderController::class, 'createFromSalesOrder']);
@@ -103,6 +107,7 @@ Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'dest
     Route::post('/delivery-orders/{id}/mark-as-delivered', [DeliveryOrderController::class, 'markAsDelivered']);
     Route::put('/delivery-orders/{id}/status', [DeliveryOrderController::class, 'updateStatus']);
     Route::get('/delivery-orders/{id}/print', [DeliveryOrderController::class, 'print']);
+    Route::post('/delivery-orders/from-transfer', [DeliveryOrderController::class, 'createFromTransfer']);
     Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate']);
     Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery']);

@@ -49,11 +49,11 @@
 
     <div class="header">
         @if($base64Logo)
-            <img src="{{ $base64Logo }}" alt="Logo" class="logo">
+            <img src="{{ $base64Logo }}" alt="Logo" class="logo" style="max-width: 120px; max-height: 80px; width: auto; height: auto;">
         @endif
         <div class="company-info">
-            <h3>{{ $company['name'] }}</h3>
-            <p>{{ $company['address'] }}</p>
+            <h3 style="margin-bottom: 5px;">{{ $company['name'] }}</h3>
+            <p style="margin-top: 0px;">{{ $company['address'] }}</p>
         </div>
     </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAPI } from '../contexts/APIContext';
+import { Button } from 'react-bootstrap';
 import './DeliveryOrders.css';
 
 const DeliveryOrders = () => {
@@ -9,6 +10,22 @@ const DeliveryOrders = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'transfer'
+  const [salesPagination, setSalesPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 1,
+    to: 10,
+  });
+  const [transferPagination, setTransferPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 1,
+    to: 10,
+  });
   const [deliveryForm, setDeliveryForm] = useState({
     shipping_date: new Date().toISOString().split('T')[0],
     driver_name: '',
@@ -24,12 +41,22 @@ const DeliveryOrders = () => {
     }
   }, [activeTab]);
 
-  const fetchSalesDeliveryOrders = async () => {
+  const fetchSalesDeliveryOrders = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await api.get('/delivery-orders?source_type=SO');
+      const response = await api.get(`/delivery-orders?source_type=SO&page=${page}`);
       const orders = response.data.data || response.data || [];
       setSalesOrders(orders);
+
+      // Set pagination info
+      setSalesPagination({
+        current_page: response.data.current_page || 1,
+        last_page: response.data.last_page || 1,
+        per_page: response.data.per_page || 10,
+        total: response.data.total || 0,
+        from: response.data.from || 1,
+        to: response.data.to || 10,
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch sales delivery orders');
       console.error('Error fetching sales delivery orders:', err);
@@ -38,12 +65,22 @@ const DeliveryOrders = () => {
     }
   };
 
-  const fetchTransferDeliveryOrders = async () => {
+  const fetchTransferDeliveryOrders = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await api.get('/delivery-orders?source_type=IT');
+      const response = await api.get(`/delivery-orders?source_type=IT&page=${page}`);
       const orders = response.data.data || response.data || [];
       setDeliveryOrders(orders);
+
+      // Set pagination info
+      setTransferPagination({
+        current_page: response.data.current_page || 1,
+        last_page: response.data.last_page || 1,
+        per_page: response.data.per_page || 10,
+        total: response.data.total || 0,
+        from: response.data.from || 1,
+        to: response.data.to || 10,
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch transfer delivery orders');
       console.error('Error fetching transfer delivery orders:', err);
@@ -171,6 +208,14 @@ const DeliveryOrders = () => {
     }
   };
 
+  const handleSalesPageChange = (page) => {
+    fetchSalesDeliveryOrders(page);
+  };
+
+  const handleTransferPageChange = (page) => {
+    fetchTransferDeliveryOrders(page);
+  };
+
   const getStatusClass = (status) => {
     switch (status?.toLowerCase()) {
       case 'preparing': return 'status-blue';
@@ -245,7 +290,6 @@ const DeliveryOrders = () => {
                 <th>Sales Order</th>
                 <th>Customer</th>
                 <th>Status</th>
-                <th>Total Amount</th>
                 <th>Created Date</th>
                 <th>Actions</th>
               </tr>
@@ -253,7 +297,7 @@ const DeliveryOrders = () => {
             <tbody>
               {salesOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center">
+                  <td colSpan="6" className="text-center">
                     No sales delivery orders found.
                   </td>
                 </tr>
@@ -268,7 +312,6 @@ const DeliveryOrders = () => {
                         {order.status}
                       </span>
                     </td>
-                    <td>{formatCurrency(order.total_amount || 0)}</td>
                     <td>{formatDate(order.created_at)}</td>
                     <td>
                       <div className="btn-group">
@@ -327,6 +370,63 @@ const DeliveryOrders = () => {
               )}
             </tbody>
           </table>
+
+          {/* Pagination for Sales Orders */}
+          {salesPagination.last_page > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <div className="text-muted">
+                Showing {salesPagination.from} to {salesPagination.to} of {salesPagination.total} entries
+              </div>
+              <div className="btn-group" role="group">
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handleSalesPageChange(salesPagination.current_page - 1)}
+                  disabled={salesPagination.current_page === 1}
+                >
+                  <i className="bi bi-chevron-left"></i> Previous
+                </Button>
+
+                {/* Page Numbers */}
+                {[...Array(Math.min(5, salesPagination.last_page))].map((_, index) => {
+                  const pageNumber = index + 1;
+                  const isActive = pageNumber === salesPagination.current_page;
+                  return (
+                    <Button
+                      key={pageNumber}
+                      variant={isActive ? "primary" : "outline-secondary"}
+                      size="sm"
+                      onClick={() => handleSalesPageChange(pageNumber)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  );
+                })}
+
+                {salesPagination.last_page > 5 && (
+                  <>
+                    <span className="btn btn-outline-secondary btn-sm disabled">...</span>
+                    <Button
+                      variant={salesPagination.current_page === salesPagination.last_page ? "primary" : "outline-secondary"}
+                      size="sm"
+                      onClick={() => handleSalesPageChange(salesPagination.last_page)}
+                    >
+                      {salesPagination.last_page}
+                    </Button>
+                  </>
+                )}
+
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handleSalesPageChange(salesPagination.current_page + 1)}
+                  disabled={salesPagination.current_page === salesPagination.last_page}
+                >
+                  Next <i className="bi bi-chevron-right"></i>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -341,7 +441,6 @@ const DeliveryOrders = () => {
                 <th>Sales Order</th>
                 <th>Customer</th>
                 <th>Status</th>
-                <th>Shipping Date</th>
                 <th>Created Date</th>
                 <th>Actions</th>
               </tr>
@@ -349,7 +448,7 @@ const DeliveryOrders = () => {
             <tbody>
               {deliveryOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center">
+                  <td colSpan="6" className="text-center">
                     No delivery orders found.
                   </td>
                 </tr>
@@ -364,7 +463,6 @@ const DeliveryOrders = () => {
                         {order.status_label || order.status}
                       </span>
                     </td>
-                    <td>{formatDate(order.shipping_date)}</td>
                     <td>{formatDate(order.created_at)}</td>
                     <td>
                       <div className="btn-group">
@@ -413,6 +511,63 @@ const DeliveryOrders = () => {
               )}
             </tbody>
           </table>
+
+          {/* Pagination for Internal Transfer */}
+          {transferPagination.last_page > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <div className="text-muted">
+                Showing {transferPagination.from} to {transferPagination.to} of {transferPagination.total} entries
+              </div>
+              <div className="btn-group" role="group">
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handleTransferPageChange(transferPagination.current_page - 1)}
+                  disabled={transferPagination.current_page === 1}
+                >
+                  <i className="bi bi-chevron-left"></i> Previous
+                </Button>
+
+                {/* Page Numbers */}
+                {[...Array(Math.min(5, transferPagination.last_page))].map((_, index) => {
+                  const pageNumber = index + 1;
+                  const isActive = pageNumber === transferPagination.current_page;
+                  return (
+                    <Button
+                      key={pageNumber}
+                      variant={isActive ? "primary" : "outline-secondary"}
+                      size="sm"
+                      onClick={() => handleTransferPageChange(pageNumber)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  );
+                })}
+
+                {transferPagination.last_page > 5 && (
+                  <>
+                    <span className="btn btn-outline-secondary btn-sm disabled">...</span>
+                    <Button
+                      variant={transferPagination.current_page === transferPagination.last_page ? "primary" : "outline-secondary"}
+                      size="sm"
+                      onClick={() => handleTransferPageChange(transferPagination.last_page)}
+                    >
+                      {transferPagination.last_page}
+                    </Button>
+                  </>
+                )}
+
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handleTransferPageChange(transferPagination.current_page + 1)}
+                  disabled={transferPagination.current_page === transferPagination.last_page}
+                >
+                  Next <i className="bi bi-chevron-right"></i>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

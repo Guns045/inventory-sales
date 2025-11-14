@@ -30,11 +30,26 @@ class DocumentCounter extends Model
         $currentMonth = date('Y-m');
         $prefix = self::getDocumentPrefix($documentType);
 
+        // Get warehouse code - if no warehouseId provided, we must use GEN
+        if (!$warehouseId) {
+            $warehouseCode = 'GEN';
+            $counterWarehouseId = null;
+        } else {
+            $warehouse = Warehouse::find($warehouseId);
+            if ($warehouse) {
+                $warehouseCode = $warehouse->code;
+                $counterWarehouseId = $warehouseId;
+            } else {
+                // Invalid warehouse ID - throw exception instead of using GEN
+                throw new \Exception("Warehouse with ID {$warehouseId} not found");
+            }
+        }
+
         // Find or create counter for this month and warehouse
         $counter = self::firstOrCreate(
             [
                 'document_type' => $documentType,
-                'warehouse_id' => $warehouseId,
+                'warehouse_id' => $counterWarehouseId,
                 'year_month' => $currentMonth,
             ],
             [
@@ -43,19 +58,12 @@ class DocumentCounter extends Model
             ]
         );
 
-        // Get warehouse code if warehouse exists
-        $warehouseCode = '';
-        if ($warehouseId) {
-            $warehouse = Warehouse::find($warehouseId);
-            $warehouseCode = $warehouse ? $warehouse->code : '';
-        }
-
         // Format: [PREFIX]-[URUTAN]/[WAREHOUSE]/[BULAN]-[TAHUN]
         $documentNumber = sprintf(
             '%s-%03d/%s/%s-%s',
             $prefix,
             $counter->counter,
-            $warehouseCode ?: 'GEN', // Default to GEN if no warehouse
+            $warehouseCode,
             date('m'),
             date('Y')
         );

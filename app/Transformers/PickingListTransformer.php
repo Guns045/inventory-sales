@@ -34,12 +34,14 @@ class PickingListTransformer
             $processNumber = $pickingList->salesOrder->sales_order_number;
         }
 
-        // Get warehouse info from items or sales order
+        // Get warehouse info from picking list, sales order, or items
         $warehouseName = 'Main Warehouse';
-        if ($pickingList->items->first() && $pickingList->items->first()->warehouse) {
-            $warehouseName = $pickingList->items->first()->warehouse->name;
+        if ($pickingList->warehouse) {
+            $warehouseName = $pickingList->warehouse->name;
         } elseif ($pickingList->salesOrder && $pickingList->salesOrder->warehouse) {
             $warehouseName = $pickingList->salesOrder->warehouse->name;
+        } elseif ($pickingList->items->first() && $pickingList->items->first()->warehouse) {
+            $warehouseName = $pickingList->items->first()->warehouse->name;
         }
 
         return [
@@ -64,8 +66,8 @@ class PickingListTransformer
     {
         // Generate picking list number using DocumentCounter (proper format)
         try {
-            // Get warehouse ID from sales order user
-            $warehouseId = $salesOrder->user->warehouse_id ?? null;
+            // Get warehouse ID from sales order (not from user)
+            $warehouseId = $salesOrder->warehouse_id;
             $pickingListNumber = \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
         } catch (\Exception $e) {
             // Fallback manual number generation if DocumentCounter fails
@@ -86,10 +88,10 @@ class PickingListTransformer
             ];
         }
 
-        // Get warehouse name from user
+        // Get warehouse name from sales order
         $warehouseName = 'Main Warehouse';
-        if ($salesOrder->user && $salesOrder->user->warehouse) {
-            $warehouseName = $salesOrder->user->warehouse->name;
+        if ($salesOrder->warehouse) {
+            $warehouseName = $salesOrder->warehouse->name;
         }
 
         $result = [
@@ -110,6 +112,48 @@ class PickingListTransformer
         \Log::info('PickingList transform result', ['result' => $result]);
 
         return $result;
+    }
+
+    /**
+     * Transform WarehouseTransfer untuk picking list
+     */
+    public static function transformFromWarehouseTransfer(\App\Models\WarehouseTransfer $transfer): array
+    {
+        // Generate picking list number using DocumentCounter
+        try {
+            $warehouseId = $transfer->warehouse_from_id;
+            $pickingListNumber = \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
+        } catch (\Exception $e) {
+            // Fallback manual number generation
+            $pickingListNumber = 'PL-' . date('ymd') . '-' . str_pad((string)mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        }
+
+        // Prepare items data
+        $items = [];
+        $items[] = [
+            'no' => 1,
+            'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
+            'description' => $transfer->product->description ?? '-',
+            'qty' => $transfer->quantity_requested,
+            'unit' => $transfer->product->unit ?? 'pcs',
+            'location' => $transfer->product->location ?? '-',
+            'notes' => "Transfer from " . $transfer->warehouseFrom->name . " to " . $transfer->warehouseTo->name
+        ];
+
+        return [
+            'PL' => $pickingListNumber,
+            'IT/SO' => $transfer->transfer_number,
+            'warehouse' => $transfer->warehouseFrom->name,
+            'to_warehouse' => $transfer->warehouseTo->name,
+            'date' => date('d M Y'),
+            'status' => 'PENDING',
+            'priority' => 'NORMAL',
+            'target_time' => '16:00',
+            'picker' => auth()->user()->name ?? 'Warehouse Staff',
+            'items' => $items,
+            'notes' => "Internal Transfer: " . $transfer->transfer_number,
+            'customer_name' => 'Internal Transfer'
+        ];
     }
 
     /**

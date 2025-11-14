@@ -279,13 +279,14 @@ tbody tr:hover {
   color: #666;
 }
 
+
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
   }
-  
+
   table {
     display: block;
     overflow-x: auto;

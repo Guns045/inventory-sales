@@ -237,16 +237,17 @@ class Quotation extends Model
             throw new \Exception('Quotation already converted to Sales Order');
         }
 
-        // Generate Sales Order number with new format
-        $warehouseId = $this->getUserWarehouseIdForSO(auth()->user());
+        // Use the quotation's warehouse_id for consistent warehouse assignment
+        $warehouseId = $this->warehouse_id;
         $salesOrderNumber = $this->generateSalesOrderNumber($warehouseId);
 
-        // Create Sales Order
+        // Create Sales Order with inherited warehouse_id
         $salesOrder = SalesOrder::create([
             'sales_order_number' => $salesOrderNumber,
             'quotation_id' => $this->id,
             'customer_id' => $this->customer_id,
             'user_id' => auth()->id(),
+            'warehouse_id' => $warehouseId,
             'status' => 'PENDING',
             'total_amount' => $this->total_amount,
             'notes' => $notes,

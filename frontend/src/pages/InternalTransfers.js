@@ -171,15 +171,34 @@ const InternalTransfers = () => {
 
   const handlePrintDeliveryOrder = async (transferNumber) => {
     try {
-      // Find delivery order associated with this transfer
+      // First try to find delivery order associated with this transfer
       const response = await api.get('/delivery-orders');
       const deliveryOrders = response.data.data;
+
+      console.log('🔍 Debug - Looking for transfer:', transferNumber);
+      console.log('🔍 Debug - Available DOs:', deliveryOrders.map(d => ({
+        id: d.id,
+        number: d.delivery_order_number,
+        source_type: d.source_type,
+        source_id: d.source_id,
+        notes: d.notes,
+        notes_lower: d.notes ? d.notes.toLowerCase() : ''
+      })));
+
+      // Test search for each DO
+      deliveryOrders.forEach(d => {
+        const match = d.source_type === 'IT' && d.notes && d.notes.includes(transferNumber);
+        console.log(`🔍 Testing DO ${d.delivery_order_number}: source_type=${d.source_type}, match=${match}, notes="${d.notes}"`);
+      });
+
       const deliveryOrder = deliveryOrders.find(order =>
-        order.notes && order.notes.includes(`For warehouse transfer: ${transferNumber}`)
+        order.source_type === 'IT' && order.notes && order.notes.includes(transferNumber)
       );
 
+      console.log('🔍 Debug - Found DO:', deliveryOrder);
+
       if (!deliveryOrder) {
-        alert('❌ Delivery Order not found for this transfer');
+        alert('❌ Delivery Order not found for transfer ' + transferNumber + '\n\nPlease make sure:\n1. Transfer status is IN_TRANSIT\n2. Delivery order has been created via "Create Delivery" button\n3. Try refreshing the page');
         return;
       }
 
@@ -433,7 +452,7 @@ const InternalTransfers = () => {
                     <option value="">Select Product</option>
                     {products.map(product => (
                       <option key={product.id} value={product.id}>
-                        {product.sku} - {product.name}
+                        {product.sku} - {product.description}
                       </option>
                     ))}
                   </Form.Select>
@@ -606,8 +625,8 @@ const InternalTransfers = () => {
                         <div className="fw-bold">{transfer.transfer_number}</div>
                       </td>
                       <td>
-                        <div>{transfer.product?.name || '-'}</div>
-                        <small className="text-muted">{transfer.product?.sku || ''}</small>
+                        <div>{transfer.product?.sku || '-'}</div>
+                        <small className="text-muted">{transfer.product?.description || ''}</small>
                       </td>
                       <td>{transfer.warehouseFrom?.name || '-'}</td>
                       <td>{transfer.warehouseTo?.name || '-'}</td>
@@ -735,7 +754,7 @@ const InternalTransfers = () => {
                     <option value="">Select Product</option>
                     {products.map(product => (
                       <option key={product.id} value={product.id}>
-                        {product.sku} - {product.name}
+                        {product.sku} - {product.description}
                       </option>
                     ))}
                   </select>

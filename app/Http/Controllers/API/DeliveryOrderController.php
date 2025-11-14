@@ -26,7 +26,8 @@ class DeliveryOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product']);
+        $query = DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product'])
+            ->orderBy('created_at', 'desc');
 
         // Filter by source_type if provided
         if ($request->has('source_type')) {
@@ -70,13 +71,21 @@ class DeliveryOrderController extends Controller
         ]);
 
         $deliveryOrder = DB::transaction(function () use ($request) {
-            // Determine warehouse ID based on user or default to JKT
-            $warehouseId = $this->getUserWarehouseIdForDelivery(auth()->user());
+            // Get warehouse_id from sales order (inherit from SO)
+            $salesOrder = SalesOrder::findOrFail($request->sales_order_id);
+            $warehouseId = $salesOrder->warehouse_id;
+
+            // Calculate total amount first
+            $salesOrderItems = $salesOrder->salesOrderItems;
+            $totalAmount = 0;
+            foreach ($salesOrderItems as $item) {
+                $totalAmount += $item->quantity * $item->unit_price;
+            }
 
             $deliveryOrder = DeliveryOrder::create([
-                'delivery_order_number' => $this->generateDeliveryOrderNumber($warehouseId),
                 'sales_order_id' => $request->sales_order_id,
                 'customer_id' => $request->customer_id,
+                'warehouse_id' => $warehouseId,
                 'shipping_date' => $request->shipping_date,
                 'shipping_contact_person' => $request->shipping_contact_person,
                 'shipping_address' => $request->shipping_address,
@@ -84,21 +93,16 @@ class DeliveryOrderController extends Controller
                 'driver_name' => $request->driver_name,
                 'vehicle_plate_number' => $request->vehicle_plate_number,
                 'status' => $request->status,
+                'total_amount' => $totalAmount,
             ]);
 
             // Create delivery order items from the sales order items
-            $salesOrder = SalesOrder::findOrFail($request->sales_order_id);
-            $salesOrderItems = $salesOrder->salesOrderItems;
-
-            $totalAmount = 0;
             foreach ($salesOrderItems as $item) {
                 DeliveryOrderItem::create([
                     'delivery_order_id' => $deliveryOrder->id,
                     'product_id' => $item->product_id,
                     'quantity_shipped' => $item->quantity,
                 ]);
-
-                $totalAmount += $item->quantity * $item->unit_price;
             }
 
             // Update the sales order status to PREPARING (sync with DO status)
@@ -266,10 +270,26 @@ class DeliveryOrderController extends Controller
         }
 
         $deliveryOrder = DB::transaction(function () use ($request, $pickingList) {
+            // Calculate total amount from sales order items
+            $totalAmount = 0;
+            $salesOrderItems = $pickingList->salesOrder->salesOrderItems()->get();
+            $itemPrices = [];
+
+            foreach ($salesOrderItems as $soItem) {
+                $itemPrices[$soItem->product_id] = $soItem->unit_price;
+            }
+
+            // Create delivery order items from picking list items
+            foreach ($pickingList->items as $item) {
+                $unitPrice = $itemPrices[$item->product_id] ?? 0;
+                $totalAmount += $item->quantity_picked * $unitPrice;
+            }
+
             $deliveryOrder = DeliveryOrder::create([
                 'sales_order_id' => $pickingList->sales_order_id,
                 'picking_list_id' => $pickingList->id,
                 'customer_id' => $pickingList->salesOrder->customer_id,
+                'warehouse_id' => $pickingList->warehouse_id, // Inherit from PickingList
                 'shipping_date' => $request->shipping_date,
                 'shipping_contact_person' => $request->shipping_contact_person ?? $pickingList->salesOrder->customer->contact_person,
                 'shipping_address' => $request->shipping_address ?? $pickingList->salesOrder->customer->address,
@@ -278,6 +298,7 @@ class DeliveryOrderController extends Controller
                 'vehicle_plate_number' => $request->vehicle_plate_number,
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
+                'total_amount' => $totalAmount,
             ]);
 
             // Create delivery order items from picking list items
@@ -388,6 +409,8 @@ class DeliveryOrderController extends Controller
             'delivery_items.*.quantity_delivered' => 'required|integer|min:0',
             'delivery_items.*.status' => 'required|in:DELIVERED,PARTIAL,DAMAGED',
             'delivery_items.*.notes' => 'nullable|string',
+            'recipient_name' => 'nullable|string|max:255',
+            'recipient_title' => 'nullable|string|max:255',
         ]);
 
         $deliveryOrder = DB::transaction(function () use ($request, $deliveryOrder) {
@@ -424,6 +447,8 @@ class DeliveryOrderController extends Controller
                 $deliveryOrder->update([
                     'status' => 'DELIVERED',
                     'delivered_at' => now(),
+                    'recipient_name' => $request->recipient_name,
+                    'recipient_title' => $request->recipient_title,
                 ]);
 
                 // Update sales order status to completed
@@ -496,8 +521,20 @@ class DeliveryOrderController extends Controller
             'createdBy'
         ])->findOrFail($id);
 
-        // Transform data untuk template
-        $deliveryData = DeliveryOrderTransformer::transform($deliveryOrder);
+        // Check if IT delivery order and load warehouse transfer data
+        if ($deliveryOrder->source_type === 'IT' && $deliveryOrder->source_id) {
+            $transfer = \App\Models\WarehouseTransfer::with(['product', 'warehouseFrom', 'warehouseTo'])
+                ->findOrFail($deliveryOrder->source_id);
+
+            // Use IT transformer
+            $deliveryData = DeliveryOrderTransformer::transformFromWarehouseTransfer($transfer);
+            $sourceType = 'IT';
+        } else {
+            // Use SO transformer
+            $deliveryData = DeliveryOrderTransformer::transform($deliveryOrder);
+            $sourceType = 'SO';
+        }
+
         $companyData = DeliveryOrderTransformer::getCompanyData();
 
         // Log activity
@@ -507,10 +544,11 @@ class DeliveryOrderController extends Controller
             $deliveryOrder
         );
 
-        // Generate PDF dengan template baru
-        $pdf = PDF::loadView('pdf.delivery-order', [
+        // Generate PDF dengan universal template
+        $pdf = PDF::loadView('pdf.delivery-order-universal', [
             'company' => $companyData,
-            'delivery' => $deliveryData
+            'delivery' => $deliveryData,
+            'source_type' => $sourceType
         ])->setPaper('a4', 'portrait');
 
         // Safe filename
@@ -552,9 +590,16 @@ class DeliveryOrderController extends Controller
         }
 
         $deliveryOrder = DB::transaction(function () use ($request, $salesOrder) {
+            // Calculate total amount from sales order items
+            $totalAmount = 0;
+            foreach ($salesOrder->items as $item) {
+                $totalAmount += $item->quantity * $item->unit_price;
+            }
+
             $deliveryOrder = DeliveryOrder::create([
                 'sales_order_id' => $salesOrder->id,
                 'customer_id' => $salesOrder->customer_id,
+                'warehouse_id' => $salesOrder->warehouse_id, // Inherit from Sales Order
                 'shipping_date' => $request->shipping_date,
                 'shipping_contact_person' => $request->shipping_contact_person ?? $salesOrder->customer->contact_person,
                 'shipping_address' => $request->shipping_address ?? $salesOrder->customer->address,
@@ -564,6 +609,7 @@ class DeliveryOrderController extends Controller
                 'notes' => $request->kurir ? 'Kurir: ' . $request->kurir : null,
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
+                'total_amount' => $totalAmount,
             ]);
 
             // Create delivery order items from sales order items
@@ -637,5 +683,64 @@ class DeliveryOrderController extends Controller
 
         // Default to JKT for other roles
         return 'JKT';
+    }
+
+    /**
+     * Create delivery order from warehouse transfer
+     */
+    public function createFromTransfer(Request $request)
+    {
+        $validated = $request->validate([
+            'warehouse_transfer_id' => 'required|exists:warehouse_transfers,id'
+        ]);
+
+        try {
+            $transfer = \App\Models\WarehouseTransfer::with(['product', 'warehouseFrom', 'warehouseTo'])
+                ->findOrFail($validated['warehouse_transfer_id']);
+
+            if ($transfer->status !== 'IN_TRANSIT') {
+                return response()->json([
+                    'message' => 'Only transfers in IN_TRANSIT status can generate delivery orders'
+                ], 400);
+            }
+
+            // Check if delivery order already exists for this transfer
+            $existingDO = DeliveryOrder::where('source_type', 'IT')
+                ->where('source_id', $transfer->id)
+                ->first();
+
+            if ($existingDO) {
+                return response()->json([
+                    'message' => 'Delivery order already exists for this transfer',
+                    'delivery_order' => $existingDO
+                ], 200);
+            }
+
+            // Transform data using transformer
+            $deliveryData = DeliveryOrderTransformer::transformFromWarehouseTransfer($transfer);
+            $companyData = DeliveryOrderTransformer::getCompanyData();
+
+            // Generate PDF using universal template
+            $pdf = PDF::loadView('pdf.delivery-order-universal', [
+                'delivery' => $deliveryData,
+                'company' => $companyData,
+                'source_type' => 'IT' // Internal Transfer
+            ]);
+            $pdfContent = $pdf->output();
+
+            $filename = "DeliveryOrder_Transfer_" . str_replace(['/', '\\'], '_', $deliveryData['delivery_no']) . ".pdf";
+
+            return response()->json([
+                'message' => 'Delivery order generated successfully',
+                'delivery_order_number' => $deliveryData['delivery_no'],
+                'pdf_content' => base64_encode($pdfContent),
+                'filename' => $filename
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to generate delivery order: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

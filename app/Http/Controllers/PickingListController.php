@@ -86,6 +86,7 @@ class PickingListController extends Controller
             $pickingList = PickingList::create([
                 'sales_order_id' => $salesOrder->id,
                 'user_id' => auth()->id(),
+                'warehouse_id' => $salesOrder->warehouse_id,
                 'status' => 'READY',
                 'notes' => $request->notes,
             ]);

@@ -74,6 +74,7 @@ class PickingListController extends Controller
             $pickingList = PickingList::create([
                 'sales_order_id' => $salesOrder->id,
                 'user_id' => auth()->id(),
+                'warehouse_id' => $salesOrder->warehouse_id,
                 'status' => 'READY',
                 'notes' => $request->notes,
             ]);
@@ -298,7 +299,16 @@ class PickingListController extends Controller
             'user'
         ])->findOrFail($id);
 
-        $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
+        // Transform data using transformer
+        $pickingListData = PickingListTransformer::transform($pickingList);
+        $companyData = PickingListTransformer::getCompanyData();
+
+        // Generate PDF using universal template
+        $pdf = PDF::loadView('pdf.picking-list-universal', [
+            'pl' => $pickingListData,
+            'source_type' => 'SO', // Sales Order (default)
+            'company' => $companyData
+        ])->setPaper('a4', 'portrait');
 
         // Safe filename for all document types - replace invalid characters
         $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
@@ -331,10 +341,12 @@ class PickingListController extends Controller
             $pickingList
         );
 
-        // Generate PDF dengan template baru
-        $pdf = PDF::loadView('pdf.picking-list', [
-            'company' => $companyData,
-            'pl' => $pickingListData
+        // Generate PDF dengan universal template
+        $companyData = \App\Transformers\PickingListTransformer::getCompanyData();
+        $pdf = PDF::loadView('pdf.picking-list-universal', [
+            'pl' => $pickingListData,
+            'source_type' => 'SO', // Sales Order
+            'company' => $companyData
         ])->setPaper('a4', 'portrait');
 
         // Safe filename
@@ -462,10 +474,12 @@ class PickingListController extends Controller
                 $salesOrder
             );
 
-            // Generate PDF dengan template (like QuotationController)
-            $pdf = PDF::loadView('pdf.picking-list', [
-                'company' => $companyData,
-                'pl' => $pickingListData  // Use 'pl' to match existing template
+            // Generate PDF dengan universal template (like QuotationController)
+            $companyData = \App\Transformers\PickingListTransformer::getCompanyData();
+            $pdf = PDF::loadView('pdf.picking-list-universal', [
+                'pl' => $pickingListData,
+                'source_type' => 'SO', // Sales Order
+                'company' => $companyData
             ])->setPaper('a4', 'portrait');
 
             // Safe filename (like QuotationController)
@@ -706,16 +720,24 @@ class PickingListController extends Controller
             $items->push($pickingItem);
             $pickingList->items = $items;
 
-            // Generate PDF using existing template
-            $pdf = PDF::loadView('pdf.picking-list', compact('pickingList'));
+            // Transform data using transformer (consistent with project pattern)
+            $plData = PickingListTransformer::transformFromWarehouseTransfer($transfer);
+
+            // Generate PDF using universal template with source type
+            $companyData = \App\Transformers\PickingListTransformer::getCompanyData();
+            $pdf = PDF::loadView('pdf.picking-list-universal', [
+                'pl' => $plData,
+                'source_type' => 'IT', // Internal Transfer
+                'company' => $companyData
+            ]);
             $pdfContent = $pdf->output();
 
             // Generate filename
-            $filename = "PickingList_Transfer_" . str_replace(['/', '\\'], '_', $pickingListNumber) . ".pdf";
+            $filename = "PickingList_Transfer_" . str_replace(['/', '\\'], '_', $plData['PL']) . ".pdf";
 
             return response()->json([
                 'message' => 'Picking list generated successfully',
-                'picking_list_number' => $pickingListNumber,
+                'picking_list_number' => $plData['PL'],
                 'pdf_content' => base64_encode($pdfContent),
                 'filename' => $filename
             ], 200);

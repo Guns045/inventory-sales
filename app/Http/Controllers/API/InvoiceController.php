@@ -20,7 +20,7 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product']);
+        $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse']);
 
         // Filter by status if provided
         if ($request->has('status') && !empty($request->status)) {
@@ -76,7 +76,7 @@ class InvoiceController extends Controller
      */
     public function export(Request $request)
     {
-        $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product']);
+        $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse']);
 
         // Apply same filters as index method
         if ($request->has('status') && !empty($request->status)) {
@@ -194,13 +194,22 @@ class InvoiceController extends Controller
                 $totalAmount += $totalPrice;
             }
 
-            // Determine warehouse ID based on user or default to MKS
-            $warehouseId = $this->getUserWarehouseCodeForInvoice(auth()->user());
+            // Get warehouse ID directly from the sales order
+            // If warehouse_id is NULL (for backward compatibility), parse from sales_order_number
+            if ($salesOrder->warehouse_id) {
+                $warehouseId = $salesOrder->warehouse_id;
+            } else {
+                // Fallback to parsing from sales_order_number for existing records
+                $parts = explode('/', $salesOrder->sales_order_number);
+                $warehouseCode = count($parts) >= 2 ? $parts[1] : 'JKT';
+                $warehouseId = ($warehouseCode === 'JKT') ? 1 : 2;
+            }
 
             $invoice = Invoice::create([
                 'invoice_number' => $this->generateInvoiceNumber($warehouseId),
                 'sales_order_id' => $request->sales_order_id,
                 'customer_id' => $request->customer_id,
+                'warehouse_id' => $warehouseId,
                 'issue_date' => $request->issue_date,
                 'due_date' => $request->due_date,
                 'status' => $request->status,
@@ -240,7 +249,7 @@ class InvoiceController extends Controller
      */
     public function show($id)
     {
-        $invoice = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product'])->findOrFail($id);
+        $invoice = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse'])->findOrFail($id);
         return response()->json($invoice);
     }
 
@@ -261,7 +270,7 @@ class InvoiceController extends Controller
 
         $invoice->update($request->all());
 
-        return response()->json($invoice->load(['customer', 'salesOrder', 'invoiceItems.product']));
+        return response()->json($invoice->load(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse']));
     }
 
     /**
@@ -323,7 +332,7 @@ class InvoiceController extends Controller
 
         return response()->json([
             'message' => 'Invoice status updated successfully',
-            'invoice' => $invoice->load(['customer', 'salesOrder', 'invoiceItems.product'])
+            'invoice' => $invoice->load(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse'])
         ]);
     }
 
@@ -339,7 +348,16 @@ class InvoiceController extends Controller
             'salesOrder.customer'
         ])->findOrFail($id);
 
-        $pdf = PDF::loadView('pdf.invoice', compact('invoice'));
+        // Use InvoiceTransformer untuk consistency dengan PQ/PL/DO
+        $companyData = \App\Transformers\InvoiceTransformer::getCompanyData();
+
+        // Transform invoice data untuk PDF template
+        $invoiceData = \App\Transformers\InvoiceTransformer::transform($invoice);
+
+        $pdf = PDF::loadView('pdf.invoice', [
+            'company' => $companyData,
+            'invoice' => $invoiceData
+        ]);
 
         // Safe filename - replace invalid characters
         $safeNumber = str_replace(['/', '\\'], '_', $invoice->invoice_number);

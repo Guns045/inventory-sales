@@ -5,14 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\DocumentNumberHelper;
 
 class DeliveryOrder extends Model
 {
+    use DocumentNumberHelper;
     protected $fillable = [
         'delivery_order_number',
         'sales_order_id',
         'picking_list_id',
         'customer_id',
+        'warehouse_id',
         'source_type',
         'source_id',
         'shipping_date',
@@ -25,6 +28,9 @@ class DeliveryOrder extends Model
         'notes',
         'delivered_at',
         'created_by',
+        'total_amount',
+        'recipient_name',
+        'recipient_title',
     ];
 
     protected $casts = [
@@ -40,64 +46,12 @@ class DeliveryOrder extends Model
         // Auto-generate delivery order number when creating
         static::creating(function ($deliveryOrder) {
             if (empty($deliveryOrder->delivery_order_number)) {
-                $deliveryOrder->delivery_order_number = $deliveryOrder->generateNumber();
+                $deliveryOrder->delivery_order_number = $deliveryOrder->generateDeliveryOrderNumber($deliveryOrder->warehouse_id);
             }
         });
     }
 
-    public function generateNumber(): string
-    {
-        // Get warehouse code in this priority order:
-        // 1. From picking list items (if picking list exists)
-        // 2. From sales order items (if sales order exists)
-        // 3. From created_by user's warehouse (if user has warehouse_id)
-        // 4. Default to JKT warehouse
-        $warehouseCode = 'WH';
-
-        // Priority 1: Get from picking list items
-        if ($this->pickingList && $this->pickingList->items && $this->pickingList->items->first()) {
-            $warehouse = $this->pickingList->items->first()->warehouse;
-            $warehouseCode = $warehouse ? $warehouse->code : 'WH';
-        }
-        // Priority 2: Get from sales order items
-        elseif ($this->salesOrder && $this->salesOrder->items && $this->salesOrder->items->first()) {
-            $warehouse = $this->salesOrder->items->first()->warehouse;
-            $warehouseCode = $warehouse ? $warehouse->code : 'WH';
-        }
-        // Priority 3: Get from created_by user's warehouse assignment
-        elseif ($this->created_by) {
-            $user = \App\Models\User::find($this->created_by);
-            if ($user && $user->warehouse_id) {
-                $warehouse = \App\Models\Warehouse::find($user->warehouse_id);
-                $warehouseCode = $warehouse ? $warehouse->code : 'WH';
-            }
-        }
-        // Priority 4: Default to JKT warehouse
-        else {
-            $jktWarehouse = \App\Models\Warehouse::where('code', 'JKT')->first();
-            $warehouseCode = $jktWarehouse ? $jktWarehouse->code : 'WH';
-        }
-
-        $prefix = 'DO-';
-        $monthYear = now()->format('m-Y');
-        $pattern = $prefix . '%/' . $warehouseCode . '/' . $monthYear;
-
-        $lastNumber = static::where('delivery_order_number', 'like', $pattern)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($lastNumber) {
-            // Extract sequence from format: DO-XXXX/JKT/11-2025
-            $parts = explode('/', $lastNumber->delivery_order_number);
-            $lastSequence = intval(substr($parts[0], 3)); // Get XXXX from DO-XXXX
-            $sequence = $lastSequence + 1;
-        } else {
-            $sequence = 1;
-        }
-
-        return $prefix . str_pad($sequence, 4, '0', STR_PAD_LEFT) . '/' . $warehouseCode . '/' . $monthYear;
-    }
-
+    
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class);
@@ -106,6 +60,11 @@ class DeliveryOrder extends Model
     public function pickingList(): BelongsTo
     {
         return $this->belongsTo(PickingList::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function customer(): BelongsTo

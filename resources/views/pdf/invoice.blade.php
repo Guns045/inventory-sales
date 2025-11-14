@@ -25,7 +25,7 @@
         </tr>
       </thead>
     <tbody>
-        @foreach($invoice['items'] as $i => $item)
+        @foreach($invoice['items'] as $item)
         <tr>
           <td>{{ $item['part_number'] }}</td>
           <td style="text-align:left">{{ $item['description'] }}</td>

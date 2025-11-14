@@ -62,3 +62,5 @@ task-manager cancel-task <task_id> "Reason for cancellation"
 ✅ **ALWAYS complete one task fully before starting the next**
 ✅ **ALWAYS provide completion details in the complete command**
 ✅ **ALWAYS follow the exact 3-step sequence: list → start → complete (or cancel if not required)**
+- sebelum mulai selalu baca @documentation\ dan @todo.md, berikan summary apa yang akan di kerjakan hari ini, jgn eksekusi dlu
+- baca keseluruhan code project saat awal mulai pengerjaan dilakukan, untuk menghidari improve dan duplikasi code, buat berdasarkan template project yang sudah ada.

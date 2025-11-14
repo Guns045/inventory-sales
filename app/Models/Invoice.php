@@ -10,6 +10,7 @@ class Invoice extends Model
         'invoice_number',
         'sales_order_id',
         'customer_id',
+        'warehouse_id',
         'issue_date',
         'due_date',
         'status',
@@ -30,6 +31,11 @@ class Invoice extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function invoiceItems()

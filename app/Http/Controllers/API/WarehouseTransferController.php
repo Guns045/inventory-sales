@@ -58,7 +58,64 @@ class WarehouseTransferController extends Controller
 
         $transfers = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        return response()->json($transfers);
+          // Transform data to ensure warehouse data is included
+        $transformedTransfers = $transfers->getCollection()->map(function ($transfer) {
+            return [
+                'id' => $transfer->id,
+                'transfer_number' => $transfer->transfer_number,
+                'product_id' => $transfer->product_id,
+                'product' => $transfer->product,
+                'warehouse_from_id' => $transfer->warehouse_from_id,
+                'warehouse_to_id' => $transfer->warehouse_to_id,
+                'warehouseFrom' => $transfer->warehouseFrom ? [
+                    'id' => $transfer->warehouseFrom->id,
+                    'name' => $transfer->warehouseFrom->name,
+                    'code' => $transfer->warehouseFrom->code
+                ] : null,
+                'warehouseTo' => $transfer->warehouseTo ? [
+                    'id' => $transfer->warehouseTo->id,
+                    'name' => $transfer->warehouseTo->name,
+                    'code' => $transfer->warehouseTo->code
+                ] : null,
+                'quantity_requested' => $transfer->quantity_requested,
+                'quantity_delivered' => $transfer->quantity_delivered,
+                'quantity_received' => $transfer->quantity_received,
+                'status' => $transfer->status,
+                'notes' => $transfer->notes,
+                'reason' => $transfer->reason,
+                'requested_by' => $transfer->requested_by,
+                'requestedBy' => $transfer->requestedBy,
+                'approved_by' => $transfer->approved_by,
+                'approvedBy' => $transfer->approvedBy,
+                'approved_at' => $transfer->approved_at,
+                'delivered_by' => $transfer->delivered_by,
+                'deliveredBy' => $transfer->deliveredBy,
+                'delivered_at' => $transfer->delivered_at,
+                'received_by' => $transfer->received_by,
+                'receivedBy' => $transfer->receivedBy,
+                'received_at' => $transfer->received_at,
+                'requested_at' => $transfer->requested_at,
+                'created_at' => $transfer->created_at,
+                'updated_at' => $transfer->updated_at,
+            ];
+        });
+
+        // Create new paginated response with transformed data
+        $result = [
+            'data' => $transformedTransfers,
+            'current_page' => $transfers->currentPage(),
+            'last_page' => $transfers->lastPage(),
+            'per_page' => $transfers->perPage(),
+            'total' => $transfers->total(),
+            'links' => [
+                'first' => $transfers->url(1),
+                'last' => $transfers->url($transfers->lastPage()),
+                'prev' => $transfers->previousPageUrl(),
+                'next' => $transfers->nextPageUrl(),
+            ]
+        ];
+
+        return response()->json($result);
     }
 
     /**
@@ -326,6 +383,9 @@ class WarehouseTransferController extends Controller
 
             $deliveryOrder = DeliveryOrder::create([
                 'sales_order_id' => $existingSalesOrder->id, // Use existing or created sales order
+                'warehouse_id' => $transfer->warehouse_from_id, // Add warehouse_id
+                'source_type' => 'IT', // Internal Transfer
+                'source_id' => $transfer->id, // Reference to warehouse transfer
                 'customer_id' => $defaultCustomer->id, // Use default customer for internal transfers
                 'status' => 'PREPARING', // Use valid enum value for delivery orders
                 'notes' => "For warehouse transfer: {$transfer->transfer_number}",

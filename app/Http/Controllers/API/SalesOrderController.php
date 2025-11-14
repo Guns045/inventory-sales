@@ -9,17 +9,19 @@ use App\Models\SalesOrderItem;
 use App\Models\Quotation;
 use App\Models\ActivityLog;
 use App\Models\Notification;
+use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SalesOrderController extends Controller
 {
+    use DocumentNumberHelper;
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = SalesOrder::with(['customer', 'user', 'items.product', 'quotation']);
+        $query = SalesOrder::with(['customer', 'user', 'items.product', 'quotation', 'warehouse']);
 
         // Filter by status if provided
         if ($request->has('status')) {
@@ -76,13 +78,21 @@ class SalesOrderController extends Controller
 
         $salesOrder = DB::transaction(function () use ($request) {
             $quotation = null;
+            $warehouseId = null;
 
-            // Create the sales order
+            // If creating from quotation, inherit warehouse_id
+            if ($request->quotation_id) {
+                $quotation = Quotation::findOrFail($request->quotation_id);
+                $warehouseId = $quotation->warehouse_id;
+            }
+
+            // Create the sales order with warehouse-specific numbering
             $salesOrder = SalesOrder::create([
-                'sales_order_number' => 'SO-' . date('Y-m') . '-' . str_pad(SalesOrder::count() + 1, 4, '0', STR_PAD_LEFT),
+                'sales_order_number' => $this->generateSalesOrderNumber($warehouseId),
                 'quotation_id' => $request->quotation_id,
                 'customer_id' => $request->customer_id,
                 'user_id' => auth()->id(),
+                'warehouse_id' => $warehouseId,
                 'status' => $request->status,
                 'notes' => $request->notes,
             ]);
@@ -159,7 +169,7 @@ class SalesOrderController extends Controller
             '/sales-orders'
         );
 
-        return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product']), 201);
+        return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product', 'warehouse']), 201);
     }
 
     /**
@@ -167,7 +177,7 @@ class SalesOrderController extends Controller
      */
     public function show($id)
     {
-        $salesOrder = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])->findOrFail($id);
+        $salesOrder = SalesOrder::with(['customer', 'user', 'salesOrderItems.product', 'warehouse'])->findOrFail($id);
         return response()->json($salesOrder);
     }
 
@@ -186,9 +196,18 @@ class SalesOrderController extends Controller
         ]);
 
         $salesOrder = DB::transaction(function () use ($request, $salesOrder) {
+            $warehouseId = $salesOrder->warehouse_id;
+
+            // If quotation_id is being updated, inherit warehouse_id from the new quotation
+            if ($request->quotation_id && $request->quotation_id !== $salesOrder->quotation_id) {
+                $quotation = Quotation::findOrFail($request->quotation_id);
+                $warehouseId = $quotation->warehouse_id;
+            }
+
             $salesOrder->update([
                 'quotation_id' => $request->quotation_id,
                 'customer_id' => $request->customer_id,
+                'warehouse_id' => $warehouseId,
                 'status' => $request->status,
                 'notes' => $request->notes,
             ]);
@@ -218,7 +237,7 @@ class SalesOrderController extends Controller
             return $salesOrder->refresh();
         });
 
-        return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product']));
+        return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product', 'warehouse']));
     }
 
     /**

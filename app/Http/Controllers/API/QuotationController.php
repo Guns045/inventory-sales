@@ -43,7 +43,7 @@ class QuotationController extends Controller
      */
     public function index()
     {
-        $quotations = Quotation::with(['customer', 'user', 'quotationItems.product', 'approvals'])
+        $quotations = Quotation::with(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
         return response()->json($quotations);
@@ -60,6 +60,7 @@ class QuotationController extends Controller
         try {
             $request->validate([
                 'customer_id' => 'required|exists:customers,id',
+                'warehouse_id' => 'required|exists:warehouses,id',
                 'valid_until' => 'required|date',
                 'status' => 'required|in:DRAFT,SUBMITTED,APPROVED,REJECTED',
             ]);
@@ -74,13 +75,14 @@ class QuotationController extends Controller
         }
 
         $quotation = DB::transaction(function () use ($request) {
-            // Determine warehouse ID based on user or default to JKT
-            $warehouseId = $this->getUserWarehouseId(auth()->user());
+            // Use warehouse_id from request
+            $warehouseId = $request->warehouse_id;
 
             $quotation = Quotation::create([
                 'quotation_number' => $this->generateQuotationNumber($warehouseId),
                 'customer_id' => $request->customer_id,
                 'user_id' => auth()->id(),
+                'warehouse_id' => $warehouseId,
                 'status' => $request->status,
                 'valid_until' => $request->valid_until,
             ]);
@@ -191,7 +193,7 @@ class QuotationController extends Controller
             $notificationPath
         );
 
-        return response()->json($quotation->load(['customer', 'user', 'quotationItems.product']), 201);
+        return response()->json($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product']), 201);
     }
 
     /**
@@ -199,7 +201,7 @@ class QuotationController extends Controller
      */
     public function show($id)
     {
-        $quotation = Quotation::with(['customer', 'user', 'quotationItems.product', 'approvals.approvalLevel', 'approvals.approver'])->findOrFail($id);
+        $quotation = Quotation::with(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals.approvalLevel', 'approvals.approver'])->findOrFail($id);
         return response()->json($quotation);
     }
 
@@ -230,6 +232,7 @@ class QuotationController extends Controller
 
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'valid_until' => 'required|date',
             'status' => 'required|in:DRAFT,SUBMITTED,APPROVED,REJECTED',
             'items' => 'required|array|min:1',
@@ -243,6 +246,7 @@ class QuotationController extends Controller
         $quotation = DB::transaction(function () use ($request, $quotation) {
             $quotation->update([
                 'customer_id' => $request->customer_id,
+                'warehouse_id' => $request->warehouse_id,
                 'status' => $request->status,
                 'valid_until' => $request->valid_until,
             ]);
@@ -280,7 +284,7 @@ class QuotationController extends Controller
             return $quotation->refresh();
         });
 
-        return response()->json($quotation->load(['customer', 'user', 'quotationItems.product']));
+        return response()->json($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product']));
     }
 
     /**
@@ -356,7 +360,7 @@ class QuotationController extends Controller
 
             return response()->json([
                 'message' => 'Quotation submitted for approval successfully',
-                'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product', 'approvals'])
+                'quotation' => $quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals'])
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -417,7 +421,7 @@ class QuotationController extends Controller
 
             return response()->json([
                 'message' => 'Quotation approved successfully',
-                'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product'])
+                'quotation' => $quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product'])
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -505,7 +509,7 @@ class QuotationController extends Controller
 
                 return response()->json([
                     'message' => 'Quotation rejected successfully',
-                    'quotation' => $quotation->load(['customer', 'user', 'quotationItems.product', 'approvals.approvalLevel']),
+                    'quotation' => $quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals.approvalLevel']),
                     'workflow_status' => $quotation->getApprovalWorkflowStatus()
                 ]);
             }
@@ -741,44 +745,4 @@ class QuotationController extends Controller
         return Excel::download(new QuotationExport($quotation), "quotation-{$quotation->quotation_number}.xlsx");
     }
 
-    /**
-     * Get warehouse ID based on user role or default
-     *
-     * @param User $user
-     * @return int
-     */
-    private function getUserWarehouseId($user)
-    {
-        // Check if user has a specific warehouse assignment
-        if ($user->warehouse_id) {
-            return $user->warehouse_id;
-        }
-
-        // Check if user can access all warehouses, default to JKT (ID: 1)
-        if ($user->canAccessAllWarehouses()) {
-            return 1; // JKT Warehouse ID
-        }
-
-        // Check role-based defaults
-        if ($user->role) {
-            switch ($user->role->name) {
-                case 'Warehouse Manager Gudang JKT':
-                    return 1; // JKT Warehouse ID
-                case 'Warehouse Manager Gudang MKS':
-                    return 2; // MKS Warehouse ID
-                case 'Super Admin':
-                case 'Admin':
-                    return 1; // Default to JKT
-                case 'Sales Team':
-                    return $user->warehouse_id ?: 1; // User's warehouse or JKT
-                case 'Finance Team':
-                    return 1; // Default to JKT for Finance
-                case 'Warehouse Staff':
-                    return $user->warehouse_id ?: 1; // User's warehouse or JKT
-            }
-        }
-
-        // Default to JKT if no specific assignment
-        return 1;
-    }
-}
+  }

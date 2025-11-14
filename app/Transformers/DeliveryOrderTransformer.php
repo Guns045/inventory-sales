@@ -11,47 +11,78 @@ class DeliveryOrderTransformer
      */
     public static function transform(DeliveryOrder $deliveryOrder): array
     {
+        // Load relationships
+        $deliveryOrder->load(['salesOrder.customer', 'deliveryOrderItems.product', 'customer']);
+
         // Prepare items data
         $items = [];
-
-        // Use delivery order items if available, otherwise use sales order items
-        if ($deliveryOrder->deliveryOrderItems && $deliveryOrder->deliveryOrderItems->isNotEmpty()) {
-            foreach ($deliveryOrder->deliveryOrderItems as $item) {
-                $items[] = [
-                    'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                    'description' => $item->product->description ?? $item->description ?? 'No description',
-                    'quantity' => $item->quantity,
-                    'po_number' => 'N/A', // Default since po_number removed
-                    'delivery_method' => 'Truck', // Default internal delivery
-                    'delivery_vendor' => 'Internal' // Default internal vendor
-                ];
-            }
-        } elseif ($deliveryOrder->salesOrder && $deliveryOrder->salesOrder->salesOrderItems) {
-            foreach ($deliveryOrder->salesOrder->salesOrderItems as $item) {
-                $items[] = [
-                    'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                    'description' => $item->product->description ?? $item->description ?? 'No description',
-                    'quantity' => $item->quantity,
-                    'po_number' => 'N/A', // Default since po_number removed
-                    'delivery_method' => 'Truck', // Default internal delivery
-                    'delivery_vendor' => 'Internal' // Default internal vendor
-                ];
-            }
+        foreach ($deliveryOrder->deliveryOrderItems as $item) {
+            $items[] = [
+                'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
+                'description' => $item->product->description ?? $item->description ?? 'No description',
+                'quantity' => $item->quantity_shipped,
+                'po_number' => 'N/A', // Default since po_number removed
+                'delivery_method' => 'Truck', // Default internal delivery
+                'delivery_vendor' => 'Internal' // Default internal vendor
+            ];
         }
 
         return [
-            'sales_order_no' => $deliveryOrder->salesOrder ? $deliveryOrder->salesOrder->sales_order_number : 'N/A', // ✅ Ganti Quotation No → Sales Order No
             'delivery_no' => $deliveryOrder->delivery_order_number,
-            'customer_name' => $deliveryOrder->customer->name,
-            'customer_id' => $deliveryOrder->customer->customer_code ?? 'CUST-' . $deliveryOrder->customer->id,
+            'sales_order_no' => $deliveryOrder->salesOrder ? $deliveryOrder->salesOrder->sales_order_number : 'N/A',
+            'customer_name' => $deliveryOrder->customer->company_name ?? $deliveryOrder->customer->name ?? 'N/A',
+            'customer_id' => 'CUST-' . $deliveryOrder->customer->id,
             'customer_address' => $deliveryOrder->shipping_address ?? $deliveryOrder->customer->address ?? 'No address provided',
             'date' => \Carbon\Carbon::parse($deliveryOrder->shipping_date ?? $deliveryOrder->created_at)->format('d M Y'),
             'driver_name' => $deliveryOrder->driver_name ?? 'N/A',
             'vehicle_plate' => $deliveryOrder->vehicle_plate_number ?? 'N/A',
             'contact_person' => $deliveryOrder->shipping_contact_person ?? ($deliveryOrder->customer->contact_person ?? 'N/A'),
+            'recipient_name' => $deliveryOrder->recipient_name ?? '_____________________',
+            'recipient_title' => $deliveryOrder->recipient_title ?? '_____________________',
             'items' => $items,
             'notes' => $deliveryOrder->notes ?? '',
             'status' => $deliveryOrder->status ?? 'PREPARING'
+        ];
+    }
+
+    /**
+     * Transform WarehouseTransfer untuk Delivery Order (Internal Transfer)
+     */
+    public static function transformFromWarehouseTransfer(\App\Models\WarehouseTransfer $transfer): array
+    {
+        // Generate delivery order number using DocumentCounter
+        try {
+            $warehouseId = $transfer->warehouse_from_id; // Use source warehouse for numbering (consistent with transfer number)
+            $deliveryOrderNumber = \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER', $warehouseId);
+        } catch (\Exception $e) {
+            // Fallback manual number generation
+            $deliveryOrderNumber = 'DO-' . date('ymd') . '-' . str_pad((string)mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        }
+
+        // Prepare items data
+        $items = [];
+        $items[] = [
+            'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
+            'description' => $transfer->product->description ?? '-',
+            'quantity' => $transfer->quantity_delivered ?? $transfer->quantity_requested,
+            'from_location' => $transfer->product->location ?? $transfer->warehouseFrom->name ?? '-',
+            'to_location' => $transfer->product->location ?? $transfer->warehouseTo->name ?? '-'
+        ];
+
+        return [
+            'delivery_no' => $deliveryOrderNumber,
+            'transfer_no' => $transfer->transfer_number,
+            'from_warehouse' => $transfer->warehouseFrom->name,
+            'to_warehouse' => $transfer->warehouseTo->name,
+            'date' => date('d M Y'),
+            'driver_name' => 'Internal Transfer Driver',
+            'vehicle_plate' => 'Internal Vehicle',
+            'contact_person' => 'Warehouse Staff',
+            'recipient_name' => null, // Will be filled when received
+            'recipient_title' => null, // Will be filled when received
+            'items' => $items,
+            'notes' => "Internal Transfer: " . $transfer->transfer_number,
+            'status' => 'IN_TRANSIT'
         ];
     }
 

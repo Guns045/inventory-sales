@@ -23,6 +23,7 @@ const Quotations = () => {
   const [quotations, setQuotations] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -136,6 +137,7 @@ const Quotations = () => {
   };
   const [formData, setFormData] = useState({
     customer_id: '',
+    warehouse_id: '',
     status: 'DRAFT',
     valid_until: '',
     items: []
@@ -158,15 +160,17 @@ const Quotations = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [quotationsRes, customersRes, productsRes] = await Promise.all([
+      const [quotationsRes, customersRes, productsRes, warehousesRes] = await Promise.all([
         get('/quotations'),
         get('/customers'),
-        get('/products')
+        get('/products'),
+        get('/warehouses')
       ]);
 
       setQuotations(quotationsRes.data.data || []);
       setCustomers(customersRes.data || []);
       setProducts(productsRes.data.data || []);
+      setWarehouses(warehousesRes.data || []);
     } catch (err) {
       setError('Failed to fetch data');
       console.error('Error fetching data:', err);
@@ -269,6 +273,7 @@ const Quotations = () => {
     try {
       const quotationData = {
         customer_id: formData.customer_id,
+        warehouse_id: formData.warehouse_id,
         status: formData.status,
         valid_until: formData.valid_until,
         items: items.map(item => ({
@@ -292,6 +297,7 @@ const Quotations = () => {
       // Reset form and close
       setFormData({
         customer_id: '',
+        warehouse_id: '',
         status: 'DRAFT',
         valid_until: '',
         items: []
@@ -332,6 +338,7 @@ const Quotations = () => {
 
       setFormData({
         customer_id: quotationDetails.customer_id,
+        warehouse_id: quotationDetails.warehouse_id || '',
         status: quotationDetails.status,
         valid_until: quotationDetails.valid_until ? quotationDetails.valid_until.split('T')[0] : '',
         items: []
@@ -500,6 +507,7 @@ const Quotations = () => {
   const openForm = () => {
     setFormData({
       customer_id: '',
+      warehouse_id: '',
       status: 'DRAFT',
       valid_until: '',
       items: []
@@ -563,6 +571,23 @@ const Quotations = () => {
                   <option value="">Select Customer</option>
                   {customers.map(cust => (
                     <option key={cust.id} value={cust.id}>{cust.company_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="warehouse_id">Warehouse:</label>
+                <select
+                  id="warehouse_id"
+                  name="warehouse_id"
+                  value={formData.warehouse_id}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select Warehouse</option>
+                  {warehouses.map(wh => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} {wh.code ? `(${wh.code})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>

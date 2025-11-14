@@ -11,6 +11,7 @@ class SalesOrder extends Model
         'quotation_id',
         'customer_id',
         'user_id',
+        'warehouse_id',
         'status',
         'total_amount',
         'notes',
@@ -29,6 +30,11 @@ class SalesOrder extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function salesOrderItems()
