@@ -64,6 +64,11 @@ const ProductStock = () => {
     fetchProducts();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Refetch data when search term or warehouse filter changes
+  useEffect(() => {
+    fetchProductStock(1); // Reset to first page when searching/filtering
+  }, [searchTerm, selectedWarehouse]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products');
@@ -92,6 +97,16 @@ const ProductStock = () => {
         page: page,
         per_page: 10
       });
+
+      // Add search parameter
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+
+      // Add warehouse filter
+      if (selectedWarehouse) {
+        params.append('warehouse_id', selectedWarehouse);
+      }
 
       // Add view mode to show all warehouses
       if (user?.role?.name === 'Sales Team' || user?.role?.name === 'Super Admin') {
@@ -295,19 +310,10 @@ const ProductStock = () => {
   };
 
   
+  // Backend already handles filtering, but we still need client-side filtering as a fallback
   const filteredStock = productStock.filter(stock => {
-    // Apply search filter
-    const searchMatch = !searchTerm ||
-      stock.product?.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.product?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.warehouse?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Apply warehouse filter
-    const warehouseMatch = !selectedWarehouse ||
-      stock.warehouse?.id?.toString() === selectedWarehouse.toString();
-
-    return searchMatch && warehouseMatch;
+    // Backend does primary filtering, this is just for display safety
+    return true; // All data is already filtered by backend
   });
 
   if (loading) {

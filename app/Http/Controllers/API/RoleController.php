@@ -122,7 +122,8 @@ class RoleController extends Controller
                 'invoices' => ['read', 'create', 'update', 'delete'],
                 'payments' => ['read', 'create', 'update', 'delete'],
                 'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
-                'goods_receipts' => ['read', 'create', 'update'],
+                'purchase-orders' => ['read', 'create', 'update', 'delete'],
+                'goods-receipts' => ['read', 'create', 'update', 'delete'],
                 'approvals' => ['read', 'approve', 'reject'],
                 'reports' => ['read', 'create', 'update', 'delete'],
                 'settings' => ['read', 'update'],
@@ -213,19 +214,19 @@ class RoleController extends Controller
                         'title' => 'Purchased',
                         'path' => '/dashboard/purchased',
                         'icon' => 'bi-bag-check',
-                        'permission' => 'goods_receipts.read',
+                        'permission' => 'purchase-orders.read',
                         'children' => [
+                            [
+                                'title' => 'Purchase Orders',
+                                'path' => '/dashboard/purchase-orders',
+                                'icon' => 'bi-cart-plus',
+                                'permission' => 'purchase-orders.read'
+                            ],
                             [
                                 'title' => 'Goods Receipt',
                                 'path' => '/dashboard/goods-receipts',
                                 'icon' => 'bi-receipt-cutoff',
                                 'permission' => 'goods_receipts.read'
-                            ],
-                            [
-                                'title' => 'Goods Issue',
-                                'path' => '/dashboard/goods-issue',
-                                'icon' => 'bi-box-arrow-left',
-                                'permission' => 'stock.update'
                             ]
                         ]
                     ],
@@ -337,7 +338,8 @@ class RoleController extends Controller
                 'invoices' => ['read', 'create', 'update', 'delete'],
                 'payments' => ['read', 'create', 'update', 'delete'],
                 'picking-lists' => ['read', 'create', 'update', 'complete', 'print'],
-                'goods_receipts' => ['read', 'create', 'update'],
+                'purchase-orders' => ['read', 'create', 'update', 'delete'],
+                'goods-receipts' => ['read', 'create', 'update', 'delete'],
                 'approvals' => ['read', 'approve', 'reject'],
                 'reports' => ['read', 'create', 'update', 'delete'],
                 'settings' => ['read', 'update'],
@@ -428,19 +430,19 @@ class RoleController extends Controller
                         'title' => 'Purchased',
                         'path' => '/dashboard/purchased',
                         'icon' => 'bi-bag-check',
-                        'permission' => 'goods_receipts.read',
+                        'permission' => 'purchase-orders.read',
                         'children' => [
+                            [
+                                'title' => 'Purchase Orders',
+                                'path' => '/dashboard/purchase-orders',
+                                'icon' => 'bi-cart-plus',
+                                'permission' => 'purchase-orders.read'
+                            ],
                             [
                                 'title' => 'Goods Receipt',
                                 'path' => '/dashboard/goods-receipts',
                                 'icon' => 'bi-receipt-cutoff',
                                 'permission' => 'goods_receipts.read'
-                            ],
-                            [
-                                'title' => 'Goods Issue',
-                                'path' => '/dashboard/goods-issue',
-                                'icon' => 'bi-box-arrow-left',
-                                'permission' => 'stock.update'
                             ]
                         ]
                     ],

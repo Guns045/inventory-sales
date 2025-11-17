@@ -1,20 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Modal, Form, Alert, Badge } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import './GoodsReceipts.css';
 
 const GoodsReceipts = () => {
-  const { api } = useAPI();
+  const { get, post, put, delete: deleteRequest } = useAPI();
+  const { user } = usePermissions();
+  const { hasPermission, canRead, canCreate, canUpdate, canDelete } = usePermissions();
+
   const [goodsReceipts, setGoodsReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showItemsModal, setShowItemsModal] = useState(false);
   const [selectedGoodsReceipt, setSelectedGoodsReceipt] = useState(null);
+  const [receiptItems, setReceiptItems] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    from: 0,
+    to: 0
+  });
   const [formData, setFormData] = useState({
     purchase_order_id: '',
-    receipt_date: new Date().toISOString().split('T')[0],
+    warehouse_id: '',
+    received_date: new Date().toISOString().split('T')[0],
     notes: ''
   });
 
@@ -22,16 +38,34 @@ const GoodsReceipts = () => {
   useEffect(() => {
     fetchGoodsReceipts();
     fetchPurchaseOrders();
+    fetchWarehouses();
   }, []);
 
-  const fetchGoodsReceipts = async () => {
+  const fetchGoodsReceipts = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await api.get('/goods-receipts');
-      setGoodsReceipts(response.data.data || response.data);
-    } catch (error) {
-      console.error('Error fetching goods receipts:', error);
+      setError('');
+      const response = await get(`/goods-receipts?page=${page}`);
+      if (response && response.data) {
+        if (response.data.data) {
+          setGoodsReceipts(response.data.data);
+          setPagination({
+            current_page: response.data.current_page,
+            last_page: response.data.last_page,
+            per_page: response.data.per_page,
+            total: response.data.total,
+            from: response.data.from,
+            to: response.data.to
+          });
+        } else {
+          const goodsReceiptsData = Array.isArray(response.data) ? response.data : [];
+          setGoodsReceipts(goodsReceiptsData);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching goods receipts:', err);
       setError('Failed to fetch goods receipts');
+      setGoodsReceipts([]);
     } finally {
       setLoading(false);
     }
@@ -39,284 +73,454 @@ const GoodsReceipts = () => {
 
   const fetchPurchaseOrders = async () => {
     try {
-      const response = await api.get('/purchase-orders?status=APPROVED');
-      setPurchaseOrders(response.data.data || response.data);
-    } catch (error) {
-      console.error('Error fetching purchase orders:', error);
+      const response = await get('/purchase-orders/ready-for-goods-receipt');
+      if (response && response.data) {
+        setPurchaseOrders(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching purchase orders:', err);
     }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await get('/warehouses');
+      if (response && response.data) {
+        setWarehouses(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleCreateGoodsReceipt = async (e) => {
     e.preventDefault();
+
     try {
-      const response = await api.post('/goods-receipts', formData);
-      setGoodsReceipts(prev => [response.data, ...prev]);
-      setShowCreateModal(false);
-      setFormData({
-        purchase_order_id: '',
-        receipt_date: new Date().toISOString().split('T')[0],
-        notes: ''
+      const selectedPO = purchaseOrders.find(po => po.id === parseInt(formData.purchase_order_id));
+
+      const response = await post('/goods-receipts', {
+        ...formData,
+        items: selectedPO ? selectedPO.items.map(item => ({
+          purchase_order_item_id: item.id,
+          product_id: item.product_id,
+          quantity_ordered: item.quantity,
+          quantity_received: item.quantity, // Default to full quantity
+          unit_price: item.unit_price,
+          line_total: item.quantity * item.unit_price,
+          condition: 'GOOD'
+        })) : []
       });
-      alert('Goods Receipt created successfully!');
-    } catch (error) {
-      console.error('Error creating goods receipt:', error);
+
+      if (response.data) {
+        setShowCreateModal(false);
+        setFormData({
+          purchase_order_id: '',
+          warehouse_id: '',
+          received_date: new Date().toISOString().split('T')[0],
+          notes: ''
+        });
+        fetchGoodsReceipts();
+      }
+    } catch (err) {
+      console.error('Error creating goods receipt:', err);
       setError('Failed to create goods receipt');
     }
   };
 
   const handleViewGoodsReceipt = async (id) => {
+    setSelectedGoodsReceipt(goodsReceipts.find(gr => gr.id === id));
+    setShowViewModal(true);
+  };
+
+  const handleViewItems = async (receipt) => {
+    setSelectedGoodsReceipt(receipt);
     try {
-      const response = await api.get(`/goods-receipts/${id}`);
-      setSelectedGoodsReceipt(response.data);
-      setShowViewModal(true);
-    } catch (error) {
-      console.error('Error fetching goods receipt details:', error);
-      setError('Failed to fetch goods receipt details');
+      const response = await get(`/goods-receipts/${receipt.id}/items`);
+      if (response && response.data) {
+        setReceiptItems(Array.isArray(response.data) ? response.data : []);
+      }
+      setShowItemsModal(true);
+    } catch (err) {
+      console.error('Error fetching receipt items:', err);
+      setError('Failed to fetch receipt items');
+    }
+  };
+
+  const handleReceiveGoods = async (id) => {
+    if (!window.confirm('Are you sure you want to receive these goods? This will update stock levels.')) {
+      return;
+    }
+
+    try {
+      await post(`/goods-receipts/${id}/receive`);
+      fetchGoodsReceipts();
+    } catch (err) {
+      console.error('Error receiving goods:', err);
+      setError('Failed to receive goods');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this goods receipt?')) {
+      return;
+    }
+
+    try {
+      await deleteRequest(`/goods-receipts/${id}`);
+      fetchGoodsReceipts();
+    } catch (err) {
+      console.error('Error deleting goods receipt:', err);
+      setError('Failed to delete goods receipt');
     }
   };
 
   const getStatusBadge = (status) => {
-    const variant = status === 'RECEIVED' ? 'success' : status === 'PENDING' ? 'warning' : 'secondary';
-    return <Badge bg={variant}>{status}</Badge>;
+    const statusConfig = {
+      'PENDING': { bg: 'warning', text: 'Pending' },
+      'RECEIVED': { bg: 'success', text: 'Received' },
+      'REJECTED': { bg: 'danger', text: 'Rejected' }
+    };
+
+    const config = statusConfig[status] || { bg: 'secondary', text: status };
+    return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
-  const formatReceiptNumber = (receiptNumber) => {
-    // Ensure format: [KODE]-[URUTAN]/[WAREHOUSE]/[BULAN]-[TAHUN]
-    // Example: GR-0001/JKT/11-2025
-    return receiptNumber ? receiptNumber.toUpperCase() : '';
+  const getConditionBadge = (condition) => {
+    const conditionConfig = {
+      'GOOD': { bg: 'success', text: 'Good' },
+      'DAMAGED': { bg: 'warning', text: 'Damaged' },
+      'DEFECTIVE': { bg: 'danger', text: 'Defective' },
+      'WRONG_ITEM': { bg: 'info', text: 'Wrong Item' }
+    };
+
+    const config = conditionConfig[condition] || { bg: 'secondary', text: condition };
+    return <Badge bg={config.bg}>{config.text}</Badge>;
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const canEditReceipt = (receipt) => {
+    return hasPermission('goods-receipts.update') && receipt.status === 'PENDING';
+  };
+
+  const canDeleteReceipt = (receipt) => {
+    return hasPermission('goods-receipts.delete') && receipt.status === 'PENDING';
+  };
+
+  const canReceiveGoods = (receipt) => {
+    return hasPermission('goods-receipts.update') && receipt.status === 'PENDING';
+  };
+
+  const renderPagination = () => {
+    if (pagination.last_page <= 1) return null;
+
+    const pages = [];
+    const currentPage = pagination.current_page;
+    const lastPage = pagination.last_page;
+
+    // Show limited page numbers
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(lastPage, currentPage + 2);
+
+    if (currentPage <= 3) {
+      endPage = Math.min(5, lastPage);
+    }
+
+    if (currentPage >= lastPage - 2) {
+      startPage = Math.max(1, lastPage - 4);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <Button
+          key={i}
+          variant={i === currentPage ? "primary" : "outline-primary"}
+          size="sm"
+          className="me-1"
+          onClick={() => fetchGoodsReceipts(i)}
+        >
+          {i}
+        </Button>
+      );
+    }
+
+    return (
+      <div className="d-flex justify-content-center align-items-center mt-3">
+        <Button
+          variant="outline-primary"
+          size="sm"
+          className="me-2"
+          disabled={currentPage <= 1}
+          onClick={() => fetchGoodsReceipts(currentPage - 1)}
+        >
+          Previous
+        </Button>
+        {pages}
+        <Button
+          variant="outline-primary"
+          size="sm"
+          className="ms-2"
+          disabled={currentPage >= lastPage}
+          onClick={() => fetchGoodsReceipts(currentPage + 1)}
+        >
+          Next
+        </Button>
+      </div>
+    );
   };
 
   if (loading) {
     return (
-      <Container className="py-4">
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
         <div className="text-center">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading goods receipts...</span>
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
           </div>
+          <p className="mt-3">Loading goods receipts...</p>
         </div>
-      </Container>
+      </div>
     );
   }
 
   return (
-    <Container fluid className="py-4">
-      <Row>
-        <Col>
-          <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
-              <div>
-                <h4 className="mb-0">Goods Receipts</h4>
-                <small className="text-muted">Manage incoming goods from purchase orders</small>
-              </div>
-              <Button
-                variant="primary"
-                onClick={() => setShowCreateModal(true)}
-                disabled={purchaseOrders.length === 0}
-              >
-                <i className="bi bi-plus-circle me-2"></i>
+    <div className="goods-receipts">
+      <Container fluid>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2 className="mb-1">Goods Receipts</h2>
+            <p className="text-muted mb-0">
+              Showing {pagination.from || 0} to {pagination.to || 0} of {pagination.total} goods receipts
+            </p>
+          </div>
+          <div>
+            {hasPermission('goods-receipts.create') && (
+              <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                <i className="bi bi-plus-lg me-2"></i>
                 Create Goods Receipt
               </Button>
-            </Card.Header>
+            )}
+          </div>
+        </div>
 
-            <Card.Body>
-              {error && <Alert variant="danger">{error}</Alert>}
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
 
-              {purchaseOrders.length === 0 && (
-                <Alert variant="warning">
-                  <Alert.Heading>No Approved Purchase Orders</Alert.Heading>
-                  <p>You need approved purchase orders before creating goods receipts.</p>
-                </Alert>
-              )}
-
-              <div className="table-responsive">
-                <Table striped hover>
-                  <thead>
-                    <tr>
-                      <th>Receipt Number</th>
-                      <th>Purchase Order</th>
-                      <th>Status</th>
-                      <th>Receipt Date</th>
-                      <th>Created By</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {goodsReceipts.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="text-center py-4">
-                          <div className="text-muted">
-                            <i className="bi bi-inbox fs-1 d-block mb-2"></i>
-                            No goods receipts found
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      goodsReceipts.map(receipt => (
-                        <tr key={receipt.id}>
-                          <td>
-                            <strong className="text-primary">{formatReceiptNumber(receipt.receipt_number)}</strong>
-                          </td>
-                          <td>{receipt.purchase_order?.po_number || 'N/A'}</td>
-                          <td>{getStatusBadge(receipt.status)}</td>
-                          <td>{new Date(receipt.receipt_date).toLocaleDateString()}</td>
-                          <td>{receipt.user?.name || 'N/A'}</td>
-                          <td>
+        <Card>
+          <Card.Body>
+            <div className="table-responsive">
+              <Table hover>
+                <thead>
+                  <tr>
+                    <th>GR Number</th>
+                    <th>Purchase Order</th>
+                    <th>Supplier</th>
+                    <th>Warehouse</th>
+                    <th>Status</th>
+                    <th>Received Date</th>
+                    <th>Total Amount</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {goodsReceipts.map((receipt) => (
+                    <tr key={receipt.id}>
+                      <td className="fw-medium">{receipt.gr_number}</td>
+                      <td>{receipt.purchase_order?.po_number || 'N/A'}</td>
+                      <td>{receipt.purchase_order?.supplier?.company_name || 'N/A'}</td>
+                      <td>{receipt.warehouse?.name || 'N/A'}</td>
+                      <td>{getStatusBadge(receipt.status)}</td>
+                      <td>{receipt.received_date || '-'}</td>
+                      <td className="text-end">{formatCurrency(receipt.total_amount)}</td>
+                      <td>
+                        <div className="btn-group" role="group">
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleViewItems(receipt)}
+                          >
+                            <i className="bi bi-eye"></i>
+                          </Button>
+                          {canReceiveGoods(receipt) && (
                             <Button
+                              variant="outline-success"
                               size="sm"
-                              variant="outline-primary"
-                              onClick={() => handleViewGoodsReceipt(receipt.id)}
-                              className="me-2"
+                              onClick={() => handleReceiveGoods(receipt.id)}
                             >
-                              <i className="bi bi-eye"></i> View
+                              <i className="bi bi-check-circle"></i>
                             </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                          )}
+                          {canDeleteReceipt(receipt) && (
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDelete(receipt.id)}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </Card.Body>
+        </Card>
+
+        {renderPagination()}
 
       {/* Create Goods Receipt Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-plus-circle me-2"></i>
-            Create Goods Receipt
-          </Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleCreateGoodsReceipt}>
-          <Modal.Body>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Purchase Order *</Form.Label>
-                  <Form.Select
-                    value={formData.purchase_order_id}
-                    onChange={(e) => setFormData({...formData, purchase_order_id: e.target.value})}
-                    required
-                  >
-                    <option value="">Select Purchase Order</option>
-                    {purchaseOrders.map(po => (
-                      <option key={po.id} value={po.id}>
-                        {po.po_number} - {po.supplier?.name} (${po.total_amount})
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Text>Select an approved purchase order to receive goods from</Form.Text>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Receipt Date *</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={formData.receipt_date}
-                    onChange={(e) => setFormData({...formData, receipt_date: e.target.value})}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Form.Group className="mb-3">
-              <Form.Label>Notes</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                placeholder="Any notes about this goods receipt..."
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              <i className="bi bi-check-circle me-2"></i>
+        <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <i className="bi bi-plus-circle me-2"></i>
               Create Goods Receipt
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-
-      {/* View Goods Receipt Modal */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-eye me-2"></i>
-            Goods Receipt Details
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedGoodsReceipt && (
-            <div>
-              <Row className="mb-4">
+            </Modal.Title>
+          </Modal.Header>
+          <Form onSubmit={handleCreateGoodsReceipt}>
+            <Modal.Body>
+              <Row>
                 <Col md={6}>
-                  <h6>Receipt Information</h6>
-                  <p><strong>Receipt Number:</strong> <span className="text-primary fw-bold">{formatReceiptNumber(selectedGoodsReceipt.receipt_number)}</span></p>
-                  <p><strong>PO Number:</strong> {selectedGoodsReceipt.purchase_order?.po_number}</p>
-                  <p><strong>Supplier:</strong> {selectedGoodsReceipt.purchase_order?.supplier?.name}</p>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Purchase Order *</Form.Label>
+                    <Form.Select
+                      name="purchase_order_id"
+                      value={formData.purchase_order_id}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select Purchase Order</option>
+                      {purchaseOrders.map(po => (
+                        <option key={po.id} value={po.id}>
+                          {po.po_number} - {po.supplier?.company_name} ({formatCurrency(po.total_amount)})
+                        </option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text className="text-muted">Select a confirmed purchase order to receive goods from</Form.Text>
+                  </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <h6>Receipt Details</h6>
-                  <p><strong>Date:</strong> {new Date(selectedGoodsReceipt.receipt_date).toLocaleDateString()}</p>
-                  <p><strong>Status:</strong> {getStatusBadge(selectedGoodsReceipt.status)}</p>
-                  <p><strong>Created By:</strong> {selectedGoodsReceipt.user?.name}</p>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Warehouse *</Form.Label>
+                    <Form.Select
+                      name="warehouse_id"
+                      value={formData.warehouse_id}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select Warehouse</option>
+                      {warehouses.map((warehouse) => (
+                        <option key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
                 </Col>
               </Row>
+              <Row>
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Received Date *</Form.Label>
+                    <Form.Control
+                      type="date"
+                      name="received_date"
+                      value={formData.received_date}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Form.Group className="mb-3">
+                <Form.Label>Notes</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  rows={3}
+                  placeholder="Enter notes about this goods receipt..."
+                />
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary">
+                <i className="bi bi-check-circle me-2"></i>
+                Create Goods Receipt
+              </Button>
+            </Modal.Footer>
+          </Form>
+        </Modal>
 
-              {selectedGoodsReceipt.goods_receipt_items && (
-                <div>
-                  <h6>Received Items</h6>
-                  <Table striped size="sm">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Quantity Ordered</th>
-                        <th>Quantity Received</th>
-                        <th>Condition</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedGoodsReceipt.goods_receipt_items.map(item => (
-                        <tr key={item.id}>
-                          <td>{item.purchase_order_item?.product?.name}</td>
-                          <td>{item.purchase_order_item?.quantity_ordered}</td>
-                          <td>{item.quantity_received}</td>
-                          <td>
-                            <Badge bg={item.condition === 'GOOD' ? 'success' : 'warning'}>
-                              {item.condition}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              )}
-
-              {selectedGoodsReceipt.notes && (
-                <div className="mt-3">
-                  <h6>Notes</h6>
-                  <p>{selectedGoodsReceipt.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+        {/* View Items Modal */}
+        <Modal show={showItemsModal} onHide={() => setShowItemsModal(false)} size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <i className="bi bi-eye me-2"></i>
+              Goods Receipt Items - {selectedGoodsReceipt?.gr_number}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {receiptItems.length > 0 ? (
+              <Table hover>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Quantity Ordered</th>
+                    <th>Quantity Received</th>
+                    <th>Unit Price</th>
+                    <th>Line Total</th>
+                    <th>Condition</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receiptItems.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.product?.name || 'N/A'}</td>
+                      <td>{item.quantity_ordered}</td>
+                      <td>{item.quantity_received}</td>
+                      <td>{formatCurrency(item.unit_price)}</td>
+                      <td className="text-end">{formatCurrency(item.line_total)}</td>
+                      <td>{getConditionBadge(item.condition)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            ) : (
+              <p className="text-center text-muted">No items found</p>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowItemsModal(false)}>
+              Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </Container>
+    </div>
   );
 };
 

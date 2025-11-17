@@ -23,12 +23,8 @@ const Customers = () => {
 
   const fetchData = async () => {
     try {
-      // In a real app, fetch customers from the API
-      // For now, using mock data
-      setCustomers([
-        { id: 1, company_name: 'Customer A', contact_person: 'John Doe', email: 'john@example.com', phone: '123-456-7890', address: '123 Main St', tax_id: '123-45-678-9' },
-        { id: 2, company_name: 'Customer B', contact_person: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', address: '456 Oak Ave', tax_id: '987-65-432-1' }
-      ]);
+      const response = await get('/customers');
+      setCustomers(response.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching customers:', error);

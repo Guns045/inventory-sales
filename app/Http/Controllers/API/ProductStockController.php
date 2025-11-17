@@ -20,6 +20,7 @@ class ProductStockController extends Controller
     {
         $viewMode = $request->get('view_mode', 'per-warehouse');
         $search = $request->get('search', '');
+        $warehouseId = $request->get('warehouse_id', '');
 
         $query = ProductStock::with(['product', 'warehouse']);
 
@@ -27,8 +28,14 @@ class ProductStockController extends Controller
         if ($search) {
             $query->whereHas('product', function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
             });
+        }
+
+        // Warehouse filter
+        if ($warehouseId) {
+            $query->where('warehouse_id', $warehouseId);
         }
 
         // Role-based filtering

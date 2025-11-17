@@ -35,6 +35,17 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [error, setError] = useState('');
 
+  // Pagination states
+  const [paginationInfo, setPaginationInfo] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    from: 0,
+    to: 0
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+
   const [formData, setFormData] = useState({
     sku: '',
     name: '',
@@ -58,13 +69,22 @@ const Products = () => {
   useEffect(() => {
     console.log('Products component mounted - starting data fetch...');
     const loadData = async () => {
-      await fetchProducts();
+      await fetchProducts(1);
       await fetchCategories();
       await fetchSuppliers();
       console.log('All data fetch completed');
     };
     loadData();
   }, []);
+
+  // Refetch data when search term changes
+  useEffect(() => {
+    fetchProducts(1); // Reset to first page when searching
+  }, [searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePageChange = (page) => {
+    fetchProducts(page);
+  };
 
   const fetchCategories = async () => {
     try {
@@ -185,9 +205,22 @@ const Products = () => {
     };
   }, [suggestionTimeout]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 1) => {
     try {
-      const response = await api.get('/products');
+      setLoading(true);
+
+      // Add pagination parameters
+      const params = new URLSearchParams({
+        page: page,
+        per_page: 20
+      });
+
+      // Add search parameter if exists
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+
+      const response = await api.get(`/products?${params}`);
 
       // Transform API data to match frontend structure
       const transformedProducts = response.data.data.map(product => ({
@@ -208,6 +241,15 @@ const Products = () => {
       }));
 
       setProducts(transformedProducts);
+      setPaginationInfo({
+        current_page: response.data.current_page || 1,
+        last_page: response.data.last_page || 1,
+        per_page: response.data.per_page || 20,
+        total: response.data.total || 0,
+        from: response.data.from || 0,
+        to: response.data.to || 0
+      });
+      setCurrentPage(page);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -228,7 +270,7 @@ const Products = () => {
       }
 
       // Refresh products from database to get latest data
-      await fetchProducts();
+      await fetchProducts(1);
       setShowForm(false);
       resetForm();
       setError(''); // Clear error on success
@@ -258,7 +300,7 @@ const Products = () => {
       try {
         await api.delete(`/products/${id}`);
         // Refresh products from database to get latest data
-        await fetchProducts();
+        await fetchProducts(1);
       } catch (error) {
         console.error('Error deleting product:', error);
         setError('Failed to delete product');
@@ -296,11 +338,8 @@ const Products = () => {
     setEditingProduct(null);
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Backend now handles filtering and pagination, no client-side filtering needed
+  const displayProducts = products;
 
   if (loading) {
     return (
@@ -505,7 +544,7 @@ const Products = () => {
         <Col md={3} className="mb-3">
           <Card className="border-0 bg-primary text-white">
             <Card.Body className="text-center">
-              <h4 className="mb-1">{products.length}</h4>
+              <h4 className="mb-1">{paginationInfo.total}</h4>
               <p className="mb-0 small">Total Produk</p>
             </Card.Body>
           </Card>
@@ -591,7 +630,7 @@ const Products = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map(product => (
+                {displayProducts.map(product => (
                   <tr key={product.id}>
                     <td>
                       <code className="text-secondary">{product.sku}</code>
@@ -657,11 +696,59 @@ const Products = () => {
             </Table>
           </div>
 
-          {filteredProducts.length === 0 && (
+          {displayProducts.length === 0 && (
             <div className="text-center py-5">
               <i className="bi bi-search fs-1 text-muted mb-3"></i>
               <h5 className="text-muted">Tidak ada produk ditemukan</h5>
               <p className="text-muted">Coba ubah kata kunci pencarian atau tambah produk baru</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {paginationInfo.total > 0 && (
+            <div className="d-flex justify-content-between align-items-center p-3 border-top">
+              <div className="text-muted">
+                Showing {paginationInfo.from} to {paginationInfo.to} of {paginationInfo.total} entries
+              </div>
+              <div className="btn-group" role="group">
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={paginationInfo.current_page === 1}
+                >
+                  <i className="bi bi-chevron-double-left"></i>
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(paginationInfo.current_page - 1)}
+                  disabled={paginationInfo.current_page === 1}
+                >
+                  <i className="bi bi-chevron-left"></i>
+                </Button>
+
+                <span className="px-3 py-2 bg-light border">
+                  Page {paginationInfo.current_page} of {paginationInfo.last_page}
+                </span>
+
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(paginationInfo.current_page + 1)}
+                  disabled={paginationInfo.current_page === paginationInfo.last_page}
+                >
+                  <i className="bi bi-chevron-right"></i>
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePageChange(paginationInfo.last_page)}
+                  disabled={paginationInfo.current_page === paginationInfo.last_page}
+                >
+                  <i className="bi bi-chevron-double-right"></i>
+                </Button>
+              </div>
             </div>
           )}
         </Card.Body>

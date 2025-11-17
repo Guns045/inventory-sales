@@ -53,8 +53,8 @@ const DashboardMain = () => {
       };
 
       const criticalData = criticalResponse.status === 'fulfilled' ? criticalResponse.value.data : [];
-      const quotationsData = quotationsResponse.status === 'fulfilled' ? quotationsResponse.value.data : [];
-      const ordersData = ordersResponse.status === 'fulfilled' ? ordersResponse.value.data : [];
+      const quotationsData = quotationsResponse.status === 'fulfilled' ? quotationsResponse.value.data.data || quotationsResponse.value.data : [];
+      const ordersData = ordersResponse.status === 'fulfilled' ? ordersResponse.value.data.data || ordersResponse.value.data : [];
       const pipelineData = pipelineResponse.status === 'fulfilled' ? pipelineResponse.value.data : { draft: 0, approved: 0, rejected: 0 };
       const salesData = salesResponse.status === 'fulfilled' ? salesResponse.value.data : [];
 
@@ -68,9 +68,14 @@ const DashboardMain = () => {
           pending_quotations_count: mappedKpi.pending_approvals || 0,
           ready_to_ship_count: mappedKpi.ready_to_ship || 0,
         },
-        critical_stocks: Array.isArray(criticalData) ? criticalData.slice(0, 10).map(item => ({
+        critical_stocks: Array.isArray(criticalData.low_stock_products) ? criticalData.low_stock_products.slice(0, 10).map(item => ({
           item_code: item.sku || '',
-          item_name: item.product_name || item.name || '',
+          item_name: item.product?.description || item.description || '',
+          stock_actual: item.quantity || 0,
+          stock_minimum: item.min_stock_level || 0
+        })) : Array.isArray(criticalData) ? criticalData.slice(0, 10).map(item => ({
+          item_code: item.sku || '',
+          item_name: item.product?.description || item.description || '',
           stock_actual: item.quantity || 0,
           stock_minimum: item.min_stock_level || 0
         })) : [],
@@ -109,7 +114,7 @@ const DashboardMain = () => {
   }, []);
 
   // Only allow Admin roles to access this dashboard
-  if (!user?.role?.name || (!['Super Admin', 'Admin', 'manager'].includes(user.role.name))) {
+  if (!user?.role?.name || (!['Super Admin', 'Admin Jakarta', 'Admin Makassar', 'Manager Jakarta', 'Manager Makassar'].includes(user.role.name))) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
@@ -160,83 +165,62 @@ const DashboardMain = () => {
           <p className="text-muted mb-0">Ringkasan Eksekutif - Sistem Manajemen Penjualan</p>
         </div>
         <div className="d-flex flex-wrap gap-2">
-          <Button variant="outline-primary" size="sm">
-            <i className="bi bi-download me-1"></i>
-            Export Laporan
-          </Button>
-          <Button variant="primary" size="sm">
+          <Button variant="outline-primary" size="sm" onClick={fetchDashboardData}>
             <i className="bi bi-arrow-clockwise me-1"></i>
             Refresh
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <Row className="g-2 g-md-3 mb-4">
-        <Col xs={12} sm={6} lg={3}>
+      {/* KPI Cards - 3 Cards Layout */}
+      <Row className="g-3 g-md-4 mb-4">
+        <Col xs={12} md={4}>
           <Card className="border-0 shadow-sm h-100 hover-lift">
-            <Card.Body className="d-flex align-items-center p-2 p-md-3">
+            <Card.Body className="d-flex align-items-center p-3 p-md-4">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Total Penjualan YTD</h6>
-                <h2 className="mb-1 mb-md-2 text-primary fw-bold fs-4 fs-md-3">{formatCurrency(dashboardData.kpi.total_sales_ytd)}</h2>
+                <h6 className="text-muted mb-2 mb-md-3 small text-uppercase">Total Penjualan YTD</h6>
+                <h2 className="mb-2 mb-md-2 text-primary fw-bold fs-3 fs-2">{formatCurrency(dashboardData.kpi.total_sales_ytd)}</h2>
                 <small className="text-success d-flex align-items-center">
                   <i className="bi bi-arrow-up me-1"></i> 12.5% vs tahun lalu
                 </small>
               </div>
-              <div className="ms-2 ms-md-3">
-                <div className="bg-primary bg-opacity-10 rounded-circle p-2 p-md-3">
-                  <i className="bi bi-currency-dollar text-primary fs-4 fs-md-5"></i>
+              <div className="ms-3">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-currency-dollar text-primary fs-3 fs-2"></i>
                 </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col xs={12} sm={6} lg={3}>
+        <Col xs={12} md={4}>
           <Card className="border-0 shadow-sm h-100 hover-lift">
-            <Card.Body className="d-flex align-items-center p-2 p-md-3">
+            <Card.Body className="d-flex align-items-center p-3 p-md-4">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Stok Kritis</h6>
-                <h2 className="mb-1 mb-md-2 text-danger fw-bold fs-4 fs-md-3">{dashboardData.kpi.critical_stocks_count}</h2>
-                <small className="text-muted">Item perlu segera diisi</small>
-              </div>
-              <div className="ms-2 ms-md-3">
-                <div className="bg-danger bg-opacity-10 rounded-circle p-2 p-md-3">
-                  <i className="bi bi-exclamation-triangle text-danger fs-4 fs-md-5"></i>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3}>
-          <Card className="border-0 shadow-sm h-100 hover-lift">
-            <Card.Body className="d-flex align-items-center p-2 p-md-3">
-              <div className="flex-grow-1">
-                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Penawaran Pending</h6>
-                <h2 className="mb-1 mb-md-2 text-warning fw-bold fs-4 fs-md-3">{dashboardData.kpi.pending_quotations_count}</h2>
+                <h6 className="text-muted mb-2 mb-md-3 small text-uppercase">Penawaran Pending</h6>
+                <h2 className="mb-2 mb-md-2 text-warning fw-bold fs-3 fs-2">{dashboardData.kpi.pending_quotations_count}</h2>
                 <small className="text-muted">Menunggu persetujuan</small>
               </div>
-              <div className="ms-2 ms-md-3">
-                <div className="bg-warning bg-opacity-10 rounded-circle p-2 p-md-3">
-                  <i className="bi bi-file-text text-warning fs-4 fs-md-5"></i>
+              <div className="ms-3">
+                <div className="bg-warning bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-file-text text-warning fs-3 fs-2"></i>
                 </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col xs={12} sm={6} lg={3}>
+        <Col xs={12} md={4}>
           <Card className="border-0 shadow-sm h-100 hover-lift">
-            <Card.Body className="d-flex align-items-center p-2 p-md-3">
+            <Card.Body className="d-flex align-items-center p-3 p-md-4">
               <div className="flex-grow-1">
-                <h6 className="text-muted mb-1 mb-md-2 small text-uppercase">Siap Kirim</h6>
-                <h2 className="mb-1 mb-md-2 text-success fw-bold fs-4 fs-md-3">{dashboardData.kpi.ready_to_ship_count}</h2>
+                <h6 className="text-muted mb-2 mb-md-3 small text-uppercase">Siap Kirim</h6>
+                <h2 className="mb-2 mb-md-2 text-success fw-bold fs-3 fs-2">{dashboardData.kpi.ready_to_ship_count}</h2>
                 <small className="text-muted">Pesanan siap dikirim</small>
               </div>
-              <div className="ms-2 ms-md-3">
-                <div className="bg-success bg-opacity-10 rounded-circle p-2 p-md-3">
-                  <i className="bi bi-truck text-success fs-4 fs-md-5"></i>
+              <div className="ms-3">
+                <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                  <i className="bi bi-truck text-success fs-3 fs-2"></i>
                 </div>
               </div>
             </Card.Body>
@@ -277,11 +261,17 @@ const DashboardMain = () => {
         <Col xs={12}>
           <Card className="border-0 shadow-sm">
             <Card.Header className="bg-white border-0 px-2 px-md-3 pt-2 pt-md-3 pb-2">
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0 fw-semibold">Stok Kritis</h5>
-                <Button variant="outline-primary" size="sm">
-                  Lihat Semua
-                </Button>
+              <div>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <h3 className="mb-1 fw-bold text-danger">Critical Stocks</h3>
+                  </div>
+                  <div>
+                    <Button variant="outline-primary" size="sm" onClick={() => window.location.href = '/dashboard/product-stock'}>
+                      Lihat Semua
+                    </Button>
+                  </div>
+                </div>
               </div>
             </Card.Header>
             <Card.Body className="p-2 p-md-3">
@@ -290,10 +280,10 @@ const DashboardMain = () => {
                   <Table hover className="table-sm">
                     <thead>
                       <tr>
-                        <th className="small text-uppercase">Kode Item</th>
-                        <th className="small text-uppercase">Nama Item</th>
-                        <th className="small text-uppercase text-center">Stok</th>
-                        <th className="small text-uppercase text-center">Minimum</th>
+                        <th className="small text-uppercase">Part Number</th>
+                        <th className="small text-uppercase">Description</th>
+                        <th className="small text-uppercase text-center">Available Stock</th>
+                        <th className="small text-uppercase text-center">Minimum Stock</th>
                         <th className="small text-uppercase">Status</th>
                       </tr>
                     </thead>

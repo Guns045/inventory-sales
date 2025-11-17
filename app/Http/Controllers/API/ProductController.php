@@ -12,12 +12,26 @@ class ProductController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'supplier', 'productStock.warehouse'])->get();
+        $query = Product::with(['category', 'supplier', 'productStock.warehouse']);
+
+        // Search functionality
+        $search = $request->get('search', '');
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Paginate with requested per_page or default to 20
+        $perPage = $request->get('per_page', 20);
+        $products = $query->paginate($perPage);
 
         // Calculate current stock for each product and organize stock by warehouse
-        $products->each(function ($product) {
+        $products->getCollection()->each(function ($product) {
             $totalQuantity = $product->productStock->sum('quantity');
             $totalReserved = $product->productStock->sum('reserved_quantity');
             $product->current_stock = $totalQuantity - $totalReserved;
@@ -38,16 +52,7 @@ class ProductController extends Controller
             });
         });
 
-        // Return as collection with pagination info
-        $result = [
-            'data' => $products,
-            'total' => $products->count(),
-            'per_page' => 10,
-            'current_page' => 1,
-            'last_page' => 1
-        ];
-
-        return response()->json($result);
+        return response()->json($products);
     }
 
     /**
@@ -59,8 +64,8 @@ class ProductController extends Controller
             'sku' => 'required|string|max:255|unique:products',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
-            'supplier_id' => 'required|exists:suppliers,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'buy_price' => 'required|numeric|min:0',
             'sell_price' => 'required|numeric|min:0',
             'min_stock_level' => 'required|integer|min:0',
@@ -112,8 +117,8 @@ class ProductController extends Controller
             'sku' => ['required', 'string', 'max:255', Rule::unique('products')->ignore($product->id)],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
-            'supplier_id' => 'required|exists:suppliers,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'buy_price' => 'required|numeric|min:0',
             'sell_price' => 'required|numeric|min:0',
             'min_stock_level' => 'required|integer|min:0',

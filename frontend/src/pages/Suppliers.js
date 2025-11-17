@@ -21,12 +21,8 @@ const Suppliers = () => {
 
   const fetchData = async () => {
     try {
-      // In a real app, fetch suppliers from the API
-      // For now, using mock data
-      setSuppliers([
-        { id: 1, name: 'Supplier A', contact_person: 'John Doe', phone: '123-456-7890', address: '123 Main St' },
-        { id: 2, name: 'Supplier B', contact_person: 'Jane Smith', phone: '098-765-4321', address: '456 Oak Ave' }
-      ]);
+      const response = await get('/suppliers');
+      setSuppliers(response.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
