@@ -18,9 +18,9 @@ class GoodsReceiptItem extends Model
         'unit_price',
         'line_total',
         'condition',
+        'uom',
         'batch_number',
-        'expiry_date',
-        'notes',
+        'serial_number',
     ];
 
     protected $casts = [
@@ -28,7 +28,6 @@ class GoodsReceiptItem extends Model
         'quantity_received' => 'integer',
         'unit_price' => 'decimal:2',
         'line_total' => 'decimal:2',
-        'expiry_date' => 'date',
     ];
 
     protected $with = ['product'];
@@ -72,7 +71,11 @@ class GoodsReceiptItem extends Model
 
     public function isValidQuantity()
     {
-        return $this->quantity_received <= $this->quantity_ordered;
+        // Get the ordered quantity from PO item
+        if ($this->purchaseOrderItem) {
+            return $this->quantity_received <= $this->purchaseOrderItem->quantity_ordered;
+        }
+        return true; // If no PO item reference, allow any quantity
     }
 
     public function canBeAddedToStock()

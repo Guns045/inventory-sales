@@ -37,7 +37,7 @@ class GoodsReceiptController extends Controller
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('gr_number', 'like', "%{$search}%")
+                $q->where('receipt_number', 'like', "%{$search}%")
                   ->orWhereHas('purchaseOrder', function ($pq) use ($search) {
                       $pq->where('po_number', 'like', "%{$search}%");
                   });
@@ -88,12 +88,13 @@ class GoodsReceiptController extends Controller
             $grNumber = DocumentCounter::getNextNumber('GOODS_RECEIPT', $request->warehouse_id);
 
             $goodsReceipt = GoodsReceipt::create([
-                'gr_number' => $grNumber,
+                'receipt_number' => $grNumber,
                 'purchase_order_id' => $request->purchase_order_id,
                 'warehouse_id' => $request->warehouse_id,
-                'received_by' => auth()->id(),
+                'user_id' => auth()->id() ?? 1,
+                'received_by' => auth()->id() ?? 1,
                 'status' => 'PENDING',
-                'received_date' => $request->received_date,
+                'receipt_date' => $request->received_date,
                 'notes' => $request->notes,
             ]);
 
@@ -121,11 +122,11 @@ class GoodsReceiptController extends Controller
 
             // Log activity
             ActivityLog::create([
-                'user_id' => auth()->id(),
+                'user_id' => auth()->id() ?? 1,
                 'action' => 'Created Goods Receipt',
+                'description' => "Created GR {$grNumber} for PO {$goodsReceipt->purchaseOrder->po_number}",
                 'reference_type' => 'GoodsReceipt',
                 'reference_id' => $goodsReceipt->id,
-                'details' => "Created GR {$grNumber} for PO {$goodsReceipt->purchaseOrder->po_number}",
             ]);
 
             return $goodsReceipt->refresh();
@@ -238,7 +239,7 @@ class GoodsReceiptController extends Controller
                 'action' => 'Deleted Goods Receipt',
                 'reference_type' => 'GoodsReceipt',
                 'reference_id' => $goodsReceipt->id,
-                'details' => "Deleted GR {$goodsReceipt->gr_number}",
+                'details' => "Deleted GR {$goodsReceipt->receipt_number}",
             ]);
 
             $goodsReceipt->delete();
@@ -266,14 +267,17 @@ class GoodsReceiptController extends Controller
         DB::transaction(function () use ($request, $goodsReceipt) {
             $goodsReceipt->processReceipt();
 
-            // Create notification
-            Notification::create([
-                'user_id' => auth()->id(),
-                'title' => 'Goods Receipt Processed',
-                'message' => "GR {$goodsReceipt->gr_number} has been received and stock updated",
-                'type' => 'goods_receipt',
-                'reference_id' => $goodsReceipt->id,
-            ]);
+            // Create notification only if we have a valid user
+            $userId = auth()->id() ?? $goodsReceipt->received_by;
+            if ($userId) {
+                Notification::create([
+                    'user_id' => $userId,
+                    'title' => 'Goods Receipt Processed',
+                    'message' => "GR {$goodsReceipt->receipt_number} has been processed. Status: {$goodsReceipt->status}",
+                    'type' => 'goods_receipt',
+                    'reference_id' => $goodsReceipt->id,
+                ]);
+            }
 
             return $goodsReceipt;
         });

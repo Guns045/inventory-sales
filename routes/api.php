@@ -122,13 +122,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('payments', PaymentController::class);
     
     // Purchase management
+    Route::get('/purchase-orders/ready-for-goods-receipt', [PurchaseOrderController::class, 'readyForGoodsReceipt']);
     Route::apiResource('purchase-orders', PurchaseOrderController::class)->middleware('permission:purchase-orders.read');
     Route::get('/purchase-orders/{id}/items', [PurchaseOrderController::class, 'getPurchaseOrderItems'])->middleware('permission:purchase-orders.read');
     Route::post('/purchase-orders/{id}/send', [PurchaseOrderController::class, 'sendPO'])->middleware('permission:purchase-orders.update');
     Route::get('/purchase-orders/{id}/print', [PurchaseOrderController::class, 'printPDF'])->middleware('permission:purchase-orders.read');
     Route::post('/purchase-orders/{id}/receive', [PurchaseOrderController::class, 'receive'])->middleware('permission:purchase-orders.update');
     Route::put('/purchase-orders/{id}/status', [PurchaseOrderController::class, 'updateStatus'])->middleware('permission:purchase-orders.update');
-    Route::get('/purchase-orders/ready-for-goods-receipt', [PurchaseOrderController::class, 'readyForGoodsReceipt'])->middleware('permission:purchase-orders.read');
+    Route::post('/purchase-orders/{id}/cancel', [PurchaseOrderController::class, 'cancel'])->middleware('permission:purchase-orders.update');
 
     Route::apiResource('goods-receipts', GoodsReceiptController::class)->middleware('permission:goods-receipts.read');
     Route::get('/goods-receipts/{id}/items', [GoodsReceiptController::class, 'getGoodsReceiptItems'])->middleware('permission:goods-receipts.read');

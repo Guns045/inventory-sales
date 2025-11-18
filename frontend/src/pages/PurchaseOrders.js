@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, Table, Button, Badge, Alert, Form, Modal } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { usePermissions } from '../contexts/PermissionContext';
+import $ from 'jquery';
+import 'selectize';
+import 'selectize/dist/css/selectize.default.css';
 import './PurchaseOrders.css';
+
+// Make jQuery available globally for selectize
+window.jQuery = $;
+window.$ = $;
 
 const PurchaseOrders = () => {
   const { api } = useAPI();
@@ -45,6 +52,8 @@ const PurchaseOrders = () => {
     tax_rate: 11 // Default tax 11%
   });
 
+  const productSelectRef = useRef(null);
+
   const [items, setItems] = useState([]);
 
   // Send PO Form State
@@ -59,6 +68,62 @@ const PurchaseOrders = () => {
     fetchWarehouses();
     fetchProducts();
   }, []);
+
+  // Initialize Selectize when products are loaded
+  useEffect(() => {
+    if (products.length > 0 && productSelectRef.current) {
+      // Destroy existing selectize instance if any
+      if (productSelectRef.current.selectize) {
+        productSelectRef.current.selectize.destroy();
+      }
+
+      // Initialize selectize
+      const selectizeInstance = $(productSelectRef.current).selectize({
+        sortField: 'text',
+        searchField: ['text'],
+        create: false,
+        allowEmptyOption: true,
+        onChange: (value) => {
+          if (value) {
+            const selectedProduct = products.find(p => p.id === parseInt(value));
+            if (selectedProduct) {
+              setNewItem(prev => ({
+                ...prev,
+                product_id: value,
+                unit_price: selectedProduct.buy_price || 0
+              }));
+            }
+          } else {
+            setNewItem(prev => ({
+              ...prev,
+              product_id: '',
+              unit_price: 0
+            }));
+          }
+        }
+      });
+
+      // Store selectize instance for later use
+      productSelectRef.current.selectize = selectizeInstance[0].selectize;
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (productSelectRef.current && productSelectRef.current.selectize) {
+        productSelectRef.current.selectize.destroy();
+      }
+    };
+  }, [products]);
+
+  // Update selectize value when newItem.product_id changes
+  useEffect(() => {
+    if (productSelectRef.current && productSelectRef.current.selectize) {
+      const selectize = productSelectRef.current.selectize;
+      if (newItem.product_id !== selectize.getValue()) {
+        selectize.setValue(newItem.product_id);
+      }
+    }
+  }, [newItem.product_id]);
 
   const fetchPurchaseOrders = async (page = 1) => {
     try {
@@ -117,12 +182,12 @@ const PurchaseOrders = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.get('/products');
+      const response = await api.get('/products?per_page=1000');
       if (response && response.data) {
         const productsData = response.data.data || response.data;
         const productsArray = Array.isArray(productsData) ? productsData : [];
         setProducts(productsArray);
-        console.log('Products fetched:', productsArray);
+        console.log('Products fetched:', productsArray.length, 'products');
         if (productsArray.length > 0) {
           console.log('Sample product structure:', productsArray[0]);
         }
@@ -165,6 +230,13 @@ const PurchaseOrders = () => {
       setNewItem(prev => ({
         ...prev,
         [name]: intValue
+      }));
+    } else if (name === 'tax_rate') {
+      // Ensure tax_rate is a number
+      const numValue = parseFloat(value) || 0;
+      setNewItem(prev => ({
+        ...prev,
+        [name]: numValue
       }));
     } else {
       setNewItem(prev => ({
@@ -281,6 +353,7 @@ const PurchaseOrders = () => {
         unit_price: 0,
         tax_rate: 11
       });
+      setProductSearch('');
       fetchPurchaseOrders();
     } catch (err) {
       console.error('Error saving purchase order:', err);
@@ -366,7 +439,8 @@ const PurchaseOrders = () => {
       const response = await api.get(`/purchase-orders/${orderId}/print`, {
         responseType: 'blob',
         headers: {
-          'Accept': 'application/pdf'
+          'Accept': 'application/pdf',
+          'Content-Type': 'application/json'
         }
       });
 
@@ -465,10 +539,11 @@ const PurchaseOrders = () => {
   const getStatusBadge = (status) => {
     const statusConfig = {
       'DRAFT': { bg: 'secondary', text: 'Draft' },
-      'SENT': { bg: 'info', text: 'Sent' },
-      'CONFIRMED': { bg: 'primary', text: 'Confirmed' },
+      'SUBMITTED': { bg: 'info', text: 'Submitted' },
+      'APPROVED': { bg: 'primary', text: 'Approved' },
       'PARTIAL_RECEIVED': { bg: 'warning', text: 'Partial Received' },
-      'COMPLETED': { bg: 'success', text: 'Completed' },
+      'RECEIVED': { bg: 'success', text: 'Received' },
+      'CLOSED': { bg: 'dark', text: 'Closed' },
       'CANCELLED': { bg: 'danger', text: 'Cancelled' }
     };
 
@@ -494,6 +569,23 @@ const PurchaseOrders = () => {
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString; // Return original if invalid
+
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+
+      return `${day}-${month}-${year}`;
+    } catch (error) {
+      return dateString; // Return original if error
+    }
   };
 
   const renderPagination = () => {
@@ -726,15 +818,18 @@ const PurchaseOrders = () => {
                       <tr>
                         <td>
                           <Form.Select
+                            ref={productSelectRef}
                             name="product_id"
                             value={newItem.product_id}
                             onChange={handleItemChange}
                             style={{fontSize: '0.9rem'}}
+                            size="sm"
+                            disabled={products.length === 0}
                           >
                             <option value="">Select Product</option>
                             {products.map(product => (
                               <option key={product.id} value={product.id}>
-                                {(product.sku || 'NO-SKU')} - {product.description || product.name} - {formatCurrency(product.buy_price || 0)}
+                                {product.sku || product.part_number || 'NO-SKU'} - {product.description || product.name || product.name} - {formatCurrency(product.buy_price || 0)}
                               </option>
                             ))}
                           </Form.Select>
@@ -868,7 +963,7 @@ const PurchaseOrders = () => {
                       <td>{order.supplier?.name || 'N/A'}</td>
                       <td>{order.warehouse?.name || 'N/A'}</td>
                       <td>{getStatusBadge(order.status)}</td>
-                      <td>{order.expected_delivery_date || '-'}</td>
+                      <td>{formatDate(order.expected_delivery_date)}</td>
                       <td className="text-end">{formatCurrency(order.total_amount)}</td>
                       <td>
                         <div className="btn-group" role="group">
@@ -990,7 +1085,7 @@ const PurchaseOrders = () => {
                       <p><strong>Supplier:</strong> {selectedOrder?.supplier?.name}</p>
                       <p><strong>Warehouse:</strong> {selectedOrder?.warehouse?.name}</p>
                       <p><strong>Total Amount:</strong> {formatCurrency(selectedOrder?.total_amount)}</p>
-                      <p><strong>Expected Delivery:</strong> {selectedOrder?.expected_delivery_date || 'To be confirmed'}</p>
+                      <p><strong>Expected Delivery:</strong> {formatDate(selectedOrder?.expected_delivery_date)}</p>
                     </div>
                   </Form.Group>
                 </Col>

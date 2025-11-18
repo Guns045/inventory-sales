@@ -19,6 +19,8 @@ export const APIProvider = ({ children }) => {
 
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://127.0.0.1:8000/api';
+    } else if (hostname === '127.0.0.1') {
+      return 'http://127.0.0.1:8000/api';
     } else {
       // Use the same hostname as the frontend for API access
       return `http://${hostname}:8000/api`;

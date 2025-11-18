@@ -49,21 +49,4 @@
         <p>{{ $purchaseOrder['notes'] }}</p>
     </div>
     @endif
-
-    <div class="sign-section">
-        <table>
-            <tr>
-                <td class="sign-box">
-                    <strong>Requested By</strong>
-                    <div class="signature-line"></div>
-                    <small>{{ $purchaseOrder['created_by'] }}</small>
-                </td>
-                <td class="sign-box">
-                    <strong>Supplier</strong>
-                    <div class="signature-line"></div>
-                    <small>{{ $purchaseOrder['supplier_name'] }}</small>
-                </td>
-            </tr>
-        </table>
-    </div>
 @endsection

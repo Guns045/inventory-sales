@@ -225,7 +225,7 @@ class PurchaseOrderController extends Controller
                     'action' => 'Updated Purchase Order Status',
                     'reference_type' => 'PurchaseOrder',
                     'reference_id' => $purchaseOrder->id,
-                    'details' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$purchaseOrder->status}",
+                    'description' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$purchaseOrder->status}",
                 ]);
             }
 
@@ -248,15 +248,19 @@ class PurchaseOrderController extends Controller
         }
 
         DB::transaction(function () use ($purchaseOrder) {
-            // Log activity
+            // Delete related items first
+            $purchaseOrder->items()->delete();
+
+            // Log activity before deletion
             ActivityLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'Deleted Purchase Order',
+                'description' => "Deleted PO {$purchaseOrder->po_number}",
                 'reference_type' => 'PurchaseOrder',
                 'reference_id' => $purchaseOrder->id,
-                'details' => "Deleted PO {$purchaseOrder->po_number}",
             ]);
 
+            // Delete the purchase order
             $purchaseOrder->delete();
         });
 
@@ -288,7 +292,7 @@ class PurchaseOrderController extends Controller
                 'action' => 'Updated Purchase Order Status',
                 'reference_type' => 'PurchaseOrder',
                 'reference_id' => $purchaseOrder->id,
-                'details' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$request->status}",
+                'description' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$request->status}",
             ]);
 
             // Create notification if status changed to CONFIRMED
@@ -321,8 +325,11 @@ class PurchaseOrderController extends Controller
     public function readyForGoodsReceipt()
     {
         $query = PurchaseOrder::with(['supplier', 'warehouse', 'items.product'])
-            ->where('status', 'CONFIRMED')
-            ->orWhere('status', 'PARTIAL_RECEIVED');
+            ->where(function($q) {
+                $q->where('status', 'CONFIRMED')
+                  ->orWhere('status', 'SUBMITTED')
+                  ->orWhere('status', 'PARTIAL_RECEIVED');
+            });
 
         // Filter by user warehouse access
         $user = request()->user();
@@ -383,7 +390,21 @@ class PurchaseOrderController extends Controller
 
         // Safe filename
         $safeNumber = str_replace(['/', '\\'], '_', $purchaseOrder->po_number);
-        return $dompdf->stream("Purchase-Order-{$safeNumber}.pdf");
+
+        // Generate PDF output
+        $pdfOutput = $dompdf->output();
+
+        // Create response with proper CORS headers
+        $response = response($pdfOutput, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "inline; filename=\"Purchase-Order-{$safeNumber}.pdf\"",
+            'Access-Control-Allow-Origin' => request()->header('Origin', '*'),
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, X-Auth-Token, Origin, Authorization',
+            'Access-Control-Allow-Credentials' => 'true'
+        ]);
+
+        return $response;
     }
 
     /**
@@ -423,8 +444,8 @@ class PurchaseOrderController extends Controller
             Mail::to($request->recipient_email)
                 ->send(new PurchaseOrderMail($purchaseOrder, $request->custom_message));
 
-            // Update PO status to SENT
-            $purchaseOrder->update(['status' => 'SENT']);
+            // Update PO status to SUBMITTED (valid enum value)
+            $purchaseOrder->update(['status' => 'SUBMITTED']);
 
             // Update email log status
             $emailLog->markAsSent();
@@ -455,5 +476,51 @@ class PurchaseOrderController extends Controller
                 'email_log_id' => $emailLog->id
             ], 500);
         }
+    }
+
+    /**
+     * Cancel purchase order
+     */
+    public function cancel(Request $request, $id)
+    {
+        $purchaseOrder = PurchaseOrder::findOrFail($id);
+
+        // Check if PO can be cancelled
+        if (in_array($purchaseOrder->status, ['COMPLETED', 'CANCELLED'])) {
+            return response()->json(['message' => 'Purchase Order cannot be cancelled in current status'], 422);
+        }
+
+        $request->validate([
+            'cancellation_reason' => 'required|string'
+        ]);
+
+        DB::transaction(function () use ($request, $purchaseOrder) {
+            $oldStatus = $purchaseOrder->status;
+
+            $purchaseOrder->update([
+                'status' => 'CANCELLED',
+                'notes' => ($purchaseOrder->notes ?? '') . "\n\nCancellation Reason: " . $request->cancellation_reason
+            ]);
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'Cancelled Purchase Order',
+                'description' => "Cancelled PO {$purchaseOrder->po_number}. Previous status: {$oldStatus}. Cancellation Reason: " . $request->cancellation_reason,
+                'reference_type' => 'PurchaseOrder',
+                'reference_id' => $purchaseOrder->id,
+            ]);
+
+            // Create notification
+            Notification::create([
+                'user_id' => auth()->id(),
+                'title' => 'Purchase Order Cancelled',
+                'message' => "PO {$purchaseOrder->po_number} has been cancelled",
+                'type' => 'purchase_order',
+                'reference_id' => $purchaseOrder->id,
+            ]);
+        });
+
+        return response()->json($purchaseOrder->load(['supplier', 'warehouse', 'user']));
     }
 }

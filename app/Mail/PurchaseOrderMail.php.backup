@@ -17,7 +17,6 @@ class PurchaseOrderMail extends Mailable
 
     public $purchaseOrder;
     public $customMessage;
-    public $transformedData;
 
     /**
      * Create a new message instance.
@@ -26,7 +25,6 @@ class PurchaseOrderMail extends Mailable
     {
         $this->purchaseOrder = $purchaseOrder;
         $this->customMessage = $customMessage;
-        $this->transformedData = PurchaseOrderTransformer::transform($purchaseOrder);
     }
 
     /**
@@ -45,15 +43,15 @@ class PurchaseOrderMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.purchase-order',
-            with: [
+            html: view('emails.purchase-order', [
                 'purchaseOrder' => $this->purchaseOrder,
                 'customMessage' => $this->customMessage,
-                'transformedData' => $this->transformedData,
-            ]
+                'transformedData' => PurchaseOrderTransformer::transform($this->purchaseOrder)
+            ])->render()
         );
     }
 
+    
     /**
      * Get the attachments for the message.
      *
@@ -75,6 +73,13 @@ class PurchaseOrderMail extends Mailable
     private function generatePDF()
     {
         // Prepare company data
+        $companyData = [
+            'name' => 'PT. Jinan Truck Power Indonesia',
+            'address' => 'Jl. Jakarta Raya No. 123, Jakarta Selatan, DKI Jakarta'
+        ];
+
+        // Transform data untuk template
+        $purchaseOrderData = PurchaseOrderTransformer::transform($this->purchaseOrder);
         $companyData = PurchaseOrderTransformer::getCompanyData();
 
         // Generate PDF dengan DOMPDF
@@ -86,7 +91,7 @@ class PurchaseOrderMail extends Mailable
         $dompdf = new \Dompdf\Dompdf($options);
 
         $html = view('pdf.purchase-order', [
-            'purchaseOrder' => $this->transformedData,
+            'purchaseOrder' => $purchaseOrderData,
             'company' => $companyData
         ])->render();
 

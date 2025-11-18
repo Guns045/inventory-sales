@@ -23,6 +23,8 @@ class Cors
             'http://127.0.0.1:5173',
             'http://192.168.18.23:3000',
             'http://192.168.18.23:5173',
+            'http://localhost:3000', // Tambahkan untuk development
+            'http://127.0.0.1:3000', // Tambahkan untuk development
         ]);
 
         $origin = $request->header('Origin');
