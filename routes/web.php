@@ -21,6 +21,11 @@ Route::get('/preview/quotation-db/{id?}', [PdfPreviewController::class, 'testQuo
 Route::get('/preview/invoice', [PdfPreviewController::class, 'mockInvoice'])->name('preview.invoice');
 Route::get('/preview/invoice-db/{id?}', [PdfPreviewController::class, 'testInvoiceFromDatabase'])->name('preview.invoice.db');
 
+// Catch-all route for React SPA (must be last)
+Route::get('/{any}', function () {
+    return view('welcome');
+})->where('any', '.*');
+
 
 
 

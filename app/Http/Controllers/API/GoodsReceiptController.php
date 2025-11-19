@@ -121,13 +121,11 @@ class GoodsReceiptController extends Controller
             $goodsReceipt->update(['total_amount' => $totalAmount]);
 
             // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id() ?? 1,
-                'action' => 'Created Goods Receipt',
-                'description' => "Created GR {$grNumber} for PO {$goodsReceipt->purchaseOrder->po_number}",
-                'reference_type' => 'GoodsReceipt',
-                'reference_id' => $goodsReceipt->id,
-            ]);
+            ActivityLog::log(
+                'Created Goods Receipt',
+                "Created GR {$grNumber} for PO {$goodsReceipt->purchaseOrder->po_number}",
+                $goodsReceipt
+            );
 
             return $goodsReceipt->refresh();
         });
@@ -233,14 +231,15 @@ class GoodsReceiptController extends Controller
         }
 
         DB::transaction(function () use ($goodsReceipt) {
+            // Delete related items first
+            $goodsReceipt->items()->delete();
+
             // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'Deleted Goods Receipt',
-                'reference_type' => 'GoodsReceipt',
-                'reference_id' => $goodsReceipt->id,
-                'details' => "Deleted GR {$goodsReceipt->receipt_number}",
-            ]);
+            ActivityLog::log(
+                'Deleted Goods Receipt',
+                "Deleted GR {$goodsReceipt->receipt_number}",
+                $goodsReceipt
+            );
 
             $goodsReceipt->delete();
         });

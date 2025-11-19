@@ -1,1 +1,32 @@
-{"mcpServers":{"chrome-devtools":{"command":"npx","args":["-y","chrome-devtools-mcp@0.10.1"],"env":{"CHROME_REMOTE_DEBUGGING_PORT":"9222","CHROME_HEADLESS":"false"}}}}
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@0.10.1"
+      ],
+      "env": {
+        "CHROME_REMOTE_DEBUGGING_PORT": "9222",
+        "CHROME_HEADLESS": "false"
+      }
+    },
+    "Codemagic MCP Server": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "mcp[cli]",
+        "--with",
+        "requests",
+        "mcp",
+        "run",
+        "<global_path_to_the_cloned_repo>/codemagic_mcp/server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "<global_path_to_the_cloned_repo>/",
+        "CODEMAGIC_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}

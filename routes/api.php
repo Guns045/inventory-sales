@@ -164,7 +164,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard routes
     Route::get('/dashboard', [DashboardController::class, 'getDashboardData'])->middleware('permission:dashboard.read');
     Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard'])->middleware('permission:dashboard.sales');
-    Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard'])->middleware('permission:dashboard.approval');
+    Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard']);//->middleware('permission:dashboard.approval');
     Route::get('/dashboard/warehouse', [DashboardController::class, 'warehouseDashboard'])->middleware('permission:dashboard.warehouse');
     Route::get('/dashboard/finance', [DashboardController::class, 'financeDashboard'])->middleware('permission:dashboard.finance');
 

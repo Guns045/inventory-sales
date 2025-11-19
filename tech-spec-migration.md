@@ -116,6 +116,8 @@ Lakukan ke semua entitas:
 - SalesOrder
 - PickingList
 - Delivery
+- PurchaseOrder
+- GoodReciept
 - Invoice
 - Customer
 - Warehouse

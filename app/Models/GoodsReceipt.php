@@ -76,7 +76,7 @@ class GoodsReceipt extends Model
     public function scopeFilter($query, array $filters)
     {
         $query->when($filters['search'] ?? null, function ($query, $search) {
-            $query->where('gr_number', 'like', "%{$search}%")
+            $query->where('receipt_number', 'like', "%{$search}%")
                   ->orWhereHas('purchaseOrder', function ($q) use ($search) {
                       $q->where('po_number', 'like', "%{$search}%");
                   });
