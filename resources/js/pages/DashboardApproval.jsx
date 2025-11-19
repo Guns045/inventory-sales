@@ -83,11 +83,15 @@ const DashboardApproval = () => {
   const fetchRejectionReasons = async () => {
     try {
       const response = await api.get('/quotations/rejection-reasons');
-      setRejectionReasons(response.data.reasons || []);
+      setRejectionReasons(response.data.data || []);
     } catch (error) {
       console.error('Error fetching rejection reasons:', error);
       // Set default reasons if API fails
-      setRejectionReasons(['No FU', 'No Stock', 'Price']);
+      setRejectionReasons([
+        { value: 'No FU', label: 'No FU (No Follow Up)' },
+        { value: 'No Stock', label: 'No Stock' },
+        { value: 'Price', label: 'Price Issue' }
+      ]);
     }
   };
 
@@ -164,8 +168,8 @@ const DashboardApproval = () => {
     }).format(amount);
   };
 
-  // Allow Super Admin and Admin to access this dashboard
-  if (!user || !['Super Admin', 'Admin'].includes(user.role?.name)) {
+  // Allow Super Admin, Admin, and Admin variants to access this dashboard
+  if (!user || !['Super Admin', 'Admin', 'Admin Jakarta', 'Admin Makassar', 'Manager Jakarta', 'Manager Makassar'].includes(user.role?.name)) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
@@ -480,7 +484,7 @@ const DashboardApproval = () => {
             >
               <option value="">Pilih alasan penolakan...</option>
               {rejectionReasons.map((reason, index) => (
-                <option key={index} value={reason}>{reason}</option>
+                <option key={index} value={reason.value}>{reason.label}</option>
               ))}
             </Form.Select>
           </Form.Group>

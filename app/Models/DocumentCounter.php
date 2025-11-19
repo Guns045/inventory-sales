@@ -37,7 +37,7 @@ class DocumentCounter extends Model
         } else {
             $warehouse = Warehouse::find($warehouseId);
             if ($warehouse) {
-                $warehouseCode = $warehouse->code;
+                $warehouseCode = explode('-', $warehouse->code)[0]; // JKT-01 -> JKT
                 $counterWarehouseId = $warehouseId;
             } else {
                 // Invalid warehouse ID - throw exception instead of using GEN

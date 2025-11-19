@@ -17,9 +17,11 @@
     "dependencies": {
         "bootstrap": "^5.3.8",
         "bootstrap-icons": "^1.13.1",
+        "jquery": "^3.7.1",
         "react": "^19.2.0",
         "react-bootstrap": "^2.10.10",
         "react-dom": "^19.2.0",
-        "react-router-dom": "^7.9.6"
+        "react-router-dom": "^7.9.6",
+        "selectize": "^0.12.6"
     }
 }

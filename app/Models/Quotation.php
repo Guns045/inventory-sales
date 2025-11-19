@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Traits\DocumentNumberHelper;
+use App\Models\SalesOrder;
+use App\Models\SalesOrderItem;
+use App\Models\ProductStock;
 
 class Quotation extends Model
 {
@@ -246,7 +249,7 @@ class Quotation extends Model
             'sales_order_number' => $salesOrderNumber,
             'quotation_id' => $this->id,
             'customer_id' => $this->customer_id,
-            'user_id' => auth()->id(),
+            'user_id' => auth()->id() ?: $this->user_id, // Fall back to quotation's user_id
             'warehouse_id' => $warehouseId,
             'status' => 'PENDING',
             'total_amount' => $this->total_amount,

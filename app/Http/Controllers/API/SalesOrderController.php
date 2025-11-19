@@ -291,7 +291,7 @@ class SalesOrderController extends Controller
         if ($oldStatus !== 'PROCESSING' && $request->status === 'PROCESSING') {
             try {
                 $deliveryOrder = \App\Models\DeliveryOrder::create([
-                    'delivery_order_number' => \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER'),
+                    'delivery_order_number' => \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER', $salesOrder->warehouse_id),
                     'sales_order_id' => $salesOrder->id,
                     'customer_id' => $salesOrder->customer_id,
                     'source_type' => 'SO',

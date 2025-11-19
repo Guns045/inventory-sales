@@ -41,11 +41,17 @@ class QuotationController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $quotations = Quotation::with(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $query = Quotation::with(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals'])
+            ->orderBy('created_at', 'desc');
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $quotations = $query->paginate(10);
         return response()->json($quotations);
     }
 
@@ -450,7 +456,7 @@ class QuotationController extends Controller
             \Log::info('Auth User ID: ' . auth()->id());
 
             $request->validate([
-                'notes' => 'required|string|max:500',
+                'notes' => 'nullable|string|max:500',
                 'reason_type' => 'required|in:No FU,No Stock,Price'
             ]);
 

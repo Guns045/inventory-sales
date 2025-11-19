@@ -32,7 +32,7 @@ class InvoiceTransformer
             'invoice_no' => $invoice->invoice_number,
             'quotation_no' => $invoice->salesOrder->quotation->quotation_number ?? 'N/A',
             'date' => \Carbon\Carbon::parse($invoice->issue_date)->format('d M Y'),
-            'customer_name' => $invoice->customer->name ?? 'N/A',
+            'customer_name' => $invoice->customer->company_name ?? $invoice->customer->name ?? 'N/A',
             'customer_address' => $invoice->customer->address ?? 'N/A',
             'items' => $items,
             'total' => $invoice->total_amount,

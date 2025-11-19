@@ -381,7 +381,11 @@ class WarehouseTransferController extends Controller
                 ]);
             }
 
+            // Generate delivery order number manually
+            $deliveryOrderNumber = \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER', $transfer->warehouse_from_id);
+
             $deliveryOrder = DeliveryOrder::create([
+                'delivery_order_number' => $deliveryOrderNumber,
                 'sales_order_id' => $existingSalesOrder->id, // Use existing or created sales order
                 'warehouse_id' => $transfer->warehouse_from_id, // Add warehouse_id
                 'source_type' => 'IT', // Internal Transfer

@@ -13,6 +13,7 @@ use App\Models\PickingListItem;
 use App\Models\ProductStock;
 use App\Models\ActivityLog;
 use App\Models\Notification;
+use App\Models\DocumentCounter;
 use App\Traits\DocumentNumberHelper;
 use App\Transformers\DeliveryOrderTransformer;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +83,11 @@ class DeliveryOrderController extends Controller
                 $totalAmount += $item->quantity * $item->unit_price;
             }
 
+            // Generate delivery order number manually
+            $deliveryOrderNumber = DocumentCounter::getNextNumber('DELIVERY_ORDER', $warehouseId);
+
             $deliveryOrder = DeliveryOrder::create([
+                'delivery_order_number' => $deliveryOrderNumber,
                 'sales_order_id' => $request->sales_order_id,
                 'customer_id' => $request->customer_id,
                 'warehouse_id' => $warehouseId,
@@ -285,7 +290,11 @@ class DeliveryOrderController extends Controller
                 $totalAmount += $item->quantity_picked * $unitPrice;
             }
 
+            // Generate delivery order number manually
+            $deliveryOrderNumber = DocumentCounter::getNextNumber('DELIVERY_ORDER', $pickingList->warehouse_id);
+
             $deliveryOrder = DeliveryOrder::create([
+                'delivery_order_number' => $deliveryOrderNumber,
                 'sales_order_id' => $pickingList->sales_order_id,
                 'picking_list_id' => $pickingList->id,
                 'customer_id' => $pickingList->salesOrder->customer_id,
@@ -518,6 +527,7 @@ class DeliveryOrderController extends Controller
             'customer',
             'salesOrder',
             'deliveryOrderItems.product',
+            'salesOrder.salesOrderItems.product',
             'createdBy'
         ])->findOrFail($id);
 
@@ -530,8 +540,30 @@ class DeliveryOrderController extends Controller
             $deliveryData = DeliveryOrderTransformer::transformFromWarehouseTransfer($transfer);
             $sourceType = 'IT';
         } else {
-            // Use SO transformer
-            $deliveryData = DeliveryOrderTransformer::transform($deliveryOrder);
+            // Check if delivery order has items, if not create from sales order
+            if ($deliveryOrder->deliveryOrderItems->isEmpty() && $deliveryOrder->salesOrder) {
+                // Transform delivery order with sales order items as fallback
+                $deliveryData = DeliveryOrderTransformer::transform($deliveryOrder);
+
+                // Replace empty items with sales order items
+                $salesOrderItems = [];
+                foreach ($deliveryOrder->salesOrder->salesOrderItems as $soItem) {
+                    $salesOrderItems[] = [
+                        'part_number' => $soItem->product->sku ?? $soItem->product_code ?? 'N/A',
+                        'description' => $soItem->product->description ?? $soItem->description ?? 'No description',
+                        'quantity' => $soItem->quantity,
+                        'po_number' => 'N/A',
+                        'delivery_method' => 'Truck',
+                        'delivery_vendor' => 'Internal'
+                    ];
+                }
+
+                // Override items in delivery data
+                $deliveryData['items'] = $salesOrderItems;
+            } else {
+                // Use SO transformer normal
+                $deliveryData = DeliveryOrderTransformer::transform($deliveryOrder);
+            }
             $sourceType = 'SO';
         }
 
@@ -596,7 +628,11 @@ class DeliveryOrderController extends Controller
                 $totalAmount += $item->quantity * $item->unit_price;
             }
 
+            // Generate delivery order number manually
+            $deliveryOrderNumber = DocumentCounter::getNextNumber('DELIVERY_ORDER', $salesOrder->warehouse_id);
+
             $deliveryOrder = DeliveryOrder::create([
+                'delivery_order_number' => $deliveryOrderNumber,
                 'sales_order_id' => $salesOrder->id,
                 'customer_id' => $salesOrder->customer_id,
                 'warehouse_id' => $salesOrder->warehouse_id, // Inherit from Sales Order

@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, Table, Button, Badge, Alert, Form, Modal } from 'react-bootstrap';
 import { useAPI } from '../contexts/APIContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import $ from 'jquery';
+import 'jquery';
 import 'selectize';
 import 'selectize/dist/css/selectize.default.css';
 import './PurchaseOrders.css';
 
 // Make jQuery available globally for selectize
+import $ from 'jquery';
 window.jQuery = $;
 window.$ = $;
 

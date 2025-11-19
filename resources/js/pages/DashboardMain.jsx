@@ -36,7 +36,7 @@ const DashboardMain = () => {
       const [kpiResponse, criticalResponse, quotationsResponse, ordersResponse, pipelineResponse, salesResponse] = await Promise.allSettled([
         api.get('/dashboard'),
         api.get('/reports/stock'),
-        api.get('/quotations?status=draft'),
+        api.get('/quotations?status=SUBMITTED'),
         api.get('/sales-orders?status=ready_to_ship'),
         api.get('/reports/sales'),
         api.get('/reports/sales')
@@ -65,7 +65,7 @@ const DashboardMain = () => {
         kpi: {
           total_sales_ytd: mappedKpi.this_month_sales || mappedKpi.total_sales_ytd || 0,
           critical_stocks_count: mappedKpi.critical_stocks || 0,
-          pending_quotations_count: mappedKpi.pending_approvals || 0,
+          pending_quotations_count: Array.isArray(quotationsData) ? quotationsData.length : 0,
           ready_to_ship_count: mappedKpi.ready_to_ship || 0,
         },
         critical_stocks: Array.isArray(criticalData.low_stock_products) ? criticalData.low_stock_products.slice(0, 10).map(item => ({

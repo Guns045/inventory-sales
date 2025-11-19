@@ -19,9 +19,17 @@ return new class extends Migration
             });
         }
 
-        // Add unique constraint to warehouse code
-        if (!Schema::hasColumn('warehouses', 'code_unique')) {
+        // Add code column to warehouses if it doesn't exist
+        if (!Schema::hasColumn('warehouses', 'code')) {
             Schema::table('warehouses', function (Blueprint $table) {
+                $table->string('code')->nullable()->after('name');
+            });
+        }
+
+        // Add unique constraint to warehouse code
+        if (Schema::hasColumn('warehouses', 'code')) {
+            Schema::table('warehouses', function (Blueprint $table) {
+                $table->string('code')->nullable()->change();
                 $table->unique('code');
             });
         }

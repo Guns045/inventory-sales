@@ -42,13 +42,8 @@ class DeliveryOrder extends Model
     protected static function boot()
     {
         parent::boot();
-
-        // Auto-generate delivery order number when creating
-        static::creating(function ($deliveryOrder) {
-            if (empty($deliveryOrder->delivery_order_number)) {
-                $deliveryOrder->delivery_order_number = $deliveryOrder->generateDeliveryOrderNumber($deliveryOrder->warehouse_id);
-            }
-        });
+        // Document number generation is now handled in the controller
+        // to ensure warehouse_id is properly set before generation
     }
 
     

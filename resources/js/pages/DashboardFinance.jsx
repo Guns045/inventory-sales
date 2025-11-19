@@ -531,7 +531,7 @@ const DashboardFinance = () => {
                 <div className="d-flex align-items-center">
                   <i className="bi bi-exclamation-triangle me-2"></i>
                   <div className="flex-grow-1">
-                    <strong>{financeData.accounts_receivable.overdue_90_days > 0 ? 'Ada' : 'Tidak ada'} piutang > 90 hari</strong>
+                    <strong>{financeData.accounts_receivable.overdue_90_days > 0 ? 'Ada' : 'Tidak ada'} piutang &gt; 90 hari</strong>
                   </div>
                 </div>
               </div>

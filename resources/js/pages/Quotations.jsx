@@ -18,7 +18,7 @@ import {
 import './Quotations.css';
 
 const Quotations = () => {
-  const { get, post, put, delete: deleteApi } = useAPI();
+  const { get, post, put, delete: deleteApi, api } = useAPI();
   const { user } = useAuth();
   const [quotations, setQuotations] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -29,6 +29,13 @@ const Quotations = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState(null);
   const [rejectionInfo, setRejectionInfo] = useState(null);
+  const [rejectionReasons, setRejectionReasons] = useState([]);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectForm, setRejectForm] = useState({
+    quotationId: null,
+    reason_type: '',
+    notes: ''
+  });
 
   // Format currency for Indonesia
   const formatCurrency = (amount) => {
@@ -171,6 +178,15 @@ const Quotations = () => {
       setCustomers(customersRes.data || []);
       setProducts(productsRes.data.data || []);
       setWarehouses(warehousesRes.data || []);
+
+      // Set hardcoded rejection reasons to ensure they're always available
+      const rejectionReasons = [
+        { value: "No FU", label: "No FU (No Follow Up)" },
+        { value: "No Stock", label: "No Stock" },
+        { value: "Price", label: "Price Issue" }
+      ];
+      setRejectionReasons(rejectionReasons);
+      console.log('Rejection reasons set:', rejectionReasons);
     } catch (err) {
       setError('Failed to fetch data');
       console.error('Error fetching data:', err);
@@ -429,23 +445,52 @@ const Quotations = () => {
   };
 
   const handleReject = async (id) => {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (reason) {
-      try {
-        await post(`/quotations/${id}/reject`, { notes: reason });
-        await fetchData();
-      } catch (err) {
-        let errorMessage = 'Failed to reject quotation';
-        if (err.response?.data?.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.response?.data?.errors) {
-          // Handle Laravel validation errors
-          const validationErrors = Object.values(err.response.data.errors).flat();
-          errorMessage = validationErrors.join(', ');
-        }
-        setError(errorMessage);
-        console.error('Error rejecting quotation:', err);
+    setRejectForm({
+      quotationId: id,
+      reason_type: '',
+      notes: ''
+    });
+    setError(''); // Clear any previous errors
+    setShowRejectModal(true);
+  };
+
+  const handleRejectSubmit = async () => {
+    console.log('Reject form data:', rejectForm);
+    console.log('reason_type:', rejectForm.reason_type);
+    console.log('notes:', rejectForm.notes);
+
+    if (!rejectForm.reason_type || rejectForm.reason_type === '') {
+      setError('Please select a rejection reason');
+      return;
+    }
+
+    // Notes is optional - only validate if provided
+    if (rejectForm.notes && rejectForm.notes.trim() && rejectForm.notes.trim().length < 3) {
+      setError('Notes must be at least 3 characters if provided');
+      return;
+    }
+
+    try {
+      await post(`/quotations/${rejectForm.quotationId}/reject`, {
+        reason_type: rejectForm.reason_type,
+        notes: rejectForm.notes ? rejectForm.notes.trim() : null
+      });
+
+      setShowRejectModal(false);
+      setRejectForm({ quotationId: null, reason_type: '', notes: '' });
+      setError(''); // Clear any previous errors
+      await fetchData();
+    } catch (err) {
+      let errorMessage = 'Failed to reject quotation';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        // Handle Laravel validation errors
+        const validationErrors = Object.values(err.response.data.errors).flat();
+        errorMessage = validationErrors.join(', ');
       }
+      setError(errorMessage);
+      console.error('Error rejecting quotation:', err);
     }
   };
 
@@ -500,6 +545,53 @@ const Quotations = () => {
         }
         setError(errorMessage);
         console.error('Error submitting for approval:', err);
+      }
+    }
+  };
+
+  const handlePrint = async (quotation) => {
+    try {
+      // Make direct axios request for PDF with proper response type
+      const response = await api.get(`/quotations/${quotation.id}/print`, {
+        responseType: 'blob' // Important for PDF handling
+      });
+
+      // Create a blob from the response
+      const blob = new Blob([response.data], {
+        type: 'application/pdf'
+      });
+
+      // Check if blob is actually empty (corrupted)
+      if (blob.size < 1000) {
+        throw new Error('PDF appears to be empty or corrupted');
+      }
+
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Quotation-${quotation.quotation_number}.pdf`;
+
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      setError('Failed to print quotation');
+      console.error('Error printing quotation:', err);
+
+      // Add more detailed error logging
+      if (err.response) {
+        console.error('Response status:', err.response.status);
+        console.error('Response headers:', err.response.headers);
+        console.error('Response data type:', typeof err.response.data);
+        console.error('Response data size:', err.response.data?.size || 'unknown');
       }
     }
   };
@@ -875,6 +967,18 @@ const Quotations = () => {
                                 </Button>
                               )}
 
+                              {/* Print button - available for all statuses except when converting */}
+                              {(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CONVERTED'].includes(quotation.status)) && (
+                                <Button
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  onClick={() => handlePrint(quotation)}
+                                  title="Print Quotation"
+                                >
+                                  <i className="bi bi-printer"></i>
+                                </Button>
+                              )}
+
                               {quotation.status === 'CONVERTED' && (
                                 <Badge bg="success" className="ms-2">
                                   <i className="bi bi-check-circle me-1"></i>
@@ -911,6 +1015,55 @@ const Quotations = () => {
           </div>
         </Card.Body>
       </Card>
+
+      {/* Rejection Modal */}
+      <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Reject Quotation</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && (
+            <Alert variant="danger" className="mb-3">
+              {error}
+            </Alert>
+          )}
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Rejection Reason</Form.Label>
+              <Form.Select
+                value={rejectForm.reason_type}
+                onChange={(e) => setRejectForm({ ...rejectForm, reason_type: e.target.value })}
+                required
+              >
+                <option value="">Select a reason...</option>
+                {rejectionReasons.map((reason) => (
+                  <option key={reason.value} value={reason.value}>
+                    {reason.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Notes</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={rejectForm.notes}
+                onChange={(e) => setRejectForm({ ...rejectForm, notes: e.target.value })}
+                placeholder="Optional: Add additional notes for the rejection..."
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowRejectModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleRejectSubmit}>
+            Reject Quotation
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

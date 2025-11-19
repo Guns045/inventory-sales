@@ -7,10 +7,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Add login route for Sanctum authentication
-Route::get('/login', function () {
-    return response()->json(['message' => 'API Login endpoint is at /api/login'], 401);
-})->name('login');
 
 Route::get('/preview/delivery', [PdfPreviewController::class, 'mockDelivery'])->name('preview.delivery');
 Route::get('/preview/delivery-db/{id?}', [PdfPreviewController::class, 'testDeliveryFromDatabase'])->name('preview.delivery.db');

@@ -209,7 +209,6 @@ class InvoiceController extends Controller
                 'invoice_number' => $this->generateInvoiceNumber($warehouseId),
                 'sales_order_id' => $request->sales_order_id,
                 'customer_id' => $request->customer_id,
-                'warehouse_id' => $warehouseId,
                 'issue_date' => $request->issue_date,
                 'due_date' => $request->due_date,
                 'status' => $request->status,

@@ -51,7 +51,7 @@ class QuotationTransformer
         return [
             'number' => $quotation->quotation_number,
             'date' => \Carbon\Carbon::parse($quotation->quotation_date ?? $quotation->created_at)->format('d M Y'),
-            'customer_name' => $quotation->customer->name,
+            'customer_name' => $quotation->customer->company_name ?? $quotation->customer->name,
             'customer_id' => $quotation->customer->customer_code ?? 'CUST-' . $quotation->customer->id,
             'customer_address' => $quotation->customer->address ?? 'No address provided',
             'franco' => $warehouseName, // ✅ Pake warehouse_id dengan fallback
