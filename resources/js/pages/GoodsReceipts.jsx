@@ -40,8 +40,7 @@ const GoodsReceipts = () => {
     quantity_received: 0,
     unit_price: 0,
     condition: 'GOOD',
-    batch_number: '',
-    expiry_date: ''
+    batch_number: ''
   });
 
   const [items, setItems] = useState([]);
@@ -208,7 +207,6 @@ const GoodsReceipts = () => {
         line_total: (item.quantity_ordered || item.quantity) * item.unit_price,
         condition: 'GOOD',
         batch_number: '',
-        expiry_date: '',
         product_name: item.product?.name || 'Unknown Product',
         product_uom: item.product?.uom || 'pcs'
       }));
@@ -252,7 +250,6 @@ const GoodsReceipts = () => {
             line_total: (firstAvailable.quantity_ordered || firstAvailable.quantity) * firstAvailable.unit_price,
             condition: 'GOOD',
             batch_number: '',
-            expiry_date: '',
             product_name: firstAvailable.product?.name || 'Unknown Product',
             product_uom: firstAvailable.product?.uom || 'pcs'
           };
@@ -285,8 +282,7 @@ const GoodsReceipts = () => {
           quantity_received: item.quantity_received,
           unit_price: item.unit_price,
           condition: item.condition,
-          batch_number: item.batch_number || null,
-          expiry_date: item.expiry_date || null
+          batch_number: item.batch_number || null
         }))
       });
 
@@ -610,8 +606,7 @@ const GoodsReceipts = () => {
                           <th width="15%" className="text-end">Line Total</th>
                           <th width="10%">Condition</th>
                           <th width="8%">Batch #</th>
-                          <th width="12%">Expiry Date</th>
-                          <th width="5%">Actions</th>
+                            <th width="5%">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -655,15 +650,7 @@ const GoodsReceipts = () => {
                                 size="sm"
                               />
                             </td>
-                            <td>
-                              <Form.Control
-                                type="date"
-                                value={item.expiry_date || ''}
-                                onChange={(e) => handleItemChange(index, 'expiry_date', e.target.value)}
-                                size="sm"
-                              />
-                            </td>
-                            <td>
+                              <td>
                               <Button
                                 variant="danger"
                                 size="sm"
@@ -749,7 +736,7 @@ const GoodsReceipts = () => {
                       <td>{receipt.purchase_order?.supplier?.name || 'N/A'}</td>
                       <td>{receipt.warehouse?.name || 'N/A'}</td>
                       <td>{getStatusBadge(receipt.status)}</td>
-                      <td>{formatDate(receipt.received_date)}</td>
+                      <td>{formatDate(receipt.receipt_date)}</td>
                       <td className="text-end">{formatCurrency(receipt.total_amount)}</td>
                       <td>
                         <div className="btn-group" role="group">
@@ -809,8 +796,7 @@ const GoodsReceipts = () => {
                     <th>Line Total</th>
                     <th>Condition</th>
                     <th>Batch Number</th>
-                    <th>Expiry Date</th>
-                  </tr>
+                    </tr>
                 </thead>
                 <tbody>
                   {receiptItems.map((item) => (
@@ -827,8 +813,7 @@ const GoodsReceipts = () => {
                       <td className="text-end">{formatCurrency(item.line_total)}</td>
                       <td>{getConditionBadge(item.condition)}</td>
                       <td>{item.batch_number || '-'}</td>
-                      <td>{formatDate(item.expiry_date)}</td>
-                    </tr>
+                      </tr>
                   ))}
                   <tr className="table-primary fw-bold">
                     <td colSpan={4} className="text-end">Total:</td>

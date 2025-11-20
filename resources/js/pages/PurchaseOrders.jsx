@@ -30,6 +30,7 @@ const PurchaseOrders = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
+  const [productSearch, setProductSearch] = useState('');
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
@@ -48,12 +49,11 @@ const PurchaseOrders = () => {
 
   const [newItem, setNewItem] = useState({
     product_id: '',
+    product_name: '',
     quantity: 1,
     unit_price: 0,
     tax_rate: 11 // Default tax 11%
   });
-
-  const productSelectRef = useRef(null);
 
   const [items, setItems] = useState([]);
 
@@ -70,62 +70,7 @@ const PurchaseOrders = () => {
     fetchProducts();
   }, []);
 
-  // Initialize Selectize when products are loaded
-  useEffect(() => {
-    if (products.length > 0 && productSelectRef.current) {
-      // Destroy existing selectize instance if any
-      if (productSelectRef.current.selectize) {
-        productSelectRef.current.selectize.destroy();
-      }
-
-      // Initialize selectize
-      const selectizeInstance = $(productSelectRef.current).selectize({
-        sortField: 'text',
-        searchField: ['text'],
-        create: false,
-        allowEmptyOption: true,
-        onChange: (value) => {
-          if (value) {
-            const selectedProduct = products.find(p => p.id === parseInt(value));
-            if (selectedProduct) {
-              setNewItem(prev => ({
-                ...prev,
-                product_id: value,
-                unit_price: selectedProduct.buy_price || 0
-              }));
-            }
-          } else {
-            setNewItem(prev => ({
-              ...prev,
-              product_id: '',
-              unit_price: 0
-            }));
-          }
-        }
-      });
-
-      // Store selectize instance for later use
-      productSelectRef.current.selectize = selectizeInstance[0].selectize;
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (productSelectRef.current && productSelectRef.current.selectize) {
-        productSelectRef.current.selectize.destroy();
-      }
-    };
-  }, [products]);
-
-  // Update selectize value when newItem.product_id changes
-  useEffect(() => {
-    if (productSelectRef.current && productSelectRef.current.selectize) {
-      const selectize = productSelectRef.current.selectize;
-      if (newItem.product_id !== selectize.getValue()) {
-        selectize.setValue(newItem.product_id);
-      }
-    }
-  }, [newItem.product_id]);
-
+  
   const fetchPurchaseOrders = async (page = 1) => {
     try {
       setLoading(true);
@@ -208,23 +153,48 @@ const PurchaseOrders = () => {
 
   const handleItemChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'product_id') {
-      // Auto-fill unit price when product is selected
-      const selectedProduct = products.find(p => p.id === parseInt(value));
-      console.log('Selected product:', selectedProduct);
+    if (name === 'product_search') {
+      // Handle product search
+      setProductSearch(value);
 
-      // Use the correct field name: buy_price
-      let unitPrice = 0;
-      if (selectedProduct) {
-        unitPrice = selectedProduct.buy_price || 0;
-        console.log('Unit price found:', unitPrice);
+      // Try to find exact match first
+      const exactMatch = products.find(p =>
+        (p.name && p.name.toLowerCase() === value.toLowerCase()) ||
+        (p.sku && p.sku.toLowerCase() === value.toLowerCase()) ||
+        (p.part_number && p.part_number.toLowerCase() === value.toLowerCase())
+      );
+
+      if (exactMatch) {
+        // Auto-fill unit price when exact match is found
+        const unitPrice = exactMatch.buy_price || 0;
+        setNewItem(prev => ({
+          ...prev,
+          product_id: exactMatch.id,
+          product_name: exactMatch.name || exactMatch.description || '',
+          unit_price: unitPrice
+        }));
+      } else {
+        // Clear product selection when no match
+        setNewItem(prev => ({
+          ...prev,
+          product_id: '',
+          product_name: value,
+          unit_price: 0
+        }));
       }
+    } else if (name === 'product_id') {
+      // Handle product selection from dropdown
+      const selectedProduct = products.find(p => p.id === parseInt(value));
+      const unitPrice = selectedProduct ? selectedProduct.buy_price || 0 : 0;
+      const productName = selectedProduct ? (selectedProduct.name || selectedProduct.description || '') : '';
 
       setNewItem(prev => ({
         ...prev,
-        [name]: value,
+        product_id: value,
+        product_name: productName,
         unit_price: unitPrice
       }));
+      setProductSearch(productName);
     } else if (name === 'quantity') {
       // Ensure quantity is always an integer
       const intValue = parseInt(value) || 1;
@@ -257,11 +227,27 @@ const PurchaseOrders = () => {
     };
   };
 
-  const addItem = () => {
-    if (!newItem.product_id || newItem.quantity <= 0) return;
+  // Filter products for search
+  const filteredProducts = products.filter(product =>
+    productSearch === '' ||
+    product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    (product.sku && product.sku.toLowerCase().includes(productSearch.toLowerCase())) ||
+    (product.part_number && product.part_number.toLowerCase().includes(productSearch.toLowerCase())) ||
+    (product.description && product.description.toLowerCase().includes(productSearch.toLowerCase()))
+  );
 
-    const selectedProduct = products.find(p => p.id === parseInt(newItem.product_id));
-    if (!selectedProduct) return;
+  const addItem = () => {
+    if ((!newItem.product_id && !newItem.product_name) || newItem.quantity <= 0) return;
+
+    let selectedProduct = null;
+    if (newItem.product_id) {
+      selectedProduct = products.find(p => p.id === parseInt(newItem.product_id));
+    } else if (newItem.product_name) {
+      // Try to find product by name
+      selectedProduct = products.find(p =>
+        p.name.toLowerCase() === newItem.product_name.toLowerCase()
+      );
+    }
 
     // Ensure quantity is integer
     const quantity = parseInt(newItem.quantity) || 1;
@@ -272,11 +258,11 @@ const PurchaseOrders = () => {
 
     const item = {
       id: Date.now(), // temporary ID
-      product_id: newItem.product_id,
-      product_name: selectedProduct.name || 'Product',
-      sku: selectedProduct.sku || '',
-      part_number: selectedProduct.sku || '',
-      description: selectedProduct.description || selectedProduct.name || '',
+      product_id: newItem.product_id || null,
+      product_name: selectedProduct ? (selectedProduct.name || selectedProduct.description || 'Product') : (newItem.product_name || 'Custom Product'),
+      sku: selectedProduct ? (selectedProduct.sku || '') : '',
+      part_number: selectedProduct ? (selectedProduct.part_number || selectedProduct.sku || '') : '',
+      description: selectedProduct ? (selectedProduct.description || selectedProduct.name || '') : (newItem.product_name || 'Custom Product'),
       quantity: quantity,
       unit_price: unitPrice,
       tax_rate: taxRate,
@@ -288,10 +274,12 @@ const PurchaseOrders = () => {
     setItems(prev => [...prev, item]);
     setNewItem({
       product_id: '',
+      product_name: '',
       quantity: 1,
       unit_price: 0,
       tax_rate: 11
     });
+    setProductSearch('');
   };
 
   const removeItem = (id) => {
@@ -387,10 +375,12 @@ const PurchaseOrders = () => {
     });
     setNewItem({
       product_id: '',
+      product_name: '',
       quantity: 1,
       unit_price: 0,
       tax_rate: 11
     });
+    setProductSearch('');
   };
 
   const handleDelete = async (id) => {
@@ -539,13 +529,12 @@ const PurchaseOrders = () => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'DRAFT': { bg: 'secondary', text: 'Draft' },
-      'SUBMITTED': { bg: 'info', text: 'Submitted' },
-      'APPROVED': { bg: 'primary', text: 'Approved' },
-      'PARTIAL_RECEIVED': { bg: 'warning', text: 'Partial Received' },
-      'RECEIVED': { bg: 'success', text: 'Received' },
-      'CLOSED': { bg: 'dark', text: 'Closed' },
-      'CANCELLED': { bg: 'danger', text: 'Cancelled' }
+      'DRAFT': { bg: 'secondary', text: 'DRAFT' },
+      'SENT': { bg: 'info', text: 'SENT' },
+      'CONFIRMED': { bg: 'primary', text: 'CONFIRMED' },
+      'PARTIAL_RECEIVED': { bg: 'warning', text: 'PARTIAL RECEIVED' },
+      'COMPLETED': { bg: 'success', text: 'COMPLETED' }, // Use COMPLETED instead of RECEIVED
+      'CANCELLED': { bg: 'danger', text: 'CANCELLED' }
     };
 
     const config = statusConfig[status] || { bg: 'secondary', text: status };
@@ -818,22 +807,29 @@ const PurchaseOrders = () => {
                     <tbody>
                       <tr>
                         <td>
-                          <Form.Select
-                            ref={productSelectRef}
-                            name="product_id"
-                            value={newItem.product_id}
-                            onChange={handleItemChange}
-                            style={{fontSize: '0.9rem'}}
-                            size="sm"
-                            disabled={products.length === 0}
-                          >
-                            <option value="">Select Product</option>
-                            {products.map(product => (
-                              <option key={product.id} value={product.id}>
-                                {product.sku || product.part_number || 'NO-SKU'} - {product.description || product.name || product.name} - {formatCurrency(product.buy_price || 0)}
-                              </option>
-                            ))}
-                          </Form.Select>
+                          <div style={{position: 'relative'}}>
+                            <Form.Control
+                              type="text"
+                              name="product_search"
+                              value={productSearch}
+                              onChange={handleItemChange}
+                              placeholder="Type to search or select product..."
+                              style={{fontSize: '0.9rem'}}
+                              size="sm"
+                              disabled={products.length === 0}
+                              list="product-list"
+                            />
+                            <datalist id="product-list">
+                              {filteredProducts.slice(0, 20).map(product => (
+                                <option key={product.id} value={product.name || product.description || ''}>
+                                  {product.sku || product.part_number || 'NO-SKU'} - {formatCurrency(product.buy_price || 0)}
+                                </option>
+                              ))}
+                            </datalist>
+                            {productSearch && filteredProducts.length === 0 && (
+                              <small className="text-muted d-block mt-1">No products found</small>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <Form.Control

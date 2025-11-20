@@ -187,8 +187,11 @@ class GoodsReceipt extends Model
         $partialItems = 0;
 
         foreach ($po->items as $poItem) {
-            $totalReceived = $this->items()
-                ->where('purchase_order_item_id', $poItem->id)
+            // Calculate total received from ALL goods receipts for this PO item
+            $totalReceived = \App\Models\GoodsReceiptItem::where('purchase_order_item_id', $poItem->id)
+                ->whereHas('goodsReceipt', function($query) {
+                    $query->where('status', '!=', 'PENDING'); // Only count from processed GRs
+                })
                 ->sum('quantity_received');
 
             if ($totalReceived >= $poItem->quantity_ordered) {
@@ -199,8 +202,8 @@ class GoodsReceipt extends Model
         }
 
         if ($completedItems === $totalItems) {
-            // All items fully received
-            $po->status = 'RECEIVED';
+            // All items fully received across all GRs
+            $po->status = 'COMPLETED'; // Use COMPLETED instead of RECEIVED (matches database enum)
         } elseif ($completedItems > 0 || $partialItems > 0) {
             // Some items received but not all
             $po->status = 'PARTIAL_RECEIVED';

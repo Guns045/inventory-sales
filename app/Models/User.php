@@ -98,13 +98,8 @@ class User extends Authenticatable
     // Helper methods for warehouse access
     public function canAccessWarehouse($warehouseId): bool
     {
-        // Super admin can access all warehouses
-        if ($this->can_access_multiple_warehouses) {
-            return true;
-        }
-
-        // Users with specific warehouse assignment can only access their warehouse
-        return $this->warehouse_id == $warehouseId;
+        // Delegate to role for warehouse access permissions
+        return $this->role ? $this->role->canAccessWarehouse($warehouseId) : false;
     }
 
     

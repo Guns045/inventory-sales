@@ -57,6 +57,26 @@ class Role extends Model
     }
 
     /**
+     * Check if role can access specific warehouse
+     */
+    public function canAccessWarehouse($warehouseId): bool
+    {
+        // If role can access all warehouses, return true
+        if ($this->canAccessAllWarehouses()) {
+            return true;
+        }
+
+        // If role has specific warehouse access, check assigned warehouses
+        if ($this->warehouse_access_level === 'specific') {
+            // This would need to be implemented based on user-warehouse relationships
+            // For now, return false for specific access
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
      * Check if role is higher or equal in hierarchy
      */
     public function isHigherOrEqual(Role $otherRole): bool

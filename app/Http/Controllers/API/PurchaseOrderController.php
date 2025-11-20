@@ -326,8 +326,8 @@ class PurchaseOrderController extends Controller
     {
         $query = PurchaseOrder::with(['supplier', 'warehouse', 'items.product'])
             ->where(function($q) {
-                $q->where('status', 'CONFIRMED')
-                  ->orWhere('status', 'SUBMITTED')
+                $q->where('status', 'SENT')
+                  ->orWhere('status', 'CONFIRMED')
                   ->orWhere('status', 'PARTIAL_RECEIVED');
             });
 
@@ -444,8 +444,8 @@ class PurchaseOrderController extends Controller
             Mail::to($request->recipient_email)
                 ->send(new PurchaseOrderMail($purchaseOrder, $request->custom_message));
 
-            // Update PO status to SUBMITTED (valid enum value)
-            $purchaseOrder->update(['status' => 'SUBMITTED']);
+            // Update PO status to SENT (valid enum value)
+            $purchaseOrder->update(['status' => 'SENT']);
 
             // Update email log status
             $emailLog->markAsSent();
