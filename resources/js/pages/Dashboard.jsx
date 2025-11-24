@@ -1,13 +1,29 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Alert } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
-import DashboardAdmin from './DashboardAdmin';
+import DashboardMain from './DashboardMain';
 import DashboardSales from './DashboardSales';
 import DashboardWarehouse from './DashboardWarehouse';
 import DashboardFinance from './DashboardFinance';
 
 const Dashboard = () => {
   const { user } = useAuth();
+
+  // Debug mounting
+  useEffect(() => {
+    const debugInfo = document.getElementById('debug-info');
+    if (debugInfo) {
+      debugInfo.innerHTML = `
+        <div>🎉 SUCCESS: Dashboard Component Mounted!</div>
+        <div>User: ${user ? user.name : 'Not loaded'}</div>
+        <div>Role: ${user && user.role ? user.role.name : 'Not loaded'}</div>
+        <div>Rendering dashboard for role: ${getUserRole()}</div>
+        <div>Time: ${new Date().toLocaleTimeString()}</div>
+      `;
+    }
+    console.log('🎉 Dashboard component mounted, user:', user);
+    console.log('🎉 User role:', getUserRole());
+  }, [user]);
 
   const getUserRole = () => {
     if (!user || !user.role) return 'default';
@@ -21,7 +37,7 @@ const Dashboard = () => {
       case 'Super Admin':
       case 'Admin':
       case 'manager':
-        return <DashboardAdmin />;
+        return <DashboardMain />;  // Changed from DashboardAdmin to DashboardMain
       case 'Sales':
       case 'Sales Team':
         return <DashboardSales />;

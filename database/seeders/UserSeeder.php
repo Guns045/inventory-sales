@@ -15,26 +15,37 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create roles if they don't exist
-        $adminRole = Role::firstOrCreate(
-            ['name' => 'Admin'],
-            ['name' => 'Admin', 'description' => 'Administrator with full access']
-        );
-        
-        $salesRole = Role::firstOrCreate(
-            ['name' => 'Sales'],
-            ['name' => 'Sales', 'description' => 'Sales personnel']
-        );
-        
-        $gudangRole = Role::firstOrCreate(
-            ['name' => 'Gudang'],
-            ['name' => 'Gudang', 'description' => 'Warehouse staff']
-        );
-        
-        $financeRole = Role::firstOrCreate(
-            ['name' => 'Finance'],
-            ['name' => 'Finance', 'description' => 'Finance personnel']
-        );
+        // Get roles from RoleSeeder
+        $adminRole = Role::where('name', 'Super Admin')->first();
+        $salesRole = Role::where('name', 'Sales Team')->first();
+        $gudangRole = Role::where('name', 'Warehouse Staff')->first();
+        $financeRole = Role::where('name', 'Finance Team')->first();
+
+        // Fallback to create simple roles if not found
+        if (!$adminRole) {
+            $adminRole = Role::firstOrCreate(
+                ['name' => 'Admin'],
+                ['name' => 'Admin', 'description' => 'Administrator with full access']
+            );
+        }
+        if (!$salesRole) {
+            $salesRole = Role::firstOrCreate(
+                ['name' => 'Sales'],
+                ['name' => 'Sales', 'description' => 'Sales personnel']
+            );
+        }
+        if (!$gudangRole) {
+            $gudangRole = Role::firstOrCreate(
+                ['name' => 'Gudang'],
+                ['name' => 'Gudang', 'description' => 'Warehouse staff']
+            );
+        }
+        if (!$financeRole) {
+            $financeRole = Role::firstOrCreate(
+                ['name' => 'Finance'],
+                ['name' => 'Finance', 'description' => 'Finance personnel']
+            );
+        }
 
         // Create admin user
         User::firstOrCreate(
@@ -42,7 +53,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Super Admin',
                 'email' => 'admin@example.com',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('password'),
                 'role_id' => $adminRole->id
             ]
         );
@@ -53,7 +64,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Sales User',
                 'email' => 'sales@example.com',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('password'),
                 'role_id' => $salesRole->id
             ]
         );
@@ -63,7 +74,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Gudang User',
                 'email' => 'gudang@example.com',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('password'),
                 'role_id' => $gudangRole->id
             ]
         );
@@ -73,7 +84,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Finance User',
                 'email' => 'finance@example.com',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('password'),
                 'role_id' => $financeRole->id
             ]
         );

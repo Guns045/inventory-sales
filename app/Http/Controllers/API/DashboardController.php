@@ -525,12 +525,13 @@ class DashboardController extends Controller
         $roleName = strtolower($user->role->name);
 
         switch ($roleName) {
-            case 'sales':
-                return $this->salesDashboard($request);
+            case 'super admin':
             case 'admin':
             case 'manager':
             case 'administrator':
                 return $this->adminDashboard($request);
+            case 'sales':
+                return $this->salesDashboard($request);
             case 'gudang':
             case 'warehouse':
                 return $this->warehouseDashboard($request);

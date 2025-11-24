@@ -390,3 +390,12 @@ tr + tr .adjust-stock-form-container {
     opacity: 1;
   }
 }
+
+/* Stats Cards Flex Layout */
+.stats-cards-container .col-md-3 {
+  flex: auto !important;
+  flex-grow: 1 !important;
+  flex-shrink: 1 !important;
+  flex-basis: auto !important;
+  width: 25% !important;
+}

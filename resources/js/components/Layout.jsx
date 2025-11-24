@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionContext';
@@ -14,6 +14,15 @@ const Layout = () => {
   const { companySettings, getLogoUrl } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Debug layout mounting
+  useEffect(() => {
+    console.log('Layout component mounted');
+    console.log('Current path:', location.pathname);
+    console.log('User loaded:', !!user);
+    console.log('Menu loading:', loading);
+    console.log('Available menu items:', visibleMenuItems);
+  }, [location.pathname, user, loading, visibleMenuItems]);
 
   
   const handleLogout = () => {
@@ -107,10 +116,16 @@ const Layout = () => {
           to={item.path}
           className={`mb-1 ${isActive ? 'active' : ''} ${isSubmenu ? 'submenu-item' : ''}`}
           title={item.description}
-          onClick={() => {
+          onClick={(e) => {
+            console.log('Menu clicked:', item.title, '->', item.path);
+            console.log('Event target:', e.target);
+            console.log('Default prevented?:', e.defaultPrevented);
             if (sidebarOpen) {
               setSidebarOpen(false);
             }
+          }}
+          onMouseEnter={() => {
+            console.log('Menu hover:', item.title, 'path:', item.path);
           }}
         >
           <i className={`bi ${item.icon} me-3`}></i>

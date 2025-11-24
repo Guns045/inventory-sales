@@ -33,8 +33,12 @@ return new class extends Migration
             }
 
             // Add unique constraint to code if not already exists
-            if (Schema::hasColumn('warehouses', 'code') && !Schema::hasColumn('warehouses', 'code_unique')) {
-                $table->unique('code');
+            if (Schema::hasColumn('warehouses', 'code')) {
+                try {
+                    $table->unique('code', 'warehouses_code_unique');
+                } catch (\Exception $e) {
+                    // Ignore if constraint already exists
+                }
             }
         });
     }

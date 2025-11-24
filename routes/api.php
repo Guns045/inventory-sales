@@ -31,6 +31,32 @@ Route::post('/register', [AuthController::class, 'register']);
 // Public company settings (for displaying logo/info)
 Route::get('/company-settings/public', [CompanySettingsController::class, 'index']);
 
+// Simple test endpoints
+Route::get('/test-basic', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'API basic test working!',
+        'server_time' => now()->toDateTimeString(),
+        'ip' => request()->ip(),
+        'headers' => request()->headers->all()
+    ]);
+});
+
+Route::get('/test-cors', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'CORS test working!',
+        'origin' => request()->header('Origin'),
+        'allowed_origins' => config('cors.allowed_origins'),
+        'test_data' => [
+            'timestamp' => now()->timestamp,
+            'random_id' => uniqid()
+        ]
+    ])->header('Access-Control-Allow-Origin', '*')
+      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+});
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

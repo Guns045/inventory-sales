@@ -134,6 +134,7 @@ Detailed RBAC documentation is available in `docs/RBAC_DOCUMENTATION.md`.
 
 ## Testing
 
+### Local Development Testing
 Test files are located in the `/tests` directory. These include:
 
 - API endpoint tests
@@ -142,6 +143,24 @@ Test files are located in the `/tests` directory. These include:
 - Test data creation scripts
 
 **⚠️ Warning**: Test files are for development only. Do not run in production.
+
+### Multi-Device Testing
+
+For testing the application across multiple devices (mobile, tablet, other computers) on your local network:
+
+📖 **Quick Setup:** See `docs/QUICK_START_MULTI_DEVICE.md`
+
+📚 **Complete Guide:** See `docs/MULTI_DEVICE_SETUP.md`
+
+**Quick Start:**
+1. Get your local IP: `ipconfig | findstr "IPv4"`
+2. Edit `vite.config.js`: Set `host: '0.0.0.0'`
+3. Restart servers:
+   ```bash
+   php artisan serve --host=YOUR_IP --port=8000
+   npm run dev
+   ```
+4. Access from other devices: `http://YOUR_IP:3000`
 
 ## Contributing
 

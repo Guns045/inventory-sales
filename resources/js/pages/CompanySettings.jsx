@@ -195,7 +195,7 @@ const CompanySettingsPage = () => {
       <Form onSubmit={handleSubmit}>
                 {/* Company Logo Section */}
                 <Card className="mb-4 border">
-                  <Card.Header className="bg-light">
+                  <Card.Header className="bg-primary text-white">
                     <h5 className="mb-0">
                       <i className="bi bi-image me-2"></i>
                       Company Logo
@@ -258,7 +258,7 @@ const CompanySettingsPage = () => {
 
                 {/* Company Information */}
                 <Card className="mb-4 border">
-                  <Card.Header className="bg-light">
+                  <Card.Header className="bg-primary text-white">
                     <h5 className="mb-0">
                       <i className="bi bi-building me-2"></i>
                       Company Information

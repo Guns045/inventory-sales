@@ -405,7 +405,7 @@ const MasterDataProducts = () => {
 
       {/* Products Table */}
       <Card className="border-0 shadow-sm">
-        <Card.Header>
+        <Card.Header className='bg-primary text-white'>
           <h5 className="mb-0">Master Data Products</h5>
         </Card.Header>
         <Card.Body>

@@ -540,40 +540,42 @@ const Products = () => {
       )}
 
       {/* Stats Cards */}
-      <Row className="mb-4">
-        <Col md={3} className="mb-3">
-          <Card className="border-0 bg-primary text-white">
-            <Card.Body className="text-center">
-              <h4 className="mb-1">{paginationInfo.total}</h4>
-              <p className="mb-0 small">Total Produk</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3} className="mb-3">
-          <Card className="border-0 bg-success text-white">
-            <Card.Body className="text-center">
-              <h4 className="mb-1">{products.reduce((sum, p) => sum + p.current_stock, 0)}</h4>
-              <p className="mb-0 small">Total Stok Tersedia</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3} className="mb-3">
-          <Card className="border-0 bg-warning text-dark">
-            <Card.Body className="text-center">
-              <h4 className="mb-1">{products.reduce((sum, p) => sum + p.reserved_stock, 0)}</h4>
-              <p className="mb-0 small">Total Stok Di-reserve</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3} className="mb-3">
-          <Card className="border-0 bg-info text-white">
-            <Card.Body className="text-center">
-              <h4 className="mb-1">{products.reduce((sum, p) => sum + p.total_stock, 0)}</h4>
-              <p className="mb-0 small">Total Semua Stok</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <Row className="flex-grow-1 stats-cards-container">
+          <Col md={3} className="mb-3">
+            <Card className="border-0 bg-primary text-white">
+              <Card.Body className="text-center">
+                <h4 className="mb-1">{paginationInfo.total}</h4>
+                <p className="mb-0 small">Total Produk</p>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={3} className="mb-3">
+            <Card className="border-0 bg-success text-white">
+              <Card.Body className="text-center">
+                <h4 className="mb-1">{products.reduce((sum, p) => sum + p.current_stock, 0)}</h4>
+                <p className="mb-0 small">Total Stok Tersedia</p>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={3} className="mb-3">
+            <Card className="border-0 bg-warning text-dark">
+              <Card.Body className="text-center">
+                <h4 className="mb-1">{products.reduce((sum, p) => sum + p.reserved_stock, 0)}</h4>
+                <p className="mb-0 small">Total Stok Di-reserve</p>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={3} className="mb-3">
+            <Card className="border-0 bg-info text-white">
+              <Card.Body className="text-center">
+                <h4 className="mb-1">{products.reduce((sum, p) => sum + p.total_stock, 0)}</h4>
+                <p className="mb-0 small">Total Semua Stok</p>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      </div>
 
       {/* Total Nilai Inventaris */}
       <div className="text-end mb-4">
