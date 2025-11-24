@@ -18,12 +18,12 @@ export const APIProvider = ({ children }) => {
     const port = window.location.port;
 
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:8000/api';
+      return 'http://127.0.0.1:8001/api';
     } else if (hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:8000/api';
+      return 'http://127.0.0.1:8001/api';
     } else {
       // Use the same hostname as the frontend for API access
-      return `http://${hostname}:8000/api`;
+      return `http://${hostname}:8001/api`;
     }
   };
 

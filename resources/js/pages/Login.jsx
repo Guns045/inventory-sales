@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAPI } from '../contexts/APIContext';
-import { Spinner } from 'react-bootstrap';
+import { useCompany } from '../contexts/CompanyContext';
+import { Spinner, Image } from 'react-bootstrap';
+import './Login.css';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -11,13 +13,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { api } = useAPI();
-
-  // Auto-fill demo account
-  const handleDemoAccount = (account) => {
-    setEmail(account.email);
-    setPassword(account.password);
-    setError('');
-  };
+  const { companySettings, getLogoUrl } = useCompany();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,25 +44,34 @@ const Login = () => {
     }
   };
 
-  const demoAccounts = [
-    { email: 'admin@example.com', password: 'password', role: 'Super Admin' },
-    { email: 'sales@example.com', password: 'password', role: 'Sales Team' },
-    { email: 'gudangjkt@example.com', password: 'password', role: 'Admin Jakarta' },
-    { email: 'gudangmks@example.com', password: 'password123', role: 'Admin Makassar' },
-    { email: 'finance@example.com', password: 'password', role: 'Finance' }
-  ];
-
+  
   return (
     <div className="login-container">
       <div className="login-wrapper">
         <div className="login-card">
               {/* Logo and Title */}
               <div className="login-header">
-                <div className="mb-3">
-                  <i className="bi bi-box-seam" style={{ fontSize: '3rem' }}></i>
+                <div className="company-logo mb-3">
+                  {getLogoUrl() ? (
+                    <Image
+                      src={getLogoUrl()}
+                      alt="Company Logo"
+                      className="company-logo-img"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'inline-block';
+                      }}
+                    />
+                  ) : null}
+                  <i
+                    className={`bi bi-box-seam company-logo-icon ${getLogoUrl() ? 'd-none' : ''}`}
+                    style={{ display: getLogoUrl() ? 'none' : 'inline-block' }}
+                  ></i>
                 </div>
-                <h1>Inventory System</h1>
-                <p>Sign in to your account</p>
+                <h1 className="company-name">
+                  {companySettings?.company_name || 'PT. Jinan Truck Power Indonesia'}
+                </h1>
+                <p className="login-subtitle">Sign in to your account</p>
               </div>
 
               {/* Error Alert */}
@@ -136,32 +141,7 @@ const Login = () => {
                 </button>
               </form>
 
-              {/* Demo Accounts */}
-              <div className="demo-accounts">
-                <h6>
-                  <i className="bi bi-info-circle me-2"></i>
-                  Demo Accounts
-                </h6>
-                <div className="small">
-                  {demoAccounts.map((account, index) => (
-                    <div key={index} className="account-item" onClick={() => handleDemoAccount(account)}>
-                      <span>
-                        <i className="bi bi-person-circle me-2"></i>
-                        <strong>{account.role}:</strong>
-                      </span>
-                      <span className="clickable-account">
-                        <i className="bi bi-box-arrow-in-right ms-2"></i>
-                        {account.email}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="password-note">
-                  <i className="bi bi-key me-2"></i>
-                  <strong>Note:</strong> Click on demo accounts above to auto-fill credentials, or use password shown for each role
-                </div>
-              </div>
-
+  
                     {/* Footer */}
               <div className="login-footer">
                 <i className="bi bi-shield-check me-1"></i>
