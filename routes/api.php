@@ -23,6 +23,7 @@ use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\CompanySettingsController;
 use App\Http\Controllers\API\PickingListController;
 use App\Http\Controllers\API\SettingsController;
+use App\Http\Controllers\API\PermissionController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -68,7 +69,25 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::post('users', [UserController::class, 'store'])->middleware('permission:users.create');
     // Route::put('users/{id}', [UserController::class, 'update'])->middleware('permission:users.update');
     // Route::delete('users/{id}', [UserController::class, 'destroy'])->middleware('permission:users.delete');
+
+    // User management specific routes
+    Route::put('/users/{id}/status', [UserController::class, 'updateStatus'])->middleware('permission:edit_users');
+    Route::post('/users/bulk-activate', [UserController::class, 'bulkActivate'])->middleware('permission:edit_users');
+    Route::post('/users/bulk-deactivate', [UserController::class, 'bulkDeactivate'])->middleware('permission:edit_users');
+    Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete'])->middleware('permission:delete_users');
+    Route::post('/users/bulk-assign-role', [UserController::class, 'bulkAssignRole'])->middleware('permission:manage_roles');
+
     Route::apiResource('roles', RoleController::class)->middleware('permission:users.read');
+
+    // Permission Management
+    Route::get('/permissions', [PermissionController::class, 'index']);
+    Route::get('/permissions/grouped', [PermissionController::class, 'grouped']);
+    Route::post('/permissions', [PermissionController::class, 'store'])->middleware('permission:manage_roles');
+    Route::get('/permissions/{id}', [PermissionController::class, 'show']);
+    Route::put('/permissions/{id}', [PermissionController::class, 'update'])->middleware('permission:manage_roles');
+    Route::delete('/permissions/{id}', [PermissionController::class, 'destroy'])->middleware('permission:manage_roles');
+    Route::get('/roles/{roleId}/permissions', [PermissionController::class, 'getRolePermissions']);
+    Route::put('/roles/{roleId}/permissions', [PermissionController::class, 'syncRolePermissions'])->middleware('permission:manage_roles');
     
     // Master data
     Route::apiResource('categories', CategoryController::class);
