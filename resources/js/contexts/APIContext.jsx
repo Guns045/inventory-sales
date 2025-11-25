@@ -13,19 +13,9 @@ export const APIProvider = ({ children }) => {
 
   // Dynamic base URL - supports both localhost and network access
   const getBaseURL = () => {
-    // If accessing from network IP, use the same IP for API
-    const hostname = window.location.hostname;
-    const port = window.location.port;
-
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:8001/api';
-    } else if (hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:8001/api';
-    } else {
-      // Use the same hostname as the frontend for API access
-      return `http://${hostname}:8001/api`;
-    }
-  };
+    // Gunakan domain/frontend URL + /api, tanpa port
+    return `${window.location.protocol}//${window.location.hostname}/api`;
+};
 
   // Create axios instance with base configuration
   const api = axios.create({
