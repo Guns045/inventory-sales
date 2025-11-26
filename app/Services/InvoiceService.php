@@ -7,9 +7,10 @@ use App\Models\InvoiceItem;
 use App\Models\SalesOrder;
 use App\Models\ActivityLog;
 use App\Models\Notification;
+use App\Models\DocumentCounter;
 use App\Transformers\InvoiceTransformer;
 use Illuminate\Support\Facades\DB;
-use PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceService
 {
@@ -42,7 +43,9 @@ class InvoiceService
                 // Fallback to parsing from sales_order_number for existing records
                 $parts = explode('/', $salesOrder->sales_order_number);
                 $warehouseCode = count($parts) >= 2 ? $parts[1] : 'JKT';
-                $warehouseId = ($warehouseCode === 'JKT') ? 1 : 2;
+                $warehouseId = ($warehouseCode === 'JKT')
+                    ? config('inventory.warehouses.jkt', 1)
+                    : config('inventory.warehouses.mks', 2);
             }
 
             // Generate invoice number
@@ -225,6 +228,6 @@ class InvoiceService
 
     private function generateInvoiceNumber(int $warehouseId): string
     {
-        return \App\Models\DocumentCounter::getNextNumber('INVOICE', $warehouseId);
+        return DocumentCounter::getNextNumber('INVOICE', $warehouseId);
     }
 }

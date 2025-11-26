@@ -8,7 +8,7 @@ class StorePickingListRequest extends FormRequest
 {
     public function authorize()
     {
-        return true;
+        return true; // Authorization is handled by middleware/policies
     }
 
     public function rules()

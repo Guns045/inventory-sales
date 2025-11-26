@@ -1,13 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { useAPI } from '../contexts/APIContext';
-import './Customers.css';
+import React, { useState } from 'react';
+import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/common/PageHeader"
+import { SearchBar } from "@/components/common/SearchBar"
+import { FormDialog } from "@/components/common/FormDialog"
+import { StatsCard } from "@/components/common/StatsCard"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { CustomerForm } from "@/components/customers/CustomerForm"
+import { CustomerTable } from "@/components/customers/CustomerTable"
+import { useCRUD } from "@/hooks/useCRUD"
+import { useSearch } from "@/hooks/useSearch"
+import { useModal } from "@/hooks/useModal"
+import { useToast } from "@/hooks/useToast"
+import { Users, UserCheck, Building2 } from "lucide-react"
 
 const Customers = () => {
-  const { get, post, put, delete: deleteReq } = useAPI();
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState(null);
+  // Custom hooks
+  const {
+    items: customers,
+    loading,
+    create,
+    update,
+    remove,
+    refresh
+  } = useCRUD('/customers');
+
+  const { searchTerm, setSearchTerm } = useSearch();
+  const { isOpen: isFormOpen, open: openForm, close: closeForm } = useModal();
+  const { isOpen: isDeleteOpen, open: openDelete, close: closeDelete } = useModal();
+  const { showSuccess, showError } = useToast();
+
+  // Local state
   const [formData, setFormData] = useState({
     company_name: '',
     contact_person: '',
@@ -16,226 +38,160 @@ const Customers = () => {
     address: '',
     tax_id: ''
   });
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [deletingCustomer, setDeletingCustomer] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const response = await get('/customers');
-      setCustomers(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  // Handlers
+  const handleAdd = () => {
+    setEditingCustomer(null);
     setFormData({
-      ...formData,
-      [name]: value
+      company_name: '',
+      contact_person: '',
+      email: '',
+      phone: '',
+      address: '',
+      tax_id: ''
     });
+    openForm();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      if (editingCustomer) {
-        await put(`/customers/${editingCustomer}`, formData);
-        setCustomers(customers.map(c => c.id === editingCustomer ? { ...formData, id: editingCustomer } : c));
-      } else {
-        const response = await post('/customers', formData);
-        setCustomers([...customers, response.data]);
-      }
-      
-      // Reset form and close
-      setFormData({ 
-        company_name: '', 
-        contact_person: '', 
-        email: '', 
-        phone: '', 
-        address: '', 
-        tax_id: '' 
-      });
-      setShowForm(false);
-      setEditingCustomer(null);
-    } catch (error) {
-      console.error('Error saving customer:', error);
-    }
-  };
-
-  const handleEdit = async (customer) => {
-    // Fetch customer details for editing in a real app
+  const handleEdit = (customer) => {
+    setEditingCustomer(customer);
     setFormData({
       company_name: customer.company_name,
-      contact_person: customer.contact_person,
-      email: customer.email,
-      phone: customer.phone,
-      address: customer.address,
-      tax_id: customer.tax_id
+      contact_person: customer.contact_person || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      tax_id: customer.tax_id || ''
     });
-    setEditingCustomer(customer.id);
-    setShowForm(true);
+    openForm();
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        await deleteReq(`/customers/${id}`);
-        setCustomers(customers.filter(customer => customer.id !== id));
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-      }
+  const handleDelete = (customer) => {
+    setDeletingCustomer(customer);
+    openDelete();
+  };
+
+  const handleSubmit = async () => {
+    const result = editingCustomer
+      ? await update(editingCustomer.id, formData)
+      : await create(formData);
+
+    if (result.success) {
+      showSuccess(
+        editingCustomer ? 'Customer updated successfully' : 'Customer created successfully'
+      );
+      closeForm();
+    } else {
+      showError(result.error);
     }
   };
 
-  const openForm = () => {
-    setFormData({ 
-      company_name: '', 
-      contact_person: '', 
-      email: '', 
-      phone: '', 
-      address: '', 
-      tax_id: '' 
-    });
-    setEditingCustomer(null);
-    setShowForm(true);
+  const confirmDelete = async () => {
+    if (!deletingCustomer) return;
+
+    const result = await remove(deletingCustomer.id);
+    if (result.success) {
+      showSuccess('Customer deleted successfully');
+      closeDelete();
+    } else {
+      showError(result.error);
+    }
   };
 
-  if (loading) {
-    return <div className="loading">Loading customers...</div>;
-  }
+  // Filter customers by search term
+  const filteredCustomers = searchTerm
+    ? customers.filter(c =>
+      c.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.contact_person?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : customers;
+
+  // Calculate stats
+  const stats = {
+    total: customers.length,
+    withEmail: customers.filter(c => c.email).length,
+    withPhone: customers.filter(c => c.phone).length
+  };
 
   return (
-    <div className="customers">
-      <div className="header">
-        <h1>Customers</h1>
-        <button className="btn btn-primary" onClick={openForm}>Add Customer</button>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title="Customers"
+        description="Manage your customer database"
+        onAdd={handleAdd}
+        addButtonText="Add Customer"
+      />
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard
+          title="Total Customers"
+          value={stats.total}
+          icon={<Users className="h-4 w-4" />}
+          variant="primary"
+        />
+        <StatsCard
+          title="With Email"
+          value={stats.withEmail}
+          icon={<UserCheck className="h-4 w-4" />}
+          variant="success"
+        />
+        <StatsCard
+          title="With Phone"
+          value={stats.withPhone}
+          icon={<Building2 className="h-4 w-4" />}
+          variant="info"
+        />
       </div>
 
-      {showForm && (
-        <div className="form-container">
-          <h2>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="company_name">Company Name:</label>
-              <input
-                type="text"
-                id="company_name"
-                name="company_name"
-                value={formData.company_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
+      {/* Search Bar */}
+      <SearchBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search customers by name, contact, or email..."
+      />
 
-            <div className="form-group">
-              <label htmlFor="contact_person">Contact Person:</label>
-              <input
-                type="text"
-                id="contact_person"
-                name="contact_person"
-                value={formData.contact_person}
-                onChange={handleInputChange}
-              />
-            </div>
+      {/* Customers Table */}
+      <Card>
+        <CustomerTable
+          data={filteredCustomers}
+          loading={loading}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </Card>
 
-            <div className="form-group">
-              <label htmlFor="email">Email:</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-              />
-            </div>
+      {/* Form Dialog */}
+      <FormDialog
+        open={isFormOpen}
+        onOpenChange={closeForm}
+        title={editingCustomer ? 'Edit Customer' : 'Add New Customer'}
+        description="Fill in the customer details below"
+        onSubmit={handleSubmit}
+        submitText={editingCustomer ? 'Update' : 'Create'}
+      >
+        <CustomerForm
+          formData={formData}
+          onChange={setFormData}
+          onSubmit={handleSubmit}
+          isEditing={!!editingCustomer}
+        />
+      </FormDialog>
 
-            <div className="form-group">
-              <label htmlFor="phone">Phone:</label>
-              <input
-                type="text"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="address">Address:</label>
-              <textarea
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="tax_id">Tax ID:</label>
-              <input
-                type="text"
-                id="tax_id"
-                name="tax_id"
-                value={formData.tax_id}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" className="btn btn-success">
-                {editingCustomer ? 'Update' : 'Create'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Company Name</th>
-              <th>Contact Person</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers.map(customer => (
-              <tr key={customer.id}>
-                <td>{customer.company_name}</td>
-                <td>{customer.contact_person}</td>
-                <td>{customer.email}</td>
-                <td>{customer.phone}</td>
-                <td>
-                  <button 
-                    className="btn btn-sm btn-primary" 
-                    onClick={() => handleEdit(customer)}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-danger" 
-                    onClick={() => handleDelete(customer.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={closeDelete}
+        onConfirm={confirmDelete}
+        title="Delete Customer"
+        message={`Are you sure you want to delete "${deletingCustomer?.company_name}"? This action cannot be undone.`}
+        variant="destructive"
+        confirmText="Delete"
+      />
     </div>
   );
 };

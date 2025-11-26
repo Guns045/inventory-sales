@@ -155,6 +155,10 @@ export const NotificationProvider = ({ children }) => {
     markAllAsRead,
     deleteNotification,
     createNotification,
+    addNotification: (notification) => {
+      console.log('Notification added:', notification);
+      // TODO: Implement local toast state
+    }
   };
 
   return (

@@ -434,21 +434,21 @@ class DeliveryOrderService
     {
         if ($status === 'READY_TO_SHIP') {
             Notification::createForRole(
-                'Gudang',
+                config('inventory.roles.warehouse_staff', 'Gudang'),
                 "Delivery Order {$deliveryOrder->delivery_order_number} is ready to ship",
                 'info',
                 '/delivery-orders'
             );
         } elseif ($status === 'SHIPPED') {
             Notification::createForRole(
-                'Finance',
+                config('inventory.roles.finance', 'Finance'),
                 "Delivery Order {$deliveryOrder->delivery_order_number} has been shipped. Ready for invoicing.",
                 'info',
                 '/delivery-orders'
             );
         } elseif ($status === 'DELIVERED') {
             Notification::createForRole(
-                'Finance',
+                config('inventory.roles.finance', 'Finance'),
                 "Delivery Order {$deliveryOrder->delivery_order_number} delivered. Please ensure invoice is created.",
                 'success',
                 '/delivery-orders'

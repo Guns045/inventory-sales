@@ -10,9 +10,15 @@ class StockMovement extends Model
         'product_id',
         'warehouse_id',
         'type',
+        'quantity', // Legacy support or alias?
         'quantity_change',
+        'previous_quantity',
+        'new_quantity',
+        'movement_date',
         'reference_type',
         'reference_id',
+        'reference_number',
+        'created_by',
         'notes',
     ];
 

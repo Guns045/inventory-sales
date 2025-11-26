@@ -51,7 +51,7 @@ class WarehouseTransferService
 
             Notification::create([
                 'user_id' => null, // System notification or specific role
-                'role' => 'Gudang', // Notify warehouse staff
+                'role' => config('inventory.roles.warehouse_staff', 'Gudang'), // Notify warehouse staff
                 'title' => 'New Transfer Request',
                 'message' => "New warehouse transfer request: {$transfer->transfer_number} - {$transfer->quantity_requested} units needed",
                 'type' => 'info',
@@ -112,7 +112,7 @@ class WarehouseTransferService
 
             Notification::create([
                 'user_id' => null,
-                'role' => 'Gudang',
+                'role' => config('inventory.roles.warehouse_staff', 'Gudang'),
                 'title' => 'Transfer Approved',
                 'message' => "Warehouse transfer approved: {$transfer->transfer_number} - Ready for picking",
                 'type' => 'success',
@@ -172,7 +172,7 @@ class WarehouseTransferService
 
             Notification::create([
                 'user_id' => null,
-                'role' => 'Gudang',
+                'role' => config('inventory.roles.warehouse_staff', 'Gudang'),
                 'title' => 'Incoming Delivery',
                 'message' => "Incoming delivery: {$deliveryOrder->delivery_order_number} from {$transfer->warehouseFrom->name}",
                 'type' => 'info',
@@ -239,7 +239,7 @@ class WarehouseTransferService
 
             Notification::create([
                 'user_id' => null,
-                'role' => 'Gudang',
+                'role' => config('inventory.roles.warehouse_staff', 'Gudang'),
                 'title' => 'Transfer Received',
                 'message' => "Transfer received: {$transfer->transfer_number} - {$data['quantity_received']} units received",
                 'type' => 'success',

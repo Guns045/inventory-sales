@@ -1,139 +1,125 @@
-import React, { useState, useEffect } from 'react';
-import './Categories.css';
+import React, { useState } from 'react';
+import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/common/PageHeader"
+import { SearchBar } from "@/components/common/SearchBar"
+import { FormDialog } from "@/components/common/FormDialog"
+import { StatsCard } from "@/components/common/StatsCard"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { CategoryForm } from "@/components/categories/CategoryForm"
+import { CategoryTable } from "@/components/categories/CategoryTable"
+import { useCRUD } from "@/hooks/useCRUD"
+import { useSearch } from "@/hooks/useSearch"
+import { useModal } from "@/hooks/useModal"
+import { useToast } from "@/hooks/useToast"
+import { FolderOpen, Tag, FileText } from "lucide-react"
 
 const Categories = () => {
-  const [categories, setCategories] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const { items: categories, loading, create, update, remove } = useCRUD('/categories');
+  const { searchTerm, setSearchTerm } = useSearch();
+  const { isOpen: isFormOpen, open: openForm, close: closeForm } = useModal();
+  const { isOpen: isDeleteOpen, open: openDelete, close: closeDelete } = useModal();
+  const { showSuccess, showError } = useToast();
+
+  const [formData, setFormData] = useState({ name: '', description: '' });
   const [editingCategory, setEditingCategory] = useState(null);
-  const [formData, setFormData] = useState({
-    name: ''
-  });
+  const [deletingCategory, setDeletingCategory] = useState(null);
 
-  useEffect(() => {
-    // In a real app, fetch categories from the API
-    // For now, using mock data
-    setCategories([
-      { id: 1, name: 'Engine Parts' },
-      { id: 2, name: 'Filters' },
-      { id: 3, name: 'Hydraulics' }
-    ]);
-  }, []);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (editingCategory) {
-      // Update category in a real app
-      setCategories(categories.map(cat => 
-        cat.id === editingCategory ? { ...cat, ...formData } : cat
-      ));
-    } else {
-      // Create category in a real app
-      const newCategory = {
-        id: categories.length + 1,
-        ...formData
-      };
-      setCategories([...categories, newCategory]);
-    }
-    
-    // Reset form and close
-    setFormData({ name: '' });
-    setShowForm(false);
+  const handleAdd = () => {
     setEditingCategory(null);
+    setFormData({ name: '', description: '' });
+    openForm();
   };
 
   const handleEdit = (category) => {
-    setFormData({ name: category.name });
-    setEditingCategory(category.id);
-    setShowForm(true);
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description || ''
+    });
+    openForm();
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
-      // Delete category in a real app
-      setCategories(categories.filter(cat => cat.id !== id));
+  const handleDelete = (category) => {
+    setDeletingCategory(category);
+    openDelete();
+  };
+
+  const handleSubmit = async () => {
+    const result = editingCategory
+      ? await update(editingCategory.id, formData)
+      : await create(formData);
+
+    if (result.success) {
+      showSuccess(editingCategory ? 'Category updated successfully' : 'Category created successfully');
+      closeForm();
+    } else {
+      showError(result.error);
     }
   };
 
-  const openForm = () => {
-    setFormData({ name: '' });
-    setEditingCategory(null);
-    setShowForm(true);
+  const confirmDelete = async () => {
+    if (!deletingCategory) return;
+    const result = await remove(deletingCategory.id);
+    if (result.success) {
+      showSuccess('Category deleted successfully');
+      closeDelete();
+    } else {
+      showError(result.error);
+    }
+  };
+
+  const filteredCategories = searchTerm
+    ? categories.filter(c =>
+      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : categories;
+
+  const stats = {
+    total: categories.length,
+    withDescription: categories.filter(c => c.description).length,
+    totalProducts: categories.reduce((sum, c) => sum + (c.products_count || 0), 0)
   };
 
   return (
-    <div className="categories">
-      <div className="header">
-        <h1>Categories</h1>
-        <button className="btn btn-primary" onClick={openForm}>Add Category</button>
+    <div className="container mx-auto p-6 space-y-6">
+      <PageHeader
+        title="Categories"
+        description="Manage product categories"
+        onAdd={handleAdd}
+        addButtonText="Add Category"
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard title="Total Categories" value={stats.total} icon={<FolderOpen className="h-4 w-4" />} variant="primary" />
+        <StatsCard title="With Description" value={stats.withDescription} icon={<FileText className="h-4 w-4" />} variant="success" />
+        <StatsCard title="Total Products" value={stats.totalProducts} icon={<Tag className="h-4 w-4" />} variant="info" />
       </div>
 
-      {showForm && (
-        <div className="form-container">
-          <h2>{editingCategory ? 'Edit Category' : 'Add New Category'}</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="name">Name:</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-success">
-                {editingCategory ? 'Update' : 'Create'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search categories..." />
 
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map(category => (
-              <tr key={category.id}>
-                <td>{category.name}</td>
-                <td>
-                  <button 
-                    className="btn btn-sm btn-primary" 
-                    onClick={() => handleEdit(category)}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-danger" 
-                    onClick={() => handleDelete(category.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CategoryTable data={filteredCategories} loading={loading} onEdit={handleEdit} onDelete={handleDelete} />
+      </Card>
+
+      <FormDialog
+        open={isFormOpen}
+        onOpenChange={closeForm}
+        title={editingCategory ? 'Edit Category' : 'Add New Category'}
+        onSubmit={handleSubmit}
+        submitText={editingCategory ? 'Update' : 'Create'}
+      >
+        <CategoryForm formData={formData} onChange={setFormData} onSubmit={handleSubmit} isEditing={!!editingCategory} />
+      </FormDialog>
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={closeDelete}
+        onConfirm={confirmDelete}
+        title="Delete Category"
+        message={`Are you sure you want to delete "${deletingCategory?.name}"? Products in this category will not be deleted.`}
+        variant="destructive"
+      />
     </div>
   );
 };

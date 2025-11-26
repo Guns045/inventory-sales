@@ -1,201 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { useAPI } from '../contexts/APIContext';
-import './Suppliers.css';
+import React, { useState } from 'react';
+import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/common/PageHeader"
+import { SearchBar } from "@/components/common/SearchBar"
+import { FormDialog } from "@/components/common/FormDialog"
+import { StatsCard } from "@/components/common/StatsCard"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { SupplierForm } from "@/components/suppliers/SupplierForm"
+import { SupplierTable } from "@/components/suppliers/SupplierTable"
+import { useCRUD } from "@/hooks/useCRUD"
+import { useSearch } from "@/hooks/useSearch"
+import { useModal } from "@/hooks/useModal"
+import { useToast } from "@/hooks/useToast"
+import { Truck, Phone, MapPin } from "lucide-react"
 
 const Suppliers = () => {
-  const { get, post, put, delete: deleteReq } = useAPI();
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const { items: suppliers, loading, create, update, remove } = useCRUD('/suppliers');
+  const { searchTerm, setSearchTerm } = useSearch();
+  const { isOpen: isFormOpen, open: openForm, close: closeForm } = useModal();
+  const { isOpen: isDeleteOpen, open: openDelete, close: closeDelete } = useModal();
+  const { showSuccess, showError } = useToast();
+
+  const [formData, setFormData] = useState({ name: '', contact_person: '', phone: '', address: '' });
   const [editingSupplier, setEditingSupplier] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    contact_person: '',
-    phone: '',
-    address: ''
-  });
+  const [deletingSupplier, setDeletingSupplier] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const response = await get('/suppliers');
-      setSuppliers(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching suppliers:', error);
-      setLoading(false);
-    }
+  const handleAdd = () => {
+    setEditingSupplier(null);
+    setFormData({ name: '', contact_person: '', phone: '', address: '' });
+    openForm();
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      if (editingSupplier) {
-        await put(`/suppliers/${editingSupplier}`, formData);
-        setSuppliers(suppliers.map(s => s.id === editingSupplier ? { ...formData, id: editingSupplier } : s));
-      } else {
-        const response = await post('/suppliers', formData);
-        setSuppliers([...suppliers, response.data]);
-      }
-      
-      // Reset form and close
-      setFormData({ name: '', contact_person: '', phone: '', address: '' });
-      setShowForm(false);
-      setEditingSupplier(null);
-    } catch (error) {
-      console.error('Error saving supplier:', error);
-    }
-  };
-
-  const handleEdit = async (supplier) => {
-    // Fetch supplier details for editing in a real app
+  const handleEdit = (supplier) => {
+    setEditingSupplier(supplier);
     setFormData({
       name: supplier.name,
-      contact_person: supplier.contact_person,
-      phone: supplier.phone,
-      address: supplier.address
+      contact_person: supplier.contact_person || '',
+      phone: supplier.phone || '',
+      address: supplier.address || ''
     });
-    setEditingSupplier(supplier.id);
-    setShowForm(true);
+    openForm();
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this supplier?')) {
-      try {
-        await deleteReq(`/suppliers/${id}`);
-        setSuppliers(suppliers.filter(supplier => supplier.id !== id));
-      } catch (error) {
-        console.error('Error deleting supplier:', error);
-      }
+  const handleDelete = (supplier) => {
+    setDeletingSupplier(supplier);
+    openDelete();
+  };
+
+  const handleSubmit = async () => {
+    const result = editingSupplier
+      ? await update(editingSupplier.id, formData)
+      : await create(formData);
+
+    if (result.success) {
+      showSuccess(editingSupplier ? 'Supplier updated successfully' : 'Supplier created successfully');
+      closeForm();
+    } else {
+      showError(result.error);
     }
   };
 
-  const openForm = () => {
-    setFormData({ name: '', contact_person: '', phone: '', address: '' });
-    setEditingSupplier(null);
-    setShowForm(true);
+  const confirmDelete = async () => {
+    if (!deletingSupplier) return;
+    const result = await remove(deletingSupplier.id);
+    if (result.success) {
+      showSuccess('Supplier deleted successfully');
+      closeDelete();
+    } else {
+      showError(result.error);
+    }
   };
 
-  if (loading) {
-    return <div className="loading">Loading suppliers...</div>;
-  }
+  const filteredSuppliers = searchTerm
+    ? suppliers.filter(s =>
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : suppliers;
+
+  const stats = {
+    total: suppliers.length,
+    withPhone: suppliers.filter(s => s.phone).length,
+    withAddress: suppliers.filter(s => s.address).length
+  };
 
   return (
-    <div className="suppliers">
-      <div className="header">
-        <h1>Suppliers</h1>
-        <button className="btn btn-primary" onClick={openForm}>Add Supplier</button>
+    <div className="container mx-auto p-6 space-y-6">
+      <PageHeader
+        title="Suppliers"
+        description="Manage your supplier database"
+        onAdd={handleAdd}
+        addButtonText="Add Supplier"
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard title="Total Suppliers" value={stats.total} icon={<Truck className="h-4 w-4" />} variant="primary" />
+        <StatsCard title="With Phone" value={stats.withPhone} icon={<Phone className="h-4 w-4" />} variant="success" />
+        <StatsCard title="With Address" value={stats.withAddress} icon={<MapPin className="h-4 w-4" />} variant="info" />
       </div>
 
-      {showForm && (
-        <div className="form-container">
-          <h2>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="name">Name:</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
+      <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search suppliers..." />
 
-            <div className="form-group">
-              <label htmlFor="contact_person">Contact Person:</label>
-              <input
-                type="text"
-                id="contact_person"
-                name="contact_person"
-                value={formData.contact_person}
-                onChange={handleInputChange}
-              />
-            </div>
+      <Card>
+        <SupplierTable data={filteredSuppliers} loading={loading} onEdit={handleEdit} onDelete={handleDelete} />
+      </Card>
 
-            <div className="form-group">
-              <label htmlFor="phone">Phone:</label>
-              <input
-                type="text"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-              />
-            </div>
+      <FormDialog
+        open={isFormOpen}
+        onOpenChange={closeForm}
+        title={editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
+        onSubmit={handleSubmit}
+        submitText={editingSupplier ? 'Update' : 'Create'}
+      >
+        <SupplierForm formData={formData} onChange={setFormData} onSubmit={handleSubmit} isEditing={!!editingSupplier} />
+      </FormDialog>
 
-            <div className="form-group">
-              <label htmlFor="address">Address:</label>
-              <textarea
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" className="btn btn-success">
-                {editingSupplier ? 'Update' : 'Create'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Contact Person</th>
-              <th>Phone</th>
-              <th>Address</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {suppliers.map(supplier => (
-              <tr key={supplier.id}>
-                <td>{supplier.name}</td>
-                <td>{supplier.contact_person}</td>
-                <td>{supplier.phone}</td>
-                <td>{supplier.address}</td>
-                <td>
-                  <button 
-                    className="btn btn-sm btn-primary" 
-                    onClick={() => handleEdit(supplier)}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-danger" 
-                    onClick={() => handleDelete(supplier.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={closeDelete}
+        onConfirm={confirmDelete}
+        title="Delete Supplier"
+        message={`Are you sure you want to delete "${deletingSupplier?.name}"?`}
+        variant="destructive"
+      />
     </div>
   );
 };

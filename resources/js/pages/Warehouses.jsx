@@ -1,172 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { useAPI } from '../contexts/APIContext';
-import './Warehouses.css';
+import React, { useState } from 'react';
+import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/common/PageHeader"
+import { SearchBar } from "@/components/common/SearchBar"
+import { FormDialog } from "@/components/common/FormDialog"
+import { StatsCard } from "@/components/common/StatsCard"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { WarehouseForm } from "@/components/warehouses/WarehouseForm"
+import { WarehouseTable } from "@/components/warehouses/WarehouseTable"
+import { useCRUD } from "@/hooks/useCRUD"
+import { useSearch } from "@/hooks/useSearch"
+import { useModal } from "@/hooks/useModal"
+import { useToast } from "@/hooks/useToast"
+import { Warehouse, MapPin, Package } from "lucide-react"
 
 const Warehouses = () => {
-  const { get, post, put, delete: deleteReq } = useAPI();
-  const [warehouses, setWarehouses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const { items: warehouses, loading, create, update, remove } = useCRUD('/warehouses');
+  const { searchTerm, setSearchTerm } = useSearch();
+  const { isOpen: isFormOpen, open: openForm, close: closeForm } = useModal();
+  const { isOpen: isDeleteOpen, open: openDelete, close: closeDelete } = useModal();
+  const { showSuccess, showError } = useToast();
+
+  const [formData, setFormData] = useState({ name: '', location: '', code: '' });
   const [editingWarehouse, setEditingWarehouse] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    location: ''
-  });
+  const [deletingWarehouse, setDeletingWarehouse] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const response = await get('/warehouses');
-      setWarehouses(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching warehouses:', error);
-      setLoading(false);
-    }
+  const handleAdd = () => {
+    setEditingWarehouse(null);
+    setFormData({ name: '', location: '', code: '' });
+    openForm();
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      if (editingWarehouse) {
-        await put(`/warehouses/${editingWarehouse}`, formData);
-        setWarehouses(warehouses.map(w => w.id === editingWarehouse ? { ...formData, id: editingWarehouse } : w));
-      } else {
-        const response = await post('/warehouses', formData);
-        setWarehouses([...warehouses, response.data]);
-      }
-      
-      // Reset form and close
-      setFormData({ name: '', location: '' });
-      setShowForm(false);
-      setEditingWarehouse(null);
-    } catch (error) {
-      console.error('Error saving warehouse:', error);
-    }
-  };
-
-  const handleEdit = async (warehouse) => {
-    // Fetch warehouse details for editing in a real app
+  const handleEdit = (warehouse) => {
+    setEditingWarehouse(warehouse);
     setFormData({
       name: warehouse.name,
-      location: warehouse.location
+      location: warehouse.location || '',
+      code: warehouse.code || ''
     });
-    setEditingWarehouse(warehouse.id);
-    setShowForm(true);
+    openForm();
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this warehouse?')) {
-      try {
-        await deleteReq(`/warehouses/${id}`);
-        setWarehouses(warehouses.filter(warehouse => warehouse.id !== id));
-      } catch (error) {
-        console.error('Error deleting warehouse:', error);
-      }
+  const handleDelete = (warehouse) => {
+    setDeletingWarehouse(warehouse);
+    openDelete();
+  };
+
+  const handleSubmit = async () => {
+    const result = editingWarehouse
+      ? await update(editingWarehouse.id, formData)
+      : await create(formData);
+
+    if (result.success) {
+      showSuccess(editingWarehouse ? 'Warehouse updated successfully' : 'Warehouse created successfully');
+      closeForm();
+    } else {
+      showError(result.error);
     }
   };
 
-  const openForm = () => {
-    setFormData({ name: '', location: '' });
-    setEditingWarehouse(null);
-    setShowForm(true);
+  const confirmDelete = async () => {
+    if (!deletingWarehouse) return;
+    const result = await remove(deletingWarehouse.id);
+    if (result.success) {
+      showSuccess('Warehouse deleted successfully');
+      closeDelete();
+    } else {
+      showError(result.error);
+    }
   };
 
-  if (loading) {
-    return <div className="loading">Loading warehouses...</div>;
-  }
+  const filteredWarehouses = searchTerm
+    ? warehouses.filter(w =>
+      w.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      w.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      w.code?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : warehouses;
+
+  const stats = {
+    total: warehouses.length,
+    withLocation: warehouses.filter(w => w.location).length,
+    totalStock: warehouses.reduce((sum, w) => sum + (w.stock_count || 0), 0)
+  };
 
   return (
-    <div className="warehouses">
-      <div className="header">
-        <h1>Warehouses</h1>
-        <button className="btn btn-primary" onClick={openForm}>Add Warehouse</button>
+    <div className="container mx-auto p-6 space-y-6">
+      <PageHeader
+        title="Warehouses"
+        description="Manage warehouse locations"
+        onAdd={handleAdd}
+        addButtonText="Add Warehouse"
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard title="Total Warehouses" value={stats.total} icon={<Warehouse className="h-4 w-4" />} variant="primary" />
+        <StatsCard title="With Location" value={stats.withLocation} icon={<MapPin className="h-4 w-4" />} variant="success" />
+        <StatsCard title="Total Stock Items" value={stats.totalStock} icon={<Package className="h-4 w-4" />} variant="info" />
       </div>
 
-      {showForm && (
-        <div className="form-container">
-          <h2>{editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="name">Name:</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
+      <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search warehouses..." />
 
-            <div className="form-group">
-              <label htmlFor="location">Location:</label>
-              <textarea
-                id="location"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
+      <Card>
+        <WarehouseTable data={filteredWarehouses} loading={loading} onEdit={handleEdit} onDelete={handleDelete} />
+      </Card>
 
-            <div className="form-actions">
-              <button type="submit" className="btn btn-success">
-                {editingWarehouse ? 'Update' : 'Create'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <FormDialog
+        open={isFormOpen}
+        onOpenChange={closeForm}
+        title={editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
+        onSubmit={handleSubmit}
+        submitText={editingWarehouse ? 'Update' : 'Create'}
+      >
+        <WarehouseForm formData={formData} onChange={setFormData} onSubmit={handleSubmit} isEditing={!!editingWarehouse} />
+      </FormDialog>
 
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Location</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {warehouses.map(warehouse => (
-              <tr key={warehouse.id}>
-                <td>{warehouse.name}</td>
-                <td>{warehouse.location}</td>
-                <td>
-                  <button 
-                    className="btn btn-sm btn-primary" 
-                    onClick={() => handleEdit(warehouse)}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-danger" 
-                    onClick={() => handleDelete(warehouse.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={closeDelete}
+        onConfirm={confirmDelete}
+        title="Delete Warehouse"
+        message={`Are you sure you want to delete "${deletingWarehouse?.name}"? Stock items in this warehouse will not be deleted.`}
+        variant="destructive"
+      />
     </div>
   );
 };
