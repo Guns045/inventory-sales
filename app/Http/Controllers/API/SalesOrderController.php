@@ -3,19 +3,24 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreSalesOrderRequest;
+use App\Http\Requests\UpdateSalesOrderRequest;
+use App\Http\Requests\UpdateSalesOrderStatusRequest;
+use App\Http\Resources\SalesOrderResource;
 use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
-use App\Models\Quotation;
-use App\Models\ActivityLog;
-use App\Models\Notification;
-use App\Traits\DocumentNumberHelper;
-use Illuminate\Support\Facades\DB;
+use App\Services\SalesOrderService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SalesOrderController extends Controller
 {
-    use DocumentNumberHelper;
+    protected $salesOrderService;
+
+    public function __construct(SalesOrderService $salesOrderService)
+    {
+        $this->salesOrderService = $salesOrderService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -41,135 +46,24 @@ class SalesOrderController extends Controller
 
         $salesOrders = $query->paginate(10);
 
-        // Log status distribution for debugging
-        $statusCounts = SalesOrder::select('status', \DB::raw('count(*) as count'))
-            ->groupBy('status')
-            ->get()
-            ->pluck('count', 'status')
-            ->toArray();
-
-        Log::info('SalesOrder index: Status distribution', $statusCounts);
-        Log::info('SalesOrder index: Returning ' . $salesOrders->count() . ' orders');
-
-        return response()->json($salesOrders);
+        return SalesOrderResource::collection($salesOrders);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreSalesOrderRequest $request)
     {
-        $request->validate([
-            'quotation_id' => 'nullable|exists:quotations,id',
-            'customer_id' => 'required|exists:customers,id',
-            'status' => 'required|in:PENDING,PROCESSING,READY_TO_SHIP,SHIPPED,COMPLETED,CANCELLED',
-            'notes' => 'nullable|string',
-        ]);
-
-        // Validate quotation if provided
-        if ($request->quotation_id) {
-            $quotation = Quotation::findOrFail($request->quotation_id);
-            if ($quotation->status !== 'APPROVED') {
-                return response()->json([
-                    'message' => 'Only approved quotations can be converted to Sales Order'
-                ], 422);
-            }
+        try {
+            $salesOrder = $this->salesOrderService->createSalesOrder($request->validated());
+            return new SalesOrderResource($salesOrder);
+        } catch (\Exception $e) {
+            Log::error('SalesOrder Store Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create sales order',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $salesOrder = DB::transaction(function () use ($request) {
-            $quotation = null;
-            $warehouseId = null;
-
-            // If creating from quotation, inherit warehouse_id
-            if ($request->quotation_id) {
-                $quotation = Quotation::findOrFail($request->quotation_id);
-                $warehouseId = $quotation->warehouse_id;
-            }
-
-            // Create the sales order with warehouse-specific numbering
-            $salesOrder = SalesOrder::create([
-                'sales_order_number' => $this->generateSalesOrderNumber($warehouseId),
-                'quotation_id' => $request->quotation_id,
-                'customer_id' => $request->customer_id,
-                'user_id' => auth()->id(),
-                'warehouse_id' => $warehouseId,
-                'status' => $request->status,
-                'notes' => $request->notes,
-            ]);
-
-            // Create sales order items from quotation items if quotation_id is provided
-            if ($request->quotation_id) {
-                $quotation = Quotation::findOrFail($request->quotation_id);
-                $quotationItems = $quotation->quotationItems;
-
-                foreach ($quotationItems as $item) {
-                    SalesOrderItem::create([
-                        'sales_order_id' => $salesOrder->id,
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
-                        'unit_price' => $item->unit_price,
-                        'discount_percentage' => $item->discount_percentage,
-                        'tax_rate' => $item->tax_rate,
-                    ]);
-                }
-            } else {
-                // Create sales order items from request items
-                foreach ($request->items as $item) {
-                    $request->validate([
-                        'items.*.product_id' => 'required|exists:products,id',
-                        'items.*.quantity' => 'required|integer|min:1',
-                        'items.*.unit_price' => 'required|numeric|min:0',
-                        'items.*.discount_percentage' => 'required|numeric|min:0|max:100',
-                        'items.*.tax_rate' => 'required|numeric|min:0',
-                    ]);
-
-                    SalesOrderItem::create([
-                        'sales_order_id' => $salesOrder->id,
-                        'product_id' => $item['product_id'],
-                        'quantity' => $item['quantity'],
-                        'unit_price' => $item['unit_price'],
-                        'discount_percentage' => $item['discount_percentage'],
-                        'tax_rate' => $item['tax_rate'],
-                    ]);
-                }
-            }
-
-            return [$salesOrder, $quotation];
-        });
-
-        [$salesOrder, $quotation] = $salesOrder;
-
-        // Log activity
-        $description = $request->quotation_id
-            ? "User converted quotation {$quotation->quotation_number} to Sales Order {$salesOrder->sales_order_number}"
-            : "User created Sales Order {$salesOrder->sales_order_number} for {$salesOrder->customer->company_name}";
-
-        ActivityLog::log(
-            'CREATE_SALES_ORDER',
-            $description,
-            $salesOrder
-        );
-
-        // Create notifications
-        if ($request->quotation_id) {
-            // Notify warehouse staff about new SO
-            Notification::createForRole(
-                'Gudang',
-                "New Sales Order created: {$salesOrder->sales_order_number} (from quotation)",
-                'info',
-                '/sales-orders'
-            );
-        }
-
-        // Notify admin
-        Notification::createForRole(
-            'Admin',
-            "New Sales Order created: {$salesOrder->sales_order_number}",
-            'info',
-            '/sales-orders'
-        );
-
-        return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product', 'warehouse']), 201);
     }
 
     /**
@@ -178,66 +72,26 @@ class SalesOrderController extends Controller
     public function show($id)
     {
         $salesOrder = SalesOrder::with(['customer', 'user', 'salesOrderItems.product', 'warehouse'])->findOrFail($id);
-        return response()->json($salesOrder);
+        return new SalesOrderResource($salesOrder);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateSalesOrderRequest $request, $id)
     {
         $salesOrder = SalesOrder::findOrFail($id);
 
-        $request->validate([
-            'quotation_id' => 'nullable|exists:quotations,id',
-            'customer_id' => 'required|exists:customers,id',
-            'status' => 'required|in:PENDING,PROCESSING,READY_TO_SHIP,SHIPPED,COMPLETED,CANCELLED',
-            'notes' => 'nullable|string',
-        ]);
-
-        $salesOrder = DB::transaction(function () use ($request, $salesOrder) {
-            $warehouseId = $salesOrder->warehouse_id;
-
-            // If quotation_id is being updated, inherit warehouse_id from the new quotation
-            if ($request->quotation_id && $request->quotation_id !== $salesOrder->quotation_id) {
-                $quotation = Quotation::findOrFail($request->quotation_id);
-                $warehouseId = $quotation->warehouse_id;
-            }
-
-            $salesOrder->update([
-                'quotation_id' => $request->quotation_id,
-                'customer_id' => $request->customer_id,
-                'warehouse_id' => $warehouseId,
-                'status' => $request->status,
-                'notes' => $request->notes,
-            ]);
-
-            // Update sales order items
-            SalesOrderItem::where('sales_order_id', $salesOrder->id)->delete();
-
-            foreach ($request->items as $item) {
-                $request->validate([
-                    'items.*.product_id' => 'required|exists:products,id',
-                    'items.*.quantity' => 'required|integer|min:1',
-                    'items.*.unit_price' => 'required|numeric|min:0',
-                    'items.*.discount_percentage' => 'required|numeric|min:0|max:100',
-                    'items.*.tax_rate' => 'required|numeric|min:0',
-                ]);
-
-                SalesOrderItem::create([
-                    'sales_order_id' => $salesOrder->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'discount_percentage' => $item['discount_percentage'],
-                    'tax_rate' => $item['tax_rate'],
-                ]);
-            }
-
-            return $salesOrder->refresh();
-        });
-
-        return response()->json($salesOrder->load(['customer', 'user', 'salesOrderItems.product', 'warehouse']));
+        try {
+            $salesOrder = $this->salesOrderService->updateSalesOrder($salesOrder, $request->validated());
+            return new SalesOrderResource($salesOrder);
+        } catch (\Exception $e) {
+            Log::error('SalesOrder Update Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update sales order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -254,11 +108,7 @@ class SalesOrderController extends Controller
     public function getSalesOrderItems($id)
     {
         try {
-            Log::info('getSalesOrderItems: Fetching items for Sales Order ID: ' . $id);
-
             $salesOrder = SalesOrder::with('items.product')->findOrFail($id);
-            Log::info('getSalesOrderItems: Found Sales Order: ' . $salesOrder->sales_order_number . ' with ' . $salesOrder->items->count() . ' items');
-
             return response()->json($salesOrder->items);
         } catch (\Exception $e) {
             Log::error('getSalesOrderItems: Error - ' . $e->getMessage());
@@ -268,162 +118,28 @@ class SalesOrderController extends Controller
         }
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(UpdateSalesOrderStatusRequest $request, $id)
     {
-        $request->validate([
-            'status' => 'required|in:PENDING,PROCESSING,READY_TO_SHIP,SHIPPED,COMPLETED,CANCELLED',
-        ]);
-
         $salesOrder = SalesOrder::findOrFail($id);
-        $oldStatus = $salesOrder->status;
-        $salesOrder->update(['status' => $request->status]);
 
-        // Log activity
-        ActivityLog::log(
-            'UPDATE_SALES_ORDER_STATUS',
-            "User updated Sales Order {$salesOrder->sales_order_number} status from {$oldStatus} to {$request->status}",
-            $salesOrder,
-            ['status' => $oldStatus],
-            ['status' => $request->status]
-        );
-
-        // Auto-create Delivery Order when status changes to PROCESSING
-        if ($oldStatus !== 'PROCESSING' && $request->status === 'PROCESSING') {
-            try {
-                $deliveryOrder = \App\Models\DeliveryOrder::create([
-                    'delivery_order_number' => \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER', $salesOrder->warehouse_id),
-                    'sales_order_id' => $salesOrder->id,
-                    'customer_id' => $salesOrder->customer_id,
-                    'source_type' => 'SO',
-                    'source_id' => $salesOrder->id,
-                    'status' => 'PREPARING',
-                    'created_by' => auth()->id(),
-                ]);
-
-                ActivityLog::log(
-                    'CREATE_DELIVERY_ORDER',
-                    "Auto-created Delivery Order {$deliveryOrder->delivery_order_number} from Sales Order {$salesOrder->sales_order_number}",
-                    $deliveryOrder
-                );
-
-                Log::info('Auto-created delivery order', [
-                    'delivery_order_id' => $deliveryOrder->id,
-                    'delivery_order_number' => $deliveryOrder->delivery_order_number,
-                    'sales_order_id' => $salesOrder->id,
-                    'sales_order_number' => $salesOrder->sales_order_number
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Failed to auto-create delivery order', [
-                    'sales_order_id' => $salesOrder->id,
-                    'error' => $e->getMessage()
-                ]);
-            }
+        try {
+            $salesOrder = $this->salesOrderService->updateStatus($salesOrder, $request->status);
+            return new SalesOrderResource($salesOrder);
+        } catch (\Exception $e) {
+            Log::error('SalesOrder Update Status Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update sales order status',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Create notifications based on status
-        if ($request->status === 'READY_TO_SHIP') {
-            Notification::createForRole(
-                'Gudang',
-                "Sales Order {$salesOrder->sales_order_number} is ready to ship",
-                'info',
-                '/sales-orders'
-            );
-        } elseif ($request->status === 'SHIPPED') {
-            Notification::createForRole(
-                'Finance',
-                "Sales Order {$salesOrder->sales_order_number} has been shipped. Ready for invoicing.",
-                'info',
-                '/sales-orders'
-            );
-        } elseif ($request->status === 'COMPLETED') {
-            Notification::createForRole(
-                'Finance',
-                "Sales Order {$salesOrder->sales_order_number} completed. Please ensure invoice is created.",
-                'success',
-                '/sales-orders'
-            );
-        }
-
-        return response()->json($salesOrder);
     }
 
     public function createPickingList(Request $request, $id)
     {
         try {
-            Log::info('createPickingList: Starting for Sales Order ID: ' . $id);
-
             $salesOrder = SalesOrder::with(['items.product'])->findOrFail($id);
-            Log::info('createPickingList: Found Sales Order: ' . $salesOrder->sales_order_number . ' with status: ' . $salesOrder->status);
 
-            if ($salesOrder->status !== 'PENDING') {
-                Log::warning('createPickingList: Invalid status. Expected: PENDING, Actual: ' . $salesOrder->status);
-                return response()->json([
-                    'message' => 'Picking List can only be created for PENDING Sales Orders.',
-                    'current_status' => $salesOrder->status,
-                    'sales_order_number' => $salesOrder->sales_order_number
-                ], 422);
-            }
-
-            // Check if picking list already exists
-            $existingPickingList = \App\Models\PickingList::where('sales_order_id', $id)
-                ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
-                ->first();
-
-            if ($existingPickingList) {
-                return response()->json([
-                    'message' => 'Picking List already exists for this Sales Order.',
-                    'data' => $existingPickingList
-                ], 422);
-            }
-
-            DB::beginTransaction();
-
-            $pickingList = \App\Models\PickingList::create([
-                'sales_order_id' => $salesOrder->id,
-                'user_id' => auth()->id(),
-                'status' => 'READY',
-                'notes' => $request->notes ?? null,
-            ]);
-            Log::info('createPickingList: Created Picking List: ' . $pickingList->picking_list_number);
-
-            foreach ($salesOrder->items as $item) {
-                Log::info('createPickingList: Processing item: ' . $item->product_id);
-
-                $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)
-                    ->first();
-
-                \App\Models\PickingListItem::create([
-                    'picking_list_id' => $pickingList->id,
-                    'product_id' => $item->product_id,
-                    'warehouse_id' => $productStock?->warehouse_id,
-                    'location_code' => $productStock?->location_code ?? $item->product->location_code ?? null,
-                    'quantity_required' => $item->quantity,
-                    'quantity_picked' => 0,
-                    'status' => 'PENDING',
-                ]);
-            }
-
-            $salesOrder->update(['status' => 'PROCESSING']);
-            Log::info('createPickingList: Updated Sales Order status to PROCESSING');
-
-            // Create notification for warehouse team (commented out for now to avoid errors)
-            // Notification::createForRole(
-            //     'Gudang',
-            //     "New Picking List {$pickingList->picking_list_number} created for Sales Order {$salesOrder->sales_order_number}",
-            //     'info',
-            //     '/picking-lists'
-            // );
-
-            // Log activity (commented out for now to avoid errors)
-            // ActivityLog::log(
-            //     'CREATE_PICKING_LIST',
-            //     "User created Picking List {$pickingList->picking_list_number} for Sales Order {$salesOrder->sales_order_number}",
-            //     $pickingList
-            // );
-
-            DB::commit();
-
-            $pickingList->load(['salesOrder.customer', 'items.product', 'user']);
+            $pickingList = $this->salesOrderService->createPickingList($salesOrder, $request->notes);
 
             return response()->json([
                 'message' => 'Picking List created successfully!',
@@ -431,12 +147,9 @@ class SalesOrderController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('createPickingList: Error - ' . $e->getMessage());
-            Log::error('createPickingList: Trace - ' . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Error creating Picking List: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ], 500);
         }
     }

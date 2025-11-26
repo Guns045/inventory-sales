@@ -27,16 +27,28 @@ class DeliveryOrderTransformer
             ];
         }
 
+        $customerName = 'N/A';
+        $customerId = 'N/A';
+        $customerAddress = 'No address provided';
+        $contactPerson = 'N/A';
+
+        if ($deliveryOrder->customer) {
+            $customerName = $deliveryOrder->customer->company_name ?? $deliveryOrder->customer->name ?? 'N/A';
+            $customerId = 'CUST-' . $deliveryOrder->customer->id;
+            $customerAddress = $deliveryOrder->shipping_address ?? $deliveryOrder->customer->address ?? 'No address provided';
+            $contactPerson = $deliveryOrder->shipping_contact_person ?? ($deliveryOrder->customer->contact_person ?? 'N/A');
+        }
+
         return [
             'delivery_no' => $deliveryOrder->delivery_order_number,
             'sales_order_no' => $deliveryOrder->salesOrder ? $deliveryOrder->salesOrder->sales_order_number : 'N/A',
-            'customer_name' => $deliveryOrder->customer->company_name ?? $deliveryOrder->customer->name ?? 'N/A',
-            'customer_id' => 'CUST-' . $deliveryOrder->customer->id,
-            'customer_address' => $deliveryOrder->shipping_address ?? $deliveryOrder->customer->address ?? 'No address provided',
+            'customer_name' => $customerName,
+            'customer_id' => $customerId,
+            'customer_address' => $customerAddress,
             'date' => \Carbon\Carbon::parse($deliveryOrder->shipping_date ?? $deliveryOrder->created_at)->format('d M Y'),
             'driver_name' => $deliveryOrder->driver_name ?? 'N/A',
             'vehicle_plate' => $deliveryOrder->vehicle_plate_number ?? 'N/A',
-            'contact_person' => $deliveryOrder->shipping_contact_person ?? ($deliveryOrder->customer->contact_person ?? 'N/A'),
+            'contact_person' => $contactPerson,
             'recipient_name' => $deliveryOrder->recipient_name ?? '_____________________',
             'recipient_title' => $deliveryOrder->recipient_title ?? '_____________________',
             'items' => $items,
@@ -48,16 +60,9 @@ class DeliveryOrderTransformer
     /**
      * Transform WarehouseTransfer untuk Delivery Order (Internal Transfer)
      */
-    public static function transformFromWarehouseTransfer(\App\Models\WarehouseTransfer $transfer): array
+    public static function transformFromWarehouseTransfer(\App\Models\WarehouseTransfer $transfer, ?DeliveryOrder $deliveryOrder = null): array
     {
-        // Generate delivery order number using DocumentCounter
-        try {
-            $warehouseId = $transfer->warehouse_from_id; // Use source warehouse for numbering (consistent with transfer number)
-            $deliveryOrderNumber = \App\Models\DocumentCounter::getNextNumber('DELIVERY_ORDER', $warehouseId);
-        } catch (\Exception $e) {
-            // Fallback manual number generation
-            $deliveryOrderNumber = 'DO-' . date('ymd') . '-' . str_pad((string)mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
-        }
+        $deliveryOrderNumber = $deliveryOrder ? $deliveryOrder->delivery_order_number : $transfer->transfer_number;
 
         // Prepare items data
         $items = [];
@@ -74,15 +79,15 @@ class DeliveryOrderTransformer
             'transfer_no' => $transfer->transfer_number,
             'from_warehouse' => $transfer->warehouseFrom->name,
             'to_warehouse' => $transfer->warehouseTo->name,
-            'date' => date('d M Y'),
-            'driver_name' => 'Internal Transfer Driver',
-            'vehicle_plate' => 'Internal Vehicle',
+            'date' => $deliveryOrder ? \Carbon\Carbon::parse($deliveryOrder->created_at)->format('d M Y') : date('d M Y'),
+            'driver_name' => $deliveryOrder->driver_name ?? 'Internal Transfer Driver',
+            'vehicle_plate' => $deliveryOrder->vehicle_plate_number ?? 'Internal Vehicle',
             'contact_person' => 'Warehouse Staff',
-            'recipient_name' => null, // Will be filled when received
-            'recipient_title' => null, // Will be filled when received
+            'recipient_name' => $deliveryOrder->recipient_name ?? null,
+            'recipient_title' => $deliveryOrder->recipient_title ?? null,
             'items' => $items,
             'notes' => "Internal Transfer: " . $transfer->transfer_number,
-            'status' => 'IN_TRANSIT'
+            'status' => $deliveryOrder->status ?? 'IN_TRANSIT'
         ];
     }
 

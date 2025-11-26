@@ -51,27 +51,26 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    
-    public function role()
-    {
-        return $this->belongsTo(Role::class);
-    }
-    
+
+    // Relationship to Spatie Role (optional, if we want to keep accessing single role easily)
+    // But Spatie supports multiple roles. For this app, we assume 1 user = 1 role usually.
+    // We will use Spatie's roles() relation.
+
     public function quotations()
     {
         return $this->hasMany(Quotation::class);
     }
-    
+
     public function salesOrders()
     {
         return $this->hasMany(SalesOrder::class);
     }
-    
+
     public function purchaseOrders()
     {
         return $this->hasMany(PurchaseOrder::class);
     }
-    
+
     public function goodsReceipts()
     {
         return $this->hasMany(GoodsReceipt::class);
@@ -100,11 +99,13 @@ class User extends Authenticatable
     // Helper methods for warehouse access
     public function canAccessWarehouse($warehouseId): bool
     {
-        // Delegate to role for warehouse access permissions
-        return $this->role ? $this->role->canAccessWarehouse($warehouseId) : false;
+        if ($this->canAccessAllWarehouses()) {
+            return true;
+        }
+        return $this->warehouse_id == $warehouseId;
     }
 
-    
+
     public function isWarehouseManager(): bool
     {
         return $this->managedWarehouse !== null;
@@ -112,38 +113,39 @@ class User extends Authenticatable
 
     public function getAccessibleWarehouses()
     {
-        if ($this->can_access_multiple_warehouses) {
+        if ($this->canAccessAllWarehouses()) {
             return Warehouse::active()->get();
         }
 
         return $this->warehouse ? collect([$this->warehouse]) : collect();
     }
 
-    // Permission methods delegated to role
+    // Permission methods using Spatie
     public function hasPermission(string $resource, string $action): bool
     {
-        return $this->role ? $this->role->hasPermission($resource, $action) : false;
+        // Map resource.action to permission name
+        $permission = "{$resource}.{$action}";
+        return $this->hasPermissionTo($permission);
     }
 
     public function canPerformAction(string $action, string $resource, $context = null): bool
     {
-        return $this->role ? $this->role->canPerformAction($action, $resource, $context) : false;
+        return $this->hasPermission($resource, $action);
     }
 
     public function canAccessWarehouses(): bool
     {
-        return $this->role ? $this->role->canAccessWarehouses() : false;
+        return $this->hasPermissionTo('warehouses.read');
     }
 
     public function canAccessAllWarehouses(): bool
     {
-        return $this->can_access_multiple_warehouses ||
-               ($this->role ? $this->role->canAccessAllWarehouses() : false);
+        return $this->can_access_multiple_warehouses || $this->hasRole('Super Admin');
     }
 
     public function canApproveTransfers(): bool
     {
-        return $this->role ? $this->role->canApproveTransfers() : false;
+        return $this->hasPermissionTo('transfers.approve');
     }
 
     public function canManageWarehouse($warehouseId): bool
@@ -155,31 +157,59 @@ class User extends Authenticatable
         }
 
         // Check if role allows management
-        return $this->canAccessAllWarehouses() || $this->canAccessWarehouse($warehouseId);
+        return $this->canAccessAllWarehouses();
     }
 
     public function isHigherOrEqualThan(User $otherUser): bool
     {
-        if (!$this->role || !$otherUser->role) {
-            return false;
-        }
+        // Simplified hierarchy check based on roles
+        $hierarchy = [
+            'Super Admin' => 100,
+            'Admin' => 90,
+            'Manager Jakarta' => 80,
+            'Manager Makassar' => 80,
+            'Admin Jakarta' => 70,
+            'Admin Makassar' => 70,
+            'Sales Team' => 50,
+            'Gudang' => 40,
+        ];
 
-        return $this->role->isHigherOrEqual($otherUser->role);
+        $myRole = $this->getRoleNames()->first();
+        $otherRole = $otherUser->getRoleNames()->first();
+
+        $myLevel = $hierarchy[$myRole] ?? 0;
+        $otherLevel = $hierarchy[$otherRole] ?? 0;
+
+        return $myLevel >= $otherLevel;
     }
 
     public function isManagementRole(): bool
     {
-        return $this->role ? $this->role->isManagementRole() : false;
+        $role = $this->getRoleNames()->first();
+        return in_array($role, ['Super Admin', 'Admin', 'Manager Jakarta', 'Manager Makassar']);
     }
 
     public function isWarehouseRole(): bool
     {
-        return $this->role ? $this->role->isWarehouseRole() : false;
+        $role = $this->getRoleNames()->first();
+        return str_contains(strtolower($role ?? ''), 'gudang') ||
+            str_contains(strtolower($role ?? ''), 'warehouse');
     }
 
     public function getHierarchyLevel(): int
     {
-        return $this->role ? $this->role->hierarchy_level : 0;
+        $hierarchy = [
+            'Super Admin' => 100,
+            'Admin' => 90,
+            'Manager Jakarta' => 80,
+            'Manager Makassar' => 80,
+            'Admin Jakarta' => 70,
+            'Admin Makassar' => 70,
+            'Sales Team' => 50,
+            'Gudang' => 40,
+        ];
+        $role = $this->getRoleNames()->first();
+        return $hierarchy[$role] ?? 0;
     }
 
     /**
@@ -187,7 +217,7 @@ class User extends Authenticatable
      */
     public function getDisplayNameWithRole(): string
     {
-        $roleName = $this->role ? $this->role->name : 'No Role';
+        $roleName = $this->getRoleNames()->first() ?? 'No Role';
         return "{$this->name} ({$roleName})";
     }
 
@@ -196,7 +226,7 @@ class User extends Authenticatable
      */
     public function canCreateQuotations(): bool
     {
-        return $this->hasPermission('quotations', 'create');
+        return $this->hasPermissionTo('quotations.create');
     }
 
     /**
@@ -204,7 +234,7 @@ class User extends Authenticatable
      */
     public function canApproveQuotations(): bool
     {
-        return $this->hasPermission('quotations', 'approve') && $this->canApproveTransfers();
+        return $this->hasPermissionTo('quotations.approve');
     }
 
     /**
@@ -212,7 +242,7 @@ class User extends Authenticatable
      */
     public function canCreateSalesOrders(): bool
     {
-        return $this->hasPermission('sales_orders', 'create');
+        return $this->hasPermissionTo('sales_orders.create');
     }
 
     /**
@@ -220,7 +250,7 @@ class User extends Authenticatable
      */
     public function canManageProducts(): bool
     {
-        return $this->hasPermission('products', 'update') || $this->hasPermission('products', 'delete');
+        return $this->hasPermissionTo('products.update') || $this->hasPermissionTo('products.delete');
     }
 
     /**
@@ -228,6 +258,6 @@ class User extends Authenticatable
      */
     public function canViewReports(): bool
     {
-        return $this->hasPermission('reports', 'read');
+        return $this->hasPermissionTo('reports.read');
     }
 }

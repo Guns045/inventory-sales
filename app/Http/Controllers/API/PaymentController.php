@@ -3,12 +3,24 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\StorePaymentRequest;
+use App\Http\Requests\UpdatePaymentRequest;
+use App\Http\Resources\PaymentResource;
 use App\Models\Payment;
 use App\Models\Invoice;
+use App\Services\PaymentService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
+    protected $paymentService;
+
+    public function __construct(PaymentService $paymentService)
+    {
+        $this->paymentService = $paymentService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -22,44 +34,23 @@ class PaymentController extends Controller
         }
 
         $payments = $query->orderBy('payment_date', 'desc')->paginate(10);
-        return response()->json($payments);
+        return PaymentResource::collection($payments);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StorePaymentRequest $request)
     {
-        $request->validate([
-            'invoice_id' => 'required|exists:invoices,id',
-            'payment_date' => 'required|date',
-            'amount_paid' => 'required|numeric|min:0',
-            'payment_method' => 'required|string|max:50',
-            'reference_number' => 'nullable|string|max:100',
-        ]);
-
-        $payment = Payment::create($request->all());
-
-        // Update invoice status based on payment
-        $invoice = Invoice::findOrFail($request->invoice_id);
-        $totalPayments = $invoice->payments()->sum('amount_paid');
-
-        if ($totalPayments >= $invoice->total_amount) {
-            $invoice->update(['status' => 'PAID']);
-        } elseif ($totalPayments > 0 && $totalPayments < $invoice->total_amount) {
-            // Partial payment
-            if ($invoice->due_date < now()) {
-                $invoice->update(['status' => 'OVERDUE']);
-            } else {
-                $invoice->update(['status' => 'PARTIAL']);
-            }
-        } elseif ($invoice->due_date < now() && $totalPayments < $invoice->total_amount) {
-            $invoice->update(['status' => 'OVERDUE']);
-        } else {
-            $invoice->update(['status' => 'UNPAID']);
+        try {
+            $invoice = Invoice::findOrFail($request->invoice_id);
+            $payment = $this->paymentService->recordPayment($invoice, $request->validated());
+            return new PaymentResource($payment);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
         }
-
-        return response()->json($payment->load(['invoice', 'invoice.customer']), 201);
     }
 
     /**
@@ -68,46 +59,23 @@ class PaymentController extends Controller
     public function show($id)
     {
         $payment = Payment::with(['invoice', 'invoice.customer'])->findOrFail($id);
-        return response()->json($payment);
+        return new PaymentResource($payment);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdatePaymentRequest $request, $id)
     {
-        $payment = Payment::findOrFail($id);
-
-        $request->validate([
-            'invoice_id' => 'required|exists:invoices,id',
-            'payment_date' => 'required|date',
-            'amount_paid' => 'required|numeric|min:0',
-            'payment_method' => 'required|string|max:50',
-            'reference_number' => 'nullable|string|max:100',
-        ]);
-
-        $payment->update($request->all());
-
-        // Update invoice status based on payment
-        $invoice = Invoice::findOrFail($request->invoice_id);
-        $totalPayments = $invoice->payments()->sum('amount_paid');
-
-        if ($totalPayments >= $invoice->total_amount) {
-            $invoice->update(['status' => 'PAID']);
-        } elseif ($totalPayments > 0 && $totalPayments < $invoice->total_amount) {
-            // Partial payment
-            if ($invoice->due_date < now()) {
-                $invoice->update(['status' => 'OVERDUE']);
-            } else {
-                $invoice->update(['status' => 'PARTIAL']);
-            }
-        } elseif ($invoice->due_date < now() && $totalPayments < $invoice->total_amount) {
-            $invoice->update(['status' => 'OVERDUE']);
-        } else {
-            $invoice->update(['status' => 'UNPAID']);
+        try {
+            $payment = Payment::findOrFail($id);
+            $payment = $this->paymentService->updatePayment($payment, $request->validated());
+            return new PaymentResource($payment);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
         }
-
-        return response()->json($payment->load(['invoice', 'invoice.customer']));
     }
 
     /**
@@ -115,21 +83,32 @@ class PaymentController extends Controller
      */
     public function destroy($id)
     {
-        $payment = Payment::findOrFail($id);
-        $payment->delete();
-
-        // Update invoice status after payment deletion
-        $invoice = $payment->invoice;
-        $totalPayments = $invoice->payments()->sum('amount_paid');
-        
-        if ($totalPayments >= $invoice->total_amount) {
-            $invoice->update(['status' => 'PAID']);
-        } elseif ($invoice->due_date < now() && $totalPayments < $invoice->total_amount) {
-            $invoice->update(['status' => 'OVERDUE']);
-        } else {
-            $invoice->update(['status' => 'UNPAID']);
+        try {
+            $payment = Payment::with('invoice')->findOrFail($id);
+            $this->paymentService->deletePayment($payment);
+            return response()->json(['message' => 'Payment deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete payment',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
 
-        return response()->json(['message' => 'Payment deleted successfully']);
+    /**
+     * Get payment summary for an invoice
+     */
+    public function getInvoiceSummary($invoiceId)
+    {
+        try {
+            $invoice = Invoice::with('payments')->findOrFail($invoiceId);
+            $summary = $this->paymentService->getPaymentSummary($invoice);
+            return response()->json($summary);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to get payment summary',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

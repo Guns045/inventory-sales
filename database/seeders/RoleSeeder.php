@@ -3,145 +3,135 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Role;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\Config;
 
 class RoleSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        $roles = [
-            [
-                'name' => 'Super Admin',
-                'description' => 'Super Administrator with full system access',
-                'permissions' => [
-                    'users' => ['create', 'read', 'update', 'delete'],
-                    'warehouses' => ['create', 'read', 'update', 'delete'],
-                    'products' => ['create', 'read', 'update', 'delete'],
-                    'customers' => ['create', 'read', 'update', 'delete'],
-                    'suppliers' => ['create', 'read', 'update', 'delete'],
-                    'quotations' => ['create', 'read', 'update', 'delete', 'approve'],
-                    'sales_orders' => ['create', 'read', 'update', 'delete'],
-                    'sales-orders' => ['create', 'read', 'update', 'delete'],
-                    'transfers' => ['create', 'read', 'update', 'delete', 'approve'],
-                    'invoices' => ['create', 'read', 'update', 'delete'],
-                    'payments' => ['create', 'read', 'update', 'delete'],
-                    'reports' => ['read'],
-                    'dashboard' => ['read'],
-                    'dashboard.sales' => ['read'],
-                    'dashboard.warehouse' => ['read'],
-                    'dashboard.finance' => ['read'],
-                    'stock_movements' => ['create', 'read', 'update', 'delete'],
-                    'product-stock' => ['create', 'read', 'update', 'delete'],
-                    'picking_lists' => ['create', 'read', 'update', 'delete'],
-                    'picking-lists' => ['create', 'read', 'update', 'delete', 'print', 'complete'],
-                    'delivery_orders' => ['create', 'read', 'update', 'delete'],
-                    'goods_receipts' => ['create', 'read', 'update', 'delete'],
-                    'goods-receipts' => ['create', 'read', 'update', 'delete'],
-                    'purchase_orders' => ['create', 'read', 'update', 'delete'],
-                    'purchase-orders' => ['create', 'read', 'update', 'delete'],
-                ],
-                'warehouse_access_level' => 'all',
-                'can_approve_transfers' => true,
-                'can_manage_all_warehouses' => true,
-                'hierarchy_level' => 100,
-            ],
-            [
-                'name' => 'Warehouse Manager Gudang JKT',
-                'description' => 'Manager for Jakarta warehouse operations',
-                'permissions' => [
-                    'products' => ['read', 'update'],
-                    'warehouses' => ['read', 'update'],
-                    'stock_movements' => ['create', 'read', 'update'],
-                    'picking_lists' => ['create', 'read', 'update'],
-                    'delivery_orders' => ['create', 'read', 'update'],
-                    'transfers' => ['create', 'read', 'approve'],
-                    'goods_receipts' => ['create', 'read', 'update'],
-                    'quotations' => ['read'],
-                    'sales_orders' => ['read'],
-                    'reports' => ['read'],
-                ],
-                'warehouse_access_level' => 'specific',
-                'can_approve_transfers' => true,
-                'can_manage_all_warehouses' => false,
-                'hierarchy_level' => 80,
-            ],
-            [
-                'name' => 'Warehouse Manager Gudang MKS',
-                'description' => 'Manager for Makassar warehouse operations',
-                'permissions' => [
-                    'products' => ['read', 'update'],
-                    'warehouses' => ['read', 'update'],
-                    'stock_movements' => ['create', 'read', 'update'],
-                    'picking_lists' => ['create', 'read', 'update'],
-                    'delivery_orders' => ['create', 'read', 'update'],
-                    'transfers' => ['create', 'read', 'approve'],
-                    'goods_receipts' => ['create', 'read', 'update'],
-                    'quotations' => ['read'],
-                    'sales_orders' => ['read'],
-                    'reports' => ['read'],
-                ],
-                'warehouse_access_level' => 'specific',
-                'can_approve_transfers' => true,
-                'can_manage_all_warehouses' => false,
-                'hierarchy_level' => 80,
-            ],
-            [
-                'name' => 'Sales Team',
-                'description' => 'Sales team members for customer management',
-                'permissions' => [
-                    'customers' => ['create', 'read', 'update'],
-                    'quotations' => ['create', 'read', 'update'],
-                    'sales_orders' => ['create', 'read', 'update'],
-                    'products' => ['read'],
-                    'warehouses' => ['read'],
-                    'reports' => ['read'],
-                ],
-                'warehouse_access_level' => 'specific',
-                'can_approve_transfers' => false,
-                'can_manage_all_warehouses' => false,
-                'hierarchy_level' => 40,
-            ],
-            [
-                'name' => 'Finance Team',
-                'description' => 'Finance team for billing and payments',
-                'permissions' => [
-                    'quotations' => ['read'],
-                    'sales_orders' => ['read'],
-                    'invoices' => ['create', 'read', 'update'],
-                    'payments' => ['create', 'read', 'update'],
-                    'reports' => ['read'],
-                    'customers' => ['read'],
-                ],
-                'warehouse_access_level' => 'none',
-                'can_approve_transfers' => false,
-                'can_manage_all_warehouses' => false,
-                'hierarchy_level' => 60,
-            ],
-            [
-                'name' => 'Warehouse Staff',
-                'description' => 'General warehouse operations staff',
-                'permissions' => [
-                    'products' => ['read'],
-                    'warehouses' => ['read'],
-                    'stock_movements' => ['create', 'read'],
-                    'picking_lists' => ['create', 'read', 'update'],
-                    'delivery_orders' => ['create', 'read', 'update'],
-                    'goods_receipts' => ['create', 'read', 'update'],
-                    'transfers' => ['create', 'read'],
-                    'reports' => ['read'],
-                ],
-                'warehouse_access_level' => 'specific',
-                'can_approve_transfers' => false,
-                'can_manage_all_warehouses' => false,
-                'hierarchy_level' => 30,
-            ],
-        ];
+        // Reset cached roles and permissions
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        foreach ($roles as $role) {
-            Role::updateOrCreate(
-                ['name' => $role['name']],
-                $role
-            );
+        // Load menu config to get all permissions
+        $menuConfig = Config::get('menu');
+        $allPermissions = $this->extractPermissions($menuConfig);
+
+        // Create permissions
+        foreach ($allPermissions as $permission) {
+            Permission::firstOrCreate(['name' => $permission]);
         }
+
+        // Create Roles and Assign Permissions
+
+        // 1. Super Admin
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin']);
+        $superAdmin->givePermissionTo(Permission::all());
+
+        // 2. Admin (Access to most, but maybe restricted from some system settings if needed)
+        // For now, giving full access similar to Super Admin but conceptually different
+        $admin = Role::firstOrCreate(['name' => 'Admin']);
+        $admin->givePermissionTo(Permission::all());
+
+        // 3. Sales
+        $sales = Role::firstOrCreate(['name' => 'Sales']);
+        $salesPermissions = [
+            'dashboard.read',
+            'customers.read',
+            'customers.create',
+            'customers.update',
+            'quotations.read',
+            'quotations.create',
+            'quotations.update',
+            'quotations.submit',
+            'quotations.convert',
+            'sales_orders.read',
+            'products.read',
+            'stock.read',
+            'invoices.read',
+            'payments.read'
+        ];
+        $this->syncPermissionsToRole($sales, $salesPermissions);
+
+        // 4. Warehouse
+        $warehouse = Role::firstOrCreate(['name' => 'Warehouse']);
+        $warehousePermissions = [
+            'dashboard.read',
+            'products.read',
+            'products.create',
+            'products.update',
+            'suppliers.read',
+            'suppliers.create',
+            'suppliers.update',
+            'purchase-orders.read',
+            'purchase-orders.create',
+            'purchase-orders.update',
+            'goods_receipts.read',
+            'goods_receipts.create',
+            'goods_receipts.update',
+            'picking-lists.read',
+            'picking-lists.create',
+            'picking-lists.update',
+            'picking-lists.complete',
+            'delivery_orders.read',
+            'delivery_orders.create',
+            'delivery_orders.update',
+            'warehouse-transfers.read',
+            'warehouse-transfers.create',
+            'warehouse-transfers.update',
+            'stock.read',
+            'warehouses.read'
+        ];
+        $this->syncPermissionsToRole($warehouse, $warehousePermissions);
+    }
+
+    private function extractPermissions(array $menuItems): array
+    {
+        $permissions = [];
+        foreach ($menuItems as $item) {
+            if (isset($item['permission']) && $item['permission']) {
+                $permissions[] = $item['permission'];
+            }
+            if (isset($item['children'])) {
+                $permissions = array_merge($permissions, $this->extractPermissions($item['children']));
+            }
+        }
+
+        // Add CRUD variations for common resources if not explicitly in menu
+        // This is a simplification; in a real app, we might define these more explicitly
+        $resources = ['users', 'roles', 'products', 'customers', 'suppliers', 'quotations', 'sales_orders', 'purchase_orders', 'goods_receipts', 'delivery_orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists'];
+        foreach ($resources as $resource) {
+            $permissions[] = "{$resource}.create";
+            $permissions[] = "{$resource}.update";
+            $permissions[] = "{$resource}.delete";
+            // Add specific actions
+            if ($resource === 'quotations') {
+                $permissions[] = 'quotations.submit';
+                $permissions[] = 'quotations.convert';
+                $permissions[] = 'quotations.approve';
+                $permissions[] = 'quotations.reject';
+            }
+            if ($resource === 'picking-lists') {
+                $permissions[] = 'picking-lists.complete';
+            }
+        }
+
+        return array_unique($permissions);
+    }
+
+    private function syncPermissionsToRole(Role $role, array $permissions)
+    {
+        $validPermissions = [];
+        foreach ($permissions as $permissionName) {
+            $permission = Permission::where('name', $permissionName)->first();
+            if ($permission) {
+                $validPermissions[] = $permission;
+            }
+        }
+        $role->syncPermissions($validPermissions);
     }
 }

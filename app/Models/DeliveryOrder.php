@@ -46,7 +46,7 @@ class DeliveryOrder extends Model
         // to ensure warehouse_id is properly set before generation
     }
 
-    
+
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class);
@@ -79,7 +79,7 @@ class DeliveryOrder extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'PREPARING' => 'Preparing',
             'READY' => 'Ready to Ship',
             'SHIPPED' => 'Shipped',
@@ -91,7 +91,7 @@ class DeliveryOrder extends Model
 
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'PREPARING' => 'blue',
             'READY' => 'green',
             'SHIPPED' => 'yellow',
@@ -121,35 +121,8 @@ class DeliveryOrder extends Model
         return $this->status === 'SHIPPED';
     }
 
-    public function markAsDelivered(): void
-    {
-        if ($this->canBeDelivered()) {
-            $this->update([
-                'status' => 'DELIVERED',
-                'delivered_at' => now(),
-            ]);
-
-            // Update Sales Order status
-            if ($this->salesOrder) {
-                $this->salesOrder->update(['status' => 'COMPLETED']);
-            }
-        }
-    }
-
     public function canBeCancelled(): bool
     {
         return in_array($this->status, ['PREPARING', 'READY']);
-    }
-
-    public function cancel(): void
-    {
-        if ($this->canBeCancelled()) {
-            $this->update(['status' => 'CANCELLED']);
-
-            // Update related entities
-            if ($this->salesOrder) {
-                $this->salesOrder->update(['status' => 'READY_TO_SHIP']);
-            }
-        }
     }
 }

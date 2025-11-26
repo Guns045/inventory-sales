@@ -3,24 +3,24 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\StorePurchaseOrderRequest;
+use App\Http\Requests\UpdatePurchaseOrderRequest;
+use App\Http\Requests\UpdatePurchaseOrderStatusRequest;
+use App\Http\Resources\PurchaseOrderResource;
 use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderItem;
-use App\Models\Supplier;
-use App\Models\ActivityLog;
-use App\Models\Notification;
-use App\Models\DocumentCounter;
-use App\Models\EmailLog;
-use App\Traits\DocumentNumberHelper;
+use App\Services\PurchaseOrderService;
 use App\Transformers\PurchaseOrderTransformer;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\PurchaseOrderMail;
 
 class PurchaseOrderController extends Controller
 {
-    use DocumentNumberHelper;
+    protected $purchaseOrderService;
+
+    public function __construct(PurchaseOrderService $purchaseOrderService)
+    {
+        $this->purchaseOrderService = $purchaseOrderService;
+    }
 
     /**
      * Display a listing of the resource.
@@ -44,9 +44,9 @@ class PurchaseOrderController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('po_number', 'like', "%{$search}%")
-                  ->orWhereHas('supplier', function ($sq) use ($search) {
-                      $sq->where('company_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('supplier', function ($sq) use ($search) {
+                        $sq->where('company_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -65,80 +65,24 @@ class PurchaseOrderController extends Controller
         }
 
         $purchaseOrders = $query->orderBy('created_at', 'desc')->paginate(20);
-        return response()->json($purchaseOrders);
+        return PurchaseOrderResource::collection($purchaseOrders);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StorePurchaseOrderRequest $request)
     {
-        $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'expected_delivery_date' => 'nullable|date',
-            'status' => 'required|in:DRAFT,SENT,CONFIRMED,PARTIAL_RECEIVED,COMPLETED,CANCELLED',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.notes' => 'nullable|string',
-        ]);
-
-        $purchaseOrder = DB::transaction(function () use ($request) {
-            // Generate PO number using DocumentCounter
-            $poNumber = DocumentCounter::getNextNumber('PURCHASE_ORDER', $request->warehouse_id);
-
-            $purchaseOrder = PurchaseOrder::create([
-                'po_number' => $poNumber,
-                'supplier_id' => $request->supplier_id,
-                'warehouse_id' => $request->warehouse_id,
-                'user_id' => auth()->id(),
-                'status' => $request->status,
-                'order_date' => now()->format('Y-m-d'),
-                'expected_delivery_date' => $request->expected_delivery_date,
-                'notes' => $request->notes,
-            ]);
-
-            $totalAmount = 0;
-            foreach ($request->items as $item) {
-                $lineTotal = $item['quantity'] * $item['unit_price'];
-                $totalAmount += $lineTotal;
-
-                PurchaseOrderItem::create([
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
-                    'quantity_ordered' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'warehouse_id' => $request->warehouse_id,
-                ]);
-            }
-
-            $purchaseOrder->update(['total_amount' => $totalAmount]);
-
-            // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'Created Purchase Order',
-                'description' => "Created PO {$poNumber} for supplier {$purchaseOrder->supplier->name}",
-                'reference_type' => 'PurchaseOrder',
-                'reference_id' => $purchaseOrder->id,
-            ]);
-
-            // Create notification for warehouse staff
-            Notification::create([
-                'user_id' => auth()->id(),
-                'title' => 'New Purchase Order Created',
-                'message' => "PO {$poNumber} has been created and ready for processing",
-                'type' => 'purchase_order',
-                'reference_id' => $purchaseOrder->id,
-            ]);
-
-            return $purchaseOrder->refresh();
-        });
-
-        return response()->json($purchaseOrder->load(['supplier', 'warehouse', 'user', 'items.product']), 201);
+        try {
+            $purchaseOrder = $this->purchaseOrderService->createPurchaseOrder($request->validated());
+            return new PurchaseOrderResource($purchaseOrder);
+        } catch (\Exception $e) {
+            Log::error('PurchaseOrder Store Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create purchase order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -160,13 +104,13 @@ class PurchaseOrderController extends Controller
             return response()->json(['message' => 'Unauthorized access to this purchase order'], 403);
         }
 
-        return response()->json($purchaseOrder);
+        return new PurchaseOrderResource($purchaseOrder);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdatePurchaseOrderRequest $request, $id)
     {
         $purchaseOrder = PurchaseOrder::findOrFail($id);
 
@@ -175,64 +119,16 @@ class PurchaseOrderController extends Controller
             return response()->json(['message' => 'Only draft purchase orders can be edited'], 422);
         }
 
-        $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'expected_delivery_date' => 'nullable|date',
-            'status' => 'required|in:DRAFT,SENT,CONFIRMED,CANCELLED',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.notes' => 'nullable|string',
-        ]);
-
-        $purchaseOrder = DB::transaction(function () use ($request, $purchaseOrder) {
-            $oldStatus = $purchaseOrder->status;
-
-            $purchaseOrder->update([
-                'supplier_id' => $request->supplier_id,
-                'warehouse_id' => $request->warehouse_id,
-                'status' => $request->status,
-                'expected_delivery_date' => $request->expected_delivery_date,
-                'notes' => $request->notes,
-            ]);
-
-            // Update purchase order items
-            PurchaseOrderItem::where('purchase_order_id', $purchaseOrder->id)->delete();
-
-            $totalAmount = 0;
-            foreach ($request->items as $item) {
-                $lineTotal = $item['quantity'] * $item['unit_price'];
-                $totalAmount += $lineTotal;
-
-                PurchaseOrderItem::create([
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
-                    'quantity_ordered' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'warehouse_id' => $request->warehouse_id,
-                ]);
-            }
-
-            $purchaseOrder->update(['total_amount' => $totalAmount]);
-
-            // Log status change
-            if ($oldStatus !== $purchaseOrder->status) {
-                ActivityLog::create([
-                    'user_id' => auth()->id(),
-                    'action' => 'Updated Purchase Order Status',
-                    'reference_type' => 'PurchaseOrder',
-                    'reference_id' => $purchaseOrder->id,
-                    'description' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$purchaseOrder->status}",
-                ]);
-            }
-
-            return $purchaseOrder->refresh();
-        });
-
-        return response()->json($purchaseOrder->load(['supplier', 'warehouse', 'user', 'items.product']));
+        try {
+            $purchaseOrder = $this->purchaseOrderService->updatePurchaseOrder($purchaseOrder, $request->validated());
+            return new PurchaseOrderResource($purchaseOrder);
+        } catch (\Exception $e) {
+            Log::error('PurchaseOrder Update Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update purchase order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -247,12 +143,16 @@ class PurchaseOrderController extends Controller
             return response()->json(['message' => 'Only draft purchase orders can be deleted'], 422);
         }
 
-        DB::transaction(function () use ($purchaseOrder) {
+        try {
+            // We can add a delete method in service if needed, but simple delete is fine here
+            // However, to keep consistency with logging, we might want to move it to service later
+            // For now, I'll keep the logic here but simplified
+
             // Delete related items first
             $purchaseOrder->items()->delete();
 
             // Log activity before deletion
-            ActivityLog::create([
+            \App\Models\ActivityLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'Deleted Purchase Order',
                 'description' => "Deleted PO {$purchaseOrder->po_number}",
@@ -260,54 +160,34 @@ class PurchaseOrderController extends Controller
                 'reference_id' => $purchaseOrder->id,
             ]);
 
-            // Delete the purchase order
             $purchaseOrder->delete();
-        });
 
-        return response()->json(['message' => 'Purchase Order deleted successfully']);
+            return response()->json(['message' => 'Purchase Order deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete purchase order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Update purchase order status
      */
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(UpdatePurchaseOrderStatusRequest $request, $id)
     {
-        $request->validate([
-            'status' => 'required|in:DRAFT,SENT,CONFIRMED,PARTIAL_RECEIVED,COMPLETED,CANCELLED',
-            'notes' => 'nullable|string',
-        ]);
-
         $purchaseOrder = PurchaseOrder::findOrFail($id);
-        $oldStatus = $purchaseOrder->status;
 
-        DB::transaction(function () use ($request, $purchaseOrder, $oldStatus) {
-            $purchaseOrder->update([
-                'status' => $request->status,
-                'notes' => $request->notes,
-            ]);
-
-            // Log status change
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'Updated Purchase Order Status',
-                'reference_type' => 'PurchaseOrder',
-                'reference_id' => $purchaseOrder->id,
-                'description' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$request->status}",
-            ]);
-
-            // Create notification if status changed to CONFIRMED
-            if ($oldStatus !== 'CONFIRMED' && $request->status === 'CONFIRMED') {
-                Notification::create([
-                    'user_id' => auth()->id(),
-                    'title' => 'Purchase Order Confirmed',
-                    'message' => "PO {$purchaseOrder->po_number} has been confirmed and ready for goods receipt",
-                    'type' => 'purchase_order',
-                    'reference_id' => $purchaseOrder->id,
-                ]);
-            }
-        });
-
-        return response()->json($purchaseOrder->load(['supplier', 'warehouse', 'user']));
+        try {
+            $purchaseOrder = $this->purchaseOrderService->updateStatus($purchaseOrder, $request->status, $request->notes);
+            return new PurchaseOrderResource($purchaseOrder->load(['supplier', 'warehouse', 'user']));
+        } catch (\Exception $e) {
+            Log::error('PurchaseOrder Update Status Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update purchase order status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -325,10 +205,10 @@ class PurchaseOrderController extends Controller
     public function readyForGoodsReceipt()
     {
         $query = PurchaseOrder::with(['supplier', 'warehouse', 'items.product'])
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('status', 'SENT')
-                  ->orWhere('status', 'CONFIRMED')
-                  ->orWhere('status', 'PARTIAL_RECEIVED');
+                    ->orWhere('status', 'CONFIRMED')
+                    ->orWhere('status', 'PARTIAL_RECEIVED');
             });
 
         // Filter by user warehouse access
@@ -338,7 +218,7 @@ class PurchaseOrderController extends Controller
         }
 
         $purchaseOrders = $query->orderBy('created_at', 'desc')->get();
-        return response()->json($purchaseOrders);
+        return PurchaseOrderResource::collection($purchaseOrders);
     }
 
     /**
@@ -361,7 +241,7 @@ class PurchaseOrderController extends Controller
         }
 
         // Log activity
-        ActivityLog::log(
+        \App\Models\ActivityLog::log(
             'Printed Purchase Order',
             "Printed PO {$purchaseOrder->po_number}",
             $purchaseOrder
@@ -427,53 +307,24 @@ class PurchaseOrderController extends Controller
             ], 422);
         }
 
-        // Create email log
-        $emailLog = EmailLog::create([
-            'user_id' => auth()->id(),
-            'type' => 'purchase_order',
-            'reference_id' => $purchaseOrder->id,
-            'reference_type' => PurchaseOrder::class,
-            'recipient_email' => $request->recipient_email,
-            'subject' => "Purchase Order {$purchaseOrder->po_number} from PT. Jinan Truck Power Indonesia",
-            'message' => $request->custom_message,
-            'status' => 'pending'
-        ]);
-
         try {
-            // Send email
-            Mail::to($request->recipient_email)
-                ->send(new PurchaseOrderMail($purchaseOrder, $request->custom_message));
-
-            // Update PO status to SENT (valid enum value)
-            $purchaseOrder->update(['status' => 'SENT']);
-
-            // Update email log status
-            $emailLog->markAsSent();
-
-            // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'Sent Purchase Order',
-                'description' => "Sent PO {$purchaseOrder->po_number} to {$request->recipient_email}",
-                'reference_type' => 'PurchaseOrder',
-                'reference_id' => $purchaseOrder->id,
-            ]);
+            $result = $this->purchaseOrderService->sendPurchaseOrder(
+                $purchaseOrder,
+                $request->recipient_email,
+                $request->custom_message
+            );
 
             return response()->json([
                 'message' => 'Purchase Order sent successfully',
                 'po_number' => $purchaseOrder->po_number,
                 'status' => $purchaseOrder->status,
-                'email_log_id' => $emailLog->id
+                'email_log_id' => $result['email_log_id']
             ]);
 
         } catch (\Exception $e) {
-            // Update email log status to failed
-            $emailLog->markAsFailed($e->getMessage());
-
             return response()->json([
                 'message' => 'Failed to send Purchase Order',
-                'error' => $e->getMessage(),
-                'email_log_id' => $emailLog->id
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -494,33 +345,15 @@ class PurchaseOrderController extends Controller
             'cancellation_reason' => 'required|string'
         ]);
 
-        DB::transaction(function () use ($request, $purchaseOrder) {
-            $oldStatus = $purchaseOrder->status;
-
-            $purchaseOrder->update([
-                'status' => 'CANCELLED',
-                'notes' => ($purchaseOrder->notes ?? '') . "\n\nCancellation Reason: " . $request->cancellation_reason
-            ]);
-
-            // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'Cancelled Purchase Order',
-                'description' => "Cancelled PO {$purchaseOrder->po_number}. Previous status: {$oldStatus}. Cancellation Reason: " . $request->cancellation_reason,
-                'reference_type' => 'PurchaseOrder',
-                'reference_id' => $purchaseOrder->id,
-            ]);
-
-            // Create notification
-            Notification::create([
-                'user_id' => auth()->id(),
-                'title' => 'Purchase Order Cancelled',
-                'message' => "PO {$purchaseOrder->po_number} has been cancelled",
-                'type' => 'purchase_order',
-                'reference_id' => $purchaseOrder->id,
-            ]);
-        });
-
-        return response()->json($purchaseOrder->load(['supplier', 'warehouse', 'user']));
+        try {
+            $purchaseOrder = $this->purchaseOrderService->cancelPurchaseOrder($purchaseOrder, $request->cancellation_reason);
+            return new PurchaseOrderResource($purchaseOrder->load(['supplier', 'warehouse', 'user']));
+        } catch (\Exception $e) {
+            Log::error('PurchaseOrder Cancel Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to cancel purchase order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

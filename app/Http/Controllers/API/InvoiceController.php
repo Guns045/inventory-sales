@@ -3,18 +3,25 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceStatusRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\SalesOrder;
-use App\Models\SalesOrderItem;
-use App\Traits\DocumentNumberHelper;
-use Illuminate\Support\Facades\DB;
-use PDF;
+use App\Services\InvoiceService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceController extends Controller
 {
-    use DocumentNumberHelper;
+    protected $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -30,15 +37,15 @@ class InvoiceController extends Controller
         // Search functionality
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function($customerQuery) use ($search) {
-                      $customerQuery->where('company_name', 'like', "%{$search}%")
-                                   ->orWhere('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('salesOrder', function($salesOrderQuery) use ($search) {
-                      $salesOrderQuery->where('sales_order_number', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('salesOrder', function ($salesOrderQuery) use ($search) {
+                        $salesOrderQuery->where('sales_order_number', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -53,9 +60,9 @@ class InvoiceController extends Controller
         // Customer filter
         if ($request->has('customer') && !empty($request->customer)) {
             $customer = $request->customer;
-            $query->whereHas('customer', function($customerQuery) use ($customer) {
+            $query->whereHas('customer', function ($customerQuery) use ($customer) {
                 $customerQuery->where('company_name', 'like', "%{$customer}%")
-                             ->orWhere('name', 'like', "%{$customer}%");
+                    ->orWhere('name', 'like', "%{$customer}%");
             });
         }
 
@@ -68,11 +75,11 @@ class InvoiceController extends Controller
         }
 
         $invoices = $query->orderBy('created_at', 'desc')->paginate(10);
-        return response()->json($invoices);
+        return InvoiceResource::collection($invoices);
     }
 
     /**
-     * Export invoices to Excel
+     * Export invoices to Excel/CSV
      */
     public function export(Request $request)
     {
@@ -85,15 +92,15 @@ class InvoiceController extends Controller
 
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function($customerQuery) use ($search) {
-                      $customerQuery->where('company_name', 'like', "%{$search}%")
-                                   ->orWhere('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('salesOrder', function($salesOrderQuery) use ($search) {
-                      $salesOrderQuery->where('sales_order_number', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('salesOrder', function ($salesOrderQuery) use ($search) {
+                        $salesOrderQuery->where('sales_order_number', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -106,9 +113,9 @@ class InvoiceController extends Controller
 
         if ($request->has('customer') && !empty($request->customer)) {
             $customer = $request->customer;
-            $query->whereHas('customer', function($customerQuery) use ($customer) {
+            $query->whereHas('customer', function ($customerQuery) use ($customer) {
                 $customerQuery->where('company_name', 'like', "%{$customer}%")
-                             ->orWhere('name', 'like', "%{$customer}%");
+                    ->orWhere('name', 'like', "%{$customer}%");
             });
         }
 
@@ -121,29 +128,8 @@ class InvoiceController extends Controller
 
         $invoices = $query->orderBy('created_at', 'desc')->get();
 
-        // Create CSV data
-        $csvData = [];
-        $csvData[] = ['Invoice Number', 'Customer', 'Issue Date', 'Due Date', 'Total Amount', 'Status', 'Sales Order'];
-
-        foreach ($invoices as $invoice) {
-            $csvData[] = [
-                $invoice->invoice_number,
-                $invoice->customer->company_name ?? $invoice->customer->name ?? 'N/A',
-                $invoice->issue_date->format('Y-m-d'),
-                $invoice->due_date->format('Y-m-d'),
-                $invoice->total_amount,
-                $invoice->status,
-                $invoice->salesOrder->sales_order_number ?? 'N/A'
-            ];
-        }
-
-        // Create CSV content
-        $csv = '';
-        foreach ($csvData as $row) {
-            $csv .= implode(',', array_map(function($field) {
-                return '"' . str_replace('"', '""', $field) . '"';
-            }, $row)) . "\n";
-        }
+        // Generate CSV using service
+        $csv = $this->invoiceService->exportToCSV($invoices);
 
         $filename = 'invoices-export-' . date('Y-m-d') . '.csv';
 
@@ -157,10 +143,9 @@ class InvoiceController extends Controller
      */
     public function getReadyToCreate()
     {
-        // Get SO yang statusnya SHIPPED dan belum ada invoice-nya
         $shippedSalesOrders = SalesOrder::with(['customer', 'salesOrderItems.product', 'user'])
             ->where('status', 'SHIPPED')
-            ->whereDoesntHave('invoice') // Belum ada invoice
+            ->whereDoesntHave('invoice')
             ->orderBy('updated_at', 'desc')
             ->paginate(10);
 
@@ -170,77 +155,20 @@ class InvoiceController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreInvoiceRequest $request)
     {
-        $request->validate([
-            'sales_order_id' => 'required|exists:sales_orders,id',
-            'customer_id' => 'required|exists:customers,id',
-            'issue_date' => 'required|date',
-            'due_date' => 'required|date',
-            'status' => 'required|in:UNPAID,PAID,PARTIAL,OVERDUE',
-        ]);
-
-        $invoice = DB::transaction(function () use ($request) {
-            // Create invoice items from the sales order items first to calculate total
-            $salesOrder = SalesOrder::findOrFail($request->sales_order_id);
-            $salesOrderItems = $salesOrder->salesOrderItems;
-
-            $totalAmount = 0;
-            foreach ($salesOrderItems as $item) {
-                $totalPrice = $item->quantity * $item->unit_price;
-                $discountAmount = $totalPrice * ($item->discount_percentage / 100);
-                $taxAmount = ($totalPrice - $discountAmount) * ($item->tax_rate / 100);
-                $totalPrice = $totalPrice - $discountAmount + $taxAmount;
-                $totalAmount += $totalPrice;
-            }
-
-            // Get warehouse ID directly from the sales order
-            // If warehouse_id is NULL (for backward compatibility), parse from sales_order_number
-            if ($salesOrder->warehouse_id) {
-                $warehouseId = $salesOrder->warehouse_id;
-            } else {
-                // Fallback to parsing from sales_order_number for existing records
-                $parts = explode('/', $salesOrder->sales_order_number);
-                $warehouseCode = count($parts) >= 2 ? $parts[1] : 'JKT';
-                $warehouseId = ($warehouseCode === 'JKT') ? 1 : 2;
-            }
-
-            $invoice = Invoice::create([
-                'invoice_number' => $this->generateInvoiceNumber($warehouseId),
-                'sales_order_id' => $request->sales_order_id,
-                'customer_id' => $request->customer_id,
-                'issue_date' => $request->issue_date,
-                'due_date' => $request->due_date,
-                'status' => $request->status,
-                'total_amount' => $totalAmount,
-            ]);
-
-            // Create invoice items from the sales order items
-            foreach ($salesOrderItems as $item) {
-                $totalPrice = $item->quantity * $item->unit_price;
-                $discountAmount = $totalPrice * ($item->discount_percentage / 100);
-                $taxAmount = ($totalPrice - $discountAmount) * ($item->tax_rate / 100);
-                $totalPrice = $totalPrice - $discountAmount + $taxAmount;
-
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $item->product_id,
-                    'description' => $item->product->name,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->unit_price,
-                    'discount_percentage' => $item->discount_percentage,
-                    'tax_rate' => $item->tax_rate,
-                    'total_price' => $totalPrice,
-                ]);
-            }
-
-            // Update the sales order status to completed/invoiced
-            $salesOrder->update(['status' => 'COMPLETED']);
-
-            return $invoice;
-        });
-
-        return response()->json($invoice->load(['customer', 'salesOrder', 'invoiceItems.product']), 201);
+        try {
+            $invoice = $this->invoiceService->createFromSalesOrder(
+                $request->sales_order_id,
+                $request->validated()
+            );
+            return new InvoiceResource($invoice);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -249,27 +177,24 @@ class InvoiceController extends Controller
     public function show($id)
     {
         $invoice = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse'])->findOrFail($id);
-        return response()->json($invoice);
+        return new InvoiceResource($invoice);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateInvoiceRequest $request, $id)
     {
-        $invoice = Invoice::findOrFail($id);
-
-        $request->validate([
-            'sales_order_id' => 'required|exists:sales_orders,id',
-            'customer_id' => 'required|exists:customers,id',
-            'issue_date' => 'required|date',
-            'due_date' => 'required|date',
-            'status' => 'required|in:UNPAID,PAID,PARTIAL,OVERDUE',
-        ]);
-
-        $invoice->update($request->all());
-
-        return response()->json($invoice->load(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse']));
+        try {
+            $invoice = Invoice::findOrFail($id);
+            $invoice = $this->invoiceService->updateInvoice($invoice, $request->validated());
+            return new InvoiceResource($invoice);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -292,47 +217,21 @@ class InvoiceController extends Controller
     /**
      * Update invoice status
      */
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(UpdateInvoiceStatusRequest $request, $id)
     {
-        $invoice = Invoice::findOrFail($id);
+        try {
+            $invoice = Invoice::findOrFail($id);
+            $invoice = $this->invoiceService->updateStatus($invoice, $request->status, $request->notes);
 
-        $request->validate([
-            'status' => 'required|in:UNPAID,PAID,PARTIAL,OVERDUE',
-            'notes' => 'nullable|string|max:500'
-        ]);
-
-        $oldStatus = $invoice->status;
-        $newStatus = $request->status;
-
-        // Business logic validation
-        if ($oldStatus === 'PAID' && in_array($newStatus, ['UNPAID', 'PARTIAL'])) {
             return response()->json([
-                'message' => 'Cannot change PAID invoice back to UNPAID or PARTIAL status'
+                'message' => 'Invoice status updated successfully',
+                'invoice' => new InvoiceResource($invoice)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
             ], 422);
         }
-
-        // Auto-update OVERDUE status based on due date
-        if ($newStatus === 'PARTIAL' && $invoice->due_date < now()) {
-            $newStatus = 'OVERDUE';
-        }
-
-        $notes = $request->notes ?? $invoice->notes;
-
-        // Add status change tracking to notes
-        if ($oldStatus !== $newStatus) {
-            $statusChangeNote = "Status changed from {$oldStatus} to {$newStatus} on " . now()->format('Y-m-d H:i:s') . ".";
-            $notes = $notes ? $notes . ' ' . $statusChangeNote : $statusChangeNote;
-        }
-
-        $invoice->update([
-            'status' => $newStatus,
-            'notes' => $notes
-        ]);
-
-        return response()->json([
-            'message' => 'Invoice status updated successfully',
-            'invoice' => $invoice->load(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse'])
-        ]);
     }
 
     /**
@@ -340,51 +239,16 @@ class InvoiceController extends Controller
      */
     public function print($id)
     {
-        $invoice = Invoice::with([
-            'customer',
-            'salesOrder',
-            'invoiceItems.product',
-            'salesOrder.customer'
-        ])->findOrFail($id);
+        try {
+            $invoice = Invoice::findOrFail($id);
+            $pdf = $this->invoiceService->generatePDF($invoice);
 
-        // Use InvoiceTransformer untuk consistency dengan PQ/PL/DO
-        $companyData = \App\Transformers\InvoiceTransformer::getCompanyData();
-
-        // Transform invoice data untuk PDF template
-        $invoiceData = \App\Transformers\InvoiceTransformer::transform($invoice);
-
-        $pdf = PDF::loadView('pdf.invoice', [
-            'company' => $companyData,
-            'invoice' => $invoiceData
-        ]);
-
-        // Safe filename - replace invalid characters
-        $safeNumber = str_replace(['/', '\\'], '_', $invoice->invoice_number);
-        return $pdf->stream('invoice-' . $safeNumber . '.pdf');
-    }
-
-    /**
-     * Get warehouse ID based on user role for invoices (default to MKS)
-     *
-     * @param User $user
-     * @return int|null
-     */
-    private function getUserWarehouseCodeForInvoice($user)
-    {
-        // Map role names to warehouse IDs based on actual data
-        // ID 1: Main Warehouse JKT (code: JKT)
-        // ID 2: Transit Warehouse MKS (code: MKS)
-
-        // Check if user has a specific warehouse role
-        if ($user->role && $user->role->name === 'Gudang JKT') {
-            return 1; // JKT warehouse ID
-        } elseif ($user->role && $user->role->name === 'Gudang MKS') {
-            return 2; // MKS warehouse ID
-        } elseif ($user->role && $user->role->name === 'Admin') {
-            return 2; // Default to MKS warehouse ID for Admin
+            $safeNumber = str_replace(['/', '\\'], '_', $invoice->invoice_number);
+            return $pdf->stream('invoice-' . $safeNumber . '.pdf');
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error generating PDF: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Default to MKS warehouse ID for other roles
-        return 2;
     }
 }
