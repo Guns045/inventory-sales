@@ -50,7 +50,8 @@ export const AuthProvider = ({ children }) => {
     token,
     user,
     login,
-    logout
+    logout,
+    isAuthenticated: isValidToken
   };
 
   return (

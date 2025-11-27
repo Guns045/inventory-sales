@@ -16,13 +16,14 @@ class ErrorBoundary extends React.Component {
     console.error('Error Boundary caught an error:', error, errorInfo);
 
     // Show error in debug info div
+    // Show error in debug info div
     const debugInfo = document.getElementById('debug-info');
     if (debugInfo) {
       debugInfo.innerHTML = `
         <div style="color: #ff6b6b; padding: 10px;">
           ❌ REACT COMPONENT ERROR: ${error.toString()}
           <br>Component: ${this.props.componentName || 'Unknown'}
-          <br>Stack: ${errorInfo.componentStack}
+          <br>Stack: ${errorInfo ? errorInfo.componentStack : 'Not available'}
         </div>
       `;
     }
@@ -43,7 +44,7 @@ class ErrorBoundary extends React.Component {
             <summary>Error Details</summary>
             {this.state.error && this.state.error.toString()}
             <br />
-            {this.state.errorInfo.componentStack}
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
           </details>
         </div>
       );

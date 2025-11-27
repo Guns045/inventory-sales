@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAPI } from './APIContext';
+import { useAuth } from './AuthContext';
 
 const PermissionContext = createContext();
 
@@ -20,6 +21,7 @@ export const PermissionProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
   const { api } = useAPI();
+  const { token } = useAuth();
 
   const clearPermissions = () => {
     setUserPermissions({
@@ -32,6 +34,11 @@ export const PermissionProvider = ({ children }) => {
   };
 
   const fetchUserPermissions = async () => {
+    if (!token) {
+      clearPermissions();
+      return;
+    }
+
     try {
       const response = await api.get('/user/permissions');
       setUserPermissions(response.data);
@@ -43,15 +50,14 @@ export const PermissionProvider = ({ children }) => {
     }
   };
 
-  // Fetch permissions when component mounts and token exists
+  // Fetch permissions when token changes
   useEffect(() => {
-    const token = localStorage.getItem('token');
     if (token && token.length > 10) {
       fetchUserPermissions();
     } else {
       clearPermissions();
     }
-  }, []); // Only run once on mount
+  }, [token]);
 
   const hasPermission = (permission) => {
     if (!permission || !userPermissions.permissions || typeof userPermissions.permissions !== 'object') {

@@ -10,7 +10,10 @@
     <!-- Tailwind CSS CDN -->
     @viteReactRefresh
     @vite(['resources/js/app.jsx'])
+</head>
 
-    </body>
+<body>
+    <div id="root"></div>
+</body>
 
 </html>

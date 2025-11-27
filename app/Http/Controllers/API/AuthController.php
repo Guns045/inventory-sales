@@ -35,7 +35,7 @@ class AuthController extends Controller
             throw $e;
         }
 
-        $user = User::with('role')->where('email', $request->email)->first();
+        $user = User::with('roles')->where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             \Log::info('Login failed for user', ['email' => $request->email]);
@@ -49,7 +49,7 @@ class AuthController extends Controller
         \Log::info('Login successful for user', ['email' => $request->email, 'user_id' => $user->id]);
 
         // Load user with role and warehouse relationships
-        $userWithRole = User::with(['role', 'warehouse'])->find($user->id);
+        $userWithRole = User::with(['roles', 'warehouse'])->find($user->id);
 
         return response()->json([
             'user' => $userWithRole,

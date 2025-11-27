@@ -45,9 +45,7 @@ class Notification extends Model
      */
     public static function createForRole(string $roleName, string $message, string $type = 'info', string $linkUrl = null, array $data = null)
     {
-        $users = User::whereHas('role', function ($query) use ($roleName) {
-            $query->where('name', $roleName);
-        })->get();
+        $users = User::role($roleName)->get();
 
         foreach ($users as $user) {
             self::createForUser($user->id, $message, $type, $linkUrl, $data);

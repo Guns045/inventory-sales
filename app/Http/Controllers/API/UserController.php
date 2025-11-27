@@ -16,14 +16,14 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with(['role', 'warehouse']);
+        $query = User::with(['roles', 'warehouse']);
 
         // Search by name or email
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
+                    ->orWhere('email', 'LIKE', "%{$search}%");
             });
         }
 
@@ -87,7 +87,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with(['role', 'warehouse'])->findOrFail($id);
+        $user = User::with(['roles', 'warehouse'])->findOrFail($id);
         return response()->json($user);
     }
 

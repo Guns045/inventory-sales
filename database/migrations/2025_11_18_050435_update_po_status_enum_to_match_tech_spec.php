@@ -5,8 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -19,7 +18,9 @@ return new class extends Migration
         DB::statement("UPDATE purchase_orders SET status = 'COMPLETED' WHERE status = 'CLOSED'");
 
         // Update enum to match tech spec
-        DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status ENUM('DRAFT','SENT','CONFIRMED','PARTIAL_RECEIVED','COMPLETED','CANCELLED')");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status ENUM('DRAFT','SENT','CONFIRMED','PARTIAL_RECEIVED','COMPLETED','CANCELLED')");
+        }
     }
 
     /**
@@ -28,7 +29,9 @@ return new class extends Migration
     public function down(): void
     {
         // Revert to old enum values
-        DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status ENUM('DRAFT','SUBMITTED','APPROVED','PARTIAL_RECEIVED','RECEIVED','CLOSED','CANCELLED')");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status ENUM('DRAFT','SUBMITTED','APPROVED','PARTIAL_RECEIVED','RECEIVED','CLOSED','CANCELLED')");
+        }
 
         // Update data back to old values
         DB::statement("UPDATE purchase_orders SET status = 'SUBMITTED' WHERE status = 'SENT'");

@@ -2,12 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAPI } from './APIContext';
 
 const getBaseURL = () => {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000';
-  } else {
-    return `http://${hostname}:8000`;
-  }
+  return '';
 };
 
 const CompanyContext = createContext();

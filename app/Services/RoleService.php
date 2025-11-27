@@ -13,8 +13,18 @@ class RoleService
      */
     public function getRolePermissions(string $roleName): array
     {
-        $role = Role::findByName($roleName);
-        $permissions = $role->permissions->pluck('name')->toArray();
+        try {
+            $role = Role::findByName($roleName, 'sanctum');
+        } catch (\Exception $e) {
+            $role = Role::findByName($roleName, 'web');
+        }
+
+        if ($roleName === 'Super Admin') {
+            // For Super Admin, return ALL permissions
+            $permissions = Permission::pluck('name')->toArray();
+        } else {
+            $permissions = $role->permissions->pluck('name')->toArray();
+        }
 
         // Generate menu based on permissions
         $menuItems = $this->getMenuForRole($role);
@@ -78,6 +88,11 @@ class RoleService
      */
     private function canAccessMenuItem(Role $role, array $item): bool
     {
+        // Super Admin has access to everything
+        if ($role->name === 'Super Admin') {
+            return true;
+        }
+
         // If permission is null (like Logout), everyone can access
         if ($item['permission'] === null) {
             return true;

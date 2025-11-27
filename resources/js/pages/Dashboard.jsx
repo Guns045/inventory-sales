@@ -26,8 +26,19 @@ const Dashboard = () => {
   }, [user]);
 
   const getUserRole = () => {
-    if (!user || !user.role) return 'default';
-    return user.role.name;
+    if (!user) return 'default';
+
+    // Check for Spatie roles array
+    if (user.roles && user.roles.length > 0) {
+      return user.roles[0].name;
+    }
+
+    // Check for single role object (legacy/fallback)
+    if (user.role) {
+      return user.role.name;
+    }
+
+    return 'default';
   };
 
   const renderRoleBasedDashboard = () => {
@@ -37,7 +48,7 @@ const Dashboard = () => {
       case 'Super Admin':
       case 'Admin':
       case 'manager':
-        return <DashboardMain />;  // Changed from DashboardAdmin to DashboardMain
+        return <DashboardMain />;
       case 'Sales':
       case 'Sales Team':
         return <DashboardSales />;

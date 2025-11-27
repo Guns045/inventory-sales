@@ -54,8 +54,8 @@ Route::get('/test-cors', function () {
             'random_id' => uniqid()
         ]
     ])->header('Access-Control-Allow-Origin', '*')
-      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 });
 
 // Protected routes
@@ -88,14 +88,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/permissions/{id}', [PermissionController::class, 'destroy'])->middleware('permission:manage_roles');
     Route::get('/roles/{roleId}/permissions', [PermissionController::class, 'getRolePermissions']);
     Route::put('/roles/{roleId}/permissions', [PermissionController::class, 'syncRolePermissions'])->middleware('permission:manage_roles');
-    
+
     // Master data
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('suppliers', SupplierController::class);
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('warehouses', WarehouseController::class);
     Route::apiResource('products', ProductController::class);
-    
+
     // Inventory management
     Route::get('/product-stock', [ProductStockController::class, 'index'])->middleware('permission:product-stock.read');
     Route::get('/product-stock/{id}', [ProductStockController::class, 'show'])->middleware('permission:product-stock.read');
@@ -104,7 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/product-stock/{id}', [ProductStockController::class, 'destroy'])->middleware('permission:product-stock.delete');
     Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
     Route::get('/product-stock/{id}/movements', [ProductStockController::class, 'getMovementHistory'])->middleware('permission:product-stock.read');
-    
+
     // Sales management
     Route::apiResource('quotations', QuotationController::class);
     Route::get('/quotations/{id}/items', [QuotationController::class, 'getQuotationItems']);
@@ -114,7 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/quotations/rejection-reasons', [QuotationController::class, 'getRejectionReasons']);
     Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
     Route::get('/quotations/{id}/check-convertibility', [QuotationController::class, 'checkConvertibility']);
-    
+
     Route::get('/sales-orders', [SalesOrderController::class, 'index'])->middleware('permission:sales-orders.read');
     Route::post('/sales-orders', [SalesOrderController::class, 'store']);
     Route::get('/sales-orders/{sales_order}', [SalesOrderController::class, 'show']);
@@ -156,7 +156,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate']);
     Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery']);
-    
+
     // Finance management
     Route::get('/invoices/ready-to-create', [InvoiceController::class, 'getReadyToCreate']);
     Route::get('/invoices/export', [InvoiceController::class, 'export'])->middleware('permission:invoices.read');
@@ -165,7 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->middleware('permission:invoices.read');
     Route::patch('/invoices/{id}/status', [InvoiceController::class, 'updateStatus'])->middleware('permission:invoices.update');
     Route::apiResource('payments', PaymentController::class);
-    
+
     // Purchase management
     Route::get('/purchase-orders/ready-for-goods-receipt', [PurchaseOrderController::class, 'readyForGoodsReceipt']);
     Route::apiResource('purchase-orders', PurchaseOrderController::class)->middleware('permission:purchase-orders.read');
@@ -230,11 +230,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/sales', [DashboardController::class, 'salesReports']);
 
     // Advanced Reports routes
-    Route::get('/reports/sales-performance', [ReportController::class, 'salesPerformance'])->middleware('permission:reports.read');
-    Route::get('/reports/inventory-turnover', [ReportController::class, 'inventoryTurnover'])->middleware('permission:reports.read');
-    Route::get('/reports/financial-performance', [ReportController::class, 'financialPerformance'])->middleware('permission:reports.read');
-    Route::get('/reports/customer-analysis', [ReportController::class, 'customerAnalysis'])->middleware('permission:reports.read');
-    Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
+    // Route::get('/reports/sales-performance', [ReportController::class, 'salesPerformance'])->middleware('permission:reports.read');
+    // Route::get('/reports/inventory-turnover', [ReportController::class, 'inventoryTurnover'])->middleware('permission:reports.read');
+    // Route::get('/reports/financial-performance', [ReportController::class, 'financialPerformance'])->middleware('permission:reports.read');
+    // Route::get('/reports/customer-analysis', [ReportController::class, 'customerAnalysis'])->middleware('permission:reports.read');
+    // Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
 
     // Company Settings routes (Admin only)
     Route::apiResource('company-settings', CompanySettingsController::class)->middleware('super.admin.or.company.settings');

@@ -72,11 +72,16 @@ Route::get('/node_modules/{path}', function ($path) {
     }
 
     $mimeType = 'application/octet-stream';
-    if (str_ends_with($path, '.woff2')) $mimeType = 'font/woff2';
-    elseif (str_ends_with($path, '.woff')) $mimeType = 'font/woff';
-    elseif (str_ends_with($path, '.ttf')) $mimeType = 'font/ttf';
-    elseif (str_ends_with($path, '.css')) $mimeType = 'text/css';
-    elseif (str_ends_with($path, '.js')) $mimeType = 'application/javascript';
+    if (str_ends_with($path, '.woff2'))
+        $mimeType = 'font/woff2';
+    elseif (str_ends_with($path, '.woff'))
+        $mimeType = 'font/woff';
+    elseif (str_ends_with($path, '.ttf'))
+        $mimeType = 'font/ttf';
+    elseif (str_ends_with($path, '.css'))
+        $mimeType = 'text/css';
+    elseif (str_ends_with($path, '.js'))
+        $mimeType = 'application/javascript';
 
     return response()->file($fullPath, [
         'Content-Type' => $mimeType,
@@ -108,10 +113,14 @@ Route::get('/storage/{path}', function ($path) {
     }
 
     $mimeType = 'application/octet-stream';
-    if (str_ends_with($path, '.png')) $mimeType = 'image/png';
-    elseif (str_ends_with($path, '.jpg') || str_ends_with($path, '.jpeg')) $mimeType = 'image/jpeg';
-    elseif (str_ends_with($path, '.gif')) $mimeType = 'image/gif';
-    elseif (str_ends_with($path, '.svg')) $mimeType = 'image/svg+xml';
+    if (str_ends_with($path, '.png'))
+        $mimeType = 'image/png';
+    elseif (str_ends_with($path, '.jpg') || str_ends_with($path, '.jpeg'))
+        $mimeType = 'image/jpeg';
+    elseif (str_ends_with($path, '.gif'))
+        $mimeType = 'image/gif';
+    elseif (str_ends_with($path, '.svg'))
+        $mimeType = 'image/svg+xml';
 
     return response()->file($fullPath, [
         'Content-Type' => $mimeType,
@@ -124,8 +133,3 @@ Route::get('/storage/{path}', function ($path) {
 Route::get('/{any}', function () {
     return view('welcome');
 })->where('any', '.*');
-
-
-
-
-
