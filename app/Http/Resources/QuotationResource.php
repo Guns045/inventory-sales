@@ -20,6 +20,12 @@ class QuotationResource extends JsonResource
             'discount' => $this->discount,
             'tax' => $this->tax,
             'total_amount' => $this->total_amount,
+            'notes' => $this->notes,
+            'payment_term' => $this->payment_term,
+            'terms' => $this->terms,
+            'tax_rate' => $this->tax_rate,
+            'other_costs' => $this->other_costs,
+            'created_by' => $this->created_by,
             'items' => $this->whenLoaded('quotationItems', function () {
                 return $this->quotationItems->map(function ($item) {
                     return [

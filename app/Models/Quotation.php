@@ -8,9 +8,11 @@ use App\Traits\DocumentNumberHelper;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\ProductStock;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Quotation extends Model
 {
+    use HasFactory;
     use DocumentNumberHelper;
     protected $fillable = [
         'quotation_number',

@@ -14,14 +14,20 @@ export default defineConfig({
     ],
     server: {
         port: 3000,
-        host: '192.168.18.23', // Use specific IP instead of 0.0.0.0
-        strictPort: true, // Don't try other ports if 3000 is busy
-        cors: true, // Enable CORS for all origins
-        origin: 'http://192.168.18.23:8000', // CORS origin
+        host: 'localhost',
+        strictPort: true,
+        cors: true,
+        origin: 'http://localhost:8000',
     },
     resolve: {
         alias: {
             '@': '/resources/js',
         },
+    },
+    test: {
+        globals: true,
+        environment: 'jsdom',
+        setupFiles: './resources/js/setupTests.js',
+        css: true,
     },
 });

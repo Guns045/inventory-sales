@@ -14,6 +14,8 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
+    protected $guard_name = 'web';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -23,7 +25,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role_id',
         'warehouse_id',
         'can_access_multiple_warehouses',
         'is_active',
@@ -170,8 +171,8 @@ class User extends Authenticatable
             'Manager Makassar' => 80,
             'Admin Jakarta' => 70,
             'Admin Makassar' => 70,
-            'Sales Team' => 50,
-            'Gudang' => 40,
+            'Sales' => 50,
+            'Warehouse' => 40,
         ];
 
         $myRole = $this->getRoleNames()->first();
@@ -205,8 +206,8 @@ class User extends Authenticatable
             'Manager Makassar' => 80,
             'Admin Jakarta' => 70,
             'Admin Makassar' => 70,
-            'Sales Team' => 50,
-            'Gudang' => 40,
+            'Sales' => 50,
+            'Warehouse' => 40,
         ];
         $role = $this->getRoleNames()->first();
         return $hierarchy[$role] ?? 0;

@@ -4,35 +4,37 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Supplier;
-use Illuminate\Validation\Rule;
+use App\Services\SupplierService;
+use App\Http\Requests\StoreSupplierRequest;
+use App\Http\Requests\UpdateSupplierRequest;
+use App\Http\Resources\SupplierResource;
 
 class SupplierController extends Controller
 {
+    protected $supplierService;
+
+    public function __construct(SupplierService $supplierService)
+    {
+        $this->supplierService = $supplierService;
+    }
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $suppliers = Supplier::all();
-        return response()->json($suppliers);
+        $perPage = $request->get('per_page', 20);
+        $suppliers = $this->supplierService->listSuppliers($perPage);
+        return SupplierResource::collection($suppliers);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreSupplierRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-        ]);
-
-        $supplier = Supplier::create($request->all());
-
-        return response()->json($supplier, 201);
+        $supplier = $this->supplierService->createSupplier($request->validated());
+        return new SupplierResource($supplier);
     }
 
     /**
@@ -40,27 +42,17 @@ class SupplierController extends Controller
      */
     public function show($id)
     {
-        $supplier = Supplier::findOrFail($id);
-        return response()->json($supplier);
+        $supplier = $this->supplierService->getSupplier($id);
+        return new SupplierResource($supplier);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateSupplierRequest $request, $id)
     {
-        $supplier = Supplier::findOrFail($id);
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-        ]);
-
-        $supplier->update($request->all());
-
-        return response()->json($supplier);
+        $supplier = $this->supplierService->updateSupplier($id, $request->validated());
+        return new SupplierResource($supplier);
     }
 
     /**
@@ -68,9 +60,7 @@ class SupplierController extends Controller
      */
     public function destroy($id)
     {
-        $supplier = Supplier::findOrFail($id);
-        $supplier->delete();
-
+        $this->supplierService->deleteSupplier($id);
         return response()->json(['message' => 'Supplier deleted successfully']);
     }
 }

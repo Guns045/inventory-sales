@@ -31,15 +31,9 @@ class PermissionMiddleware
         $userPermissions = $this->getUserPermissions($user);
 
         if (!$this->hasPermission($userPermissions, $resource, $action)) {
-            $userRoleName = is_string($user->role) ? $user->role : $user->role->name;
-            \Log::error("Permission Denied: role={$userRoleName}, permission={$permission}, resource={$resource}, action={$action}, user_permissions=" . json_encode($userPermissions));
             return response()->json([
                 'message' => 'Forbidden - Insufficient permissions',
                 'required' => $permission,
-                'resource' => $resource,
-                'action' => $action,
-                'user_role' => $userRoleName,
-                'user_permissions' => $userPermissions
             ], 403);
         }
 
@@ -59,13 +53,8 @@ class PermissionMiddleware
      */
     private function getUserPermissions($user)
     {
-        // Use the actual Role model's permissions from database instead of hardcoded ones
-        $role = $user->role;
-        if (!$role) {
-            return [];
-        }
-
-        return $role->permissions ?? [];
+        // Use Spatie's getAllPermissions to get all permissions from roles and direct assignment
+        return $user->getAllPermissions()->pluck('name')->toArray();
     }
 
     /**
@@ -73,10 +62,23 @@ class PermissionMiddleware
      */
     private function hasPermission($userPermissions, $resource, $action)
     {
-        if (!isset($userPermissions[$resource])) {
-            return false;
+        $permission = "{$resource}.{$action}";
+
+        // Check for exact permission
+        if (in_array($permission, $userPermissions)) {
+            return true;
         }
 
-        return in_array($action, $userPermissions[$resource]);
+        // Check for wildcard resource permission (e.g. sales_orders.*)
+        if (in_array("{$resource}.*", $userPermissions)) {
+            return true;
+        }
+
+        // Check for global wildcard (*)
+        if (in_array('*', $userPermissions)) {
+            return true;
+        }
+
+        return false;
     }
 }

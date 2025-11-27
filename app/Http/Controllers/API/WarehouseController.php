@@ -4,33 +4,37 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Warehouse;
-use Illuminate\Validation\Rule;
+use App\Services\WarehouseService;
+use App\Http\Requests\StoreWarehouseRequest;
+use App\Http\Requests\UpdateWarehouseRequest;
+use App\Http\Resources\WarehouseResource;
 
 class WarehouseController extends Controller
 {
+    protected $warehouseService;
+
+    public function __construct(WarehouseService $warehouseService)
+    {
+        $this->warehouseService = $warehouseService;
+    }
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $warehouses = Warehouse::all();
-        return response()->json($warehouses);
+        $perPage = $request->get('per_page', 20);
+        $warehouses = $this->warehouseService->listWarehouses($perPage);
+        return WarehouseResource::collection($warehouses);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'location' => 'required|string',
-        ]);
-
-        $warehouse = Warehouse::create($request->all());
-
-        return response()->json($warehouse, 201);
+        $warehouse = $this->warehouseService->createWarehouse($request->validated());
+        return new WarehouseResource($warehouse);
     }
 
     /**
@@ -38,25 +42,17 @@ class WarehouseController extends Controller
      */
     public function show($id)
     {
-        $warehouse = Warehouse::findOrFail($id);
-        return response()->json($warehouse);
+        $warehouse = $this->warehouseService->getWarehouse($id);
+        return new WarehouseResource($warehouse);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseRequest $request, $id)
     {
-        $warehouse = Warehouse::findOrFail($id);
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'location' => 'required|string',
-        ]);
-
-        $warehouse->update($request->all());
-
-        return response()->json($warehouse);
+        $warehouse = $this->warehouseService->updateWarehouse($id, $request->validated());
+        return new WarehouseResource($warehouse);
     }
 
     /**
@@ -64,9 +60,7 @@ class WarehouseController extends Controller
      */
     public function destroy($id)
     {
-        $warehouse = Warehouse::findOrFail($id);
-        $warehouse->delete();
-
+        $this->warehouseService->deleteWarehouse($id);
         return response()->json(['message' => 'Warehouse deleted successfully']);
     }
 }

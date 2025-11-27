@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -26,13 +25,15 @@ return new class extends Migration
             });
         }
 
-        // Add unique constraint to warehouse code
+        // Add unique constraint to warehouse code - REMOVED as it is now in create_warehouses_table
+        /*
         if (Schema::hasColumn('warehouses', 'code')) {
             Schema::table('warehouses', function (Blueprint $table) {
                 $table->string('code')->nullable()->change();
                 $table->unique('code');
             });
         }
+        */
 
         // Create document counters table for warehouse-specific numbering
         if (!Schema::hasTable('document_counters')) {

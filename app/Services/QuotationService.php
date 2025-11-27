@@ -43,6 +43,11 @@ class QuotationService
                 'warehouse_id' => $warehouseId,
                 'status' => $data['status'],
                 'valid_until' => $data['valid_until'],
+                'notes' => $data['notes'] ?? null,
+                'payment_term' => $data['payment_term'] ?? null,
+                'terms' => $data['terms'] ?? null,
+                'tax_rate' => $data['tax_rate'] ?? 0,
+                'other_costs' => $data['other_costs'] ?? 0,
             ]);
 
             $this->createQuotationItems($quotation, $data['items']);
@@ -82,6 +87,11 @@ class QuotationService
                 'warehouse_id' => $data['warehouse_id'],
                 'status' => $data['status'],
                 'valid_until' => $data['valid_until'],
+                'notes' => $data['notes'] ?? null,
+                'payment_term' => $data['payment_term'] ?? null,
+                'terms' => $data['terms'] ?? null,
+                'tax_rate' => $data['tax_rate'] ?? 0,
+                'other_costs' => $data['other_costs'] ?? 0,
             ]);
 
             // Replace items

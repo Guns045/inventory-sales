@@ -4,37 +4,37 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Customer;
-use Illuminate\Validation\Rule;
+use App\Services\CustomerService;
+use App\Http\Requests\StoreCustomerRequest;
+use App\Http\Requests\UpdateCustomerRequest;
+use App\Http\Resources\CustomerResource;
 
 class CustomerController extends Controller
 {
+    protected $customerService;
+
+    public function __construct(CustomerService $customerService)
+    {
+        $this->customerService = $customerService;
+    }
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $customers = Customer::all();
-        return response()->json($customers);
+        $perPage = $request->get('per_page', 20);
+        $customers = $this->customerService->listCustomers($perPage);
+        return CustomerResource::collection($customers);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreCustomerRequest $request)
     {
-        $request->validate([
-            'company_name' => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'tax_id' => 'nullable|string|max:50',
-        ]);
-
-        $customer = Customer::create($request->all());
-
-        return response()->json($customer, 201);
+        $customer = $this->customerService->createCustomer($request->validated());
+        return new CustomerResource($customer);
     }
 
     /**
@@ -42,29 +42,17 @@ class CustomerController extends Controller
      */
     public function show($id)
     {
-        $customer = Customer::findOrFail($id);
-        return response()->json($customer);
+        $customer = $this->customerService->getCustomer($id);
+        return new CustomerResource($customer);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateCustomerRequest $request, $id)
     {
-        $customer = Customer::findOrFail($id);
-
-        $request->validate([
-            'company_name' => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'tax_id' => 'nullable|string|max:50',
-        ]);
-
-        $customer->update($request->all());
-
-        return response()->json($customer);
+        $customer = $this->customerService->updateCustomer($id, $request->validated());
+        return new CustomerResource($customer);
     }
 
     /**
@@ -72,9 +60,7 @@ class CustomerController extends Controller
      */
     public function destroy($id)
     {
-        $customer = Customer::findOrFail($id);
-        $customer->delete();
-
+        $this->customerService->deleteCustomer($id);
         return response()->json(['message' => 'Customer deleted successfully']);
     }
 }

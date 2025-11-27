@@ -26,10 +26,10 @@ class ProductStockController extends Controller
 
         // Search functionality
         if ($search) {
-            $query->whereHas('product', function($q) use ($search) {
+            $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -40,10 +40,10 @@ class ProductStockController extends Controller
 
         // Role-based filtering
         $user = Auth::user();
-        if ($user && $user->role->name !== 'Super Admin') {
-            // Sales Team can view all warehouse stock data
-            if ($user->role->name === 'Sales Team') {
-                // Sales Team can see all warehouses - no warehouse filtering
+        if ($user && !$user->hasRole('Super Admin')) {
+            // Sales role can view all warehouse stock data
+            if ($user->hasRole('Sales')) {
+                // Sales role can see all warehouses - no warehouse filtering
             } else {
                 // Filter other roles by assigned warehouse
                 if ($user->warehouse_id) {
@@ -54,19 +54,20 @@ class ProductStockController extends Controller
 
         if ($viewMode === 'consolidated') {
             // Consolidated view - aggregate across warehouses
-            $stocks = $query->selectRaw('
-                    product_id,
-                    SUM(quantity) as total_quantity,
-                    SUM(reserved_quantity) as total_reserved,
-                    SUM(quantity - reserved_quantity) as total_available,
-                    MIN(min_stock_level) as min_stock_level
+            $stocks = $query->join('products', 'product_stock.product_id', '=', 'products.id')
+                ->selectRaw('
+                    product_stock.product_id,
+                    SUM(product_stock.quantity) as total_quantity,
+                    SUM(product_stock.reserved_quantity) as total_reserved,
+                    SUM(product_stock.quantity - product_stock.reserved_quantity) as total_available,
+                    MIN(products.min_stock_level) as min_stock_level
                 ')
-                ->groupBy('product_id')
+                ->groupBy('product_stock.product_id')
                 ->with('product')
                 ->paginate($request->get('per_page', 10));
 
             // Transform data for frontend
-            $data = $stocks->getCollection()->map(function($item) {
+            $data = $stocks->getCollection()->map(function ($item) {
                 return [
                     'id' => 'consolidated_' . $item->product_id,
                     'product_id' => $item->product_id,
@@ -88,7 +89,7 @@ class ProductStockController extends Controller
             $stocks = $query->paginate($request->get('per_page', 10));
 
             // Add calculated available quantity
-            $data = $stocks->getCollection()->map(function($item) {
+            $data = $stocks->getCollection()->map(function ($item) {
                 $item->available_quantity = $item->quantity - $item->reserved_quantity;
                 $item->view_mode = 'per-warehouse';
                 return $item;
@@ -181,7 +182,7 @@ class ProductStockController extends Controller
     public function adjustStock(Request $request)
     {
         $request->validate([
-            'product_stock_id' => 'required|exists:product_stocks,id',
+            'product_stock_id' => 'required|exists:product_stock,id',
             'adjustment_type' => 'required|in:increase,decrease',
             'quantity' => 'required|integer|min:1',
             'reason' => 'required|string',
@@ -209,7 +210,7 @@ class ProductStockController extends Controller
             StockMovement::create([
                 'product_id' => $productStock->product_id,
                 'warehouse_id' => $productStock->warehouse_id,
-                'type' => $request->adjustment_type === 'increase' ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+                'type' => 'ADJUSTMENT',
                 'quantity_change' => $quantityChange,
                 'reference_type' => 'App\Models\ProductStock',
                 'reference_id' => $productStock->id,

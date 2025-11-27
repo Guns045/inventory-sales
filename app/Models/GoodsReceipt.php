@@ -56,7 +56,7 @@ class GoodsReceipt extends Model
 
     public function getFormattedTotalAttribute()
     {
-        return 'IDR ' . number_format($this->total_amount, 0, ',', '.');
+        return 'IDR ' . number_format((float) $this->total_amount, 0, ',', '.');
     }
 
     public function getStatusBadgeAttribute()
@@ -102,11 +102,6 @@ class GoodsReceipt extends Model
     public function scopeForWarehouse($query, $warehouseId)
     {
         return $query->where('warehouse_id', $warehouseId);
-    }
-
-    public function isCompleted()
-    {
-        return $this->status === 'RECEIVED';
     }
 
     public function isCompleted()

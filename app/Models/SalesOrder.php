@@ -4,8 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 class SalesOrder extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'sales_order_number',
         'quotation_id',

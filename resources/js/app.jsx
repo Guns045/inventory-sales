@@ -17,7 +17,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 // Page Components
 import Login from './pages/Login';
-import DashboardMain from './pages/DashboardMain';
+import DashboardPage from './pages/DashboardPage';
 import DashboardSales from './pages/DashboardSales';
 import DashboardWarehouse from './pages/DashboardWarehouse';
 import DashboardFinance from './pages/DashboardFinance';
@@ -38,8 +38,6 @@ import GoodsReceipts from './pages/GoodsReceipts';
 import Invoices from './pages/Invoices';
 import Payments from './pages/Payments';
 import Users from './pages/Users';
-// import Roles from './pages/Roles'; // File tidak ada
-// import ActivityLogs from './pages/ActivityLogs'; // File tidak ada
 import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
@@ -96,8 +94,8 @@ function App() {
                       </ErrorBoundary>
                     }>
                       <Route index element={
-                        <ErrorBoundary componentName="DashboardMain">
-                          <DashboardMain />
+                        <ErrorBoundary componentName="DashboardPage">
+                          <DashboardPage />
                         </ErrorBoundary>
                       } />
                     </Route>

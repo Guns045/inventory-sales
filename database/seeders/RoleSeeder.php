@@ -51,7 +51,7 @@ class RoleSeeder extends Seeder
             'quotations.convert',
             'sales_orders.read',
             'products.read',
-            'stock.read',
+            'product-stock.read',
             'invoices.read',
             'payments.read'
         ];
@@ -83,7 +83,9 @@ class RoleSeeder extends Seeder
             'warehouse-transfers.read',
             'warehouse-transfers.create',
             'warehouse-transfers.update',
-            'stock.read',
+            'product-stock.read',
+            'product-stock.create',
+            'product-stock.update',
             'warehouses.read'
         ];
         $this->syncPermissionsToRole($warehouse, $warehousePermissions);
@@ -103,8 +105,9 @@ class RoleSeeder extends Seeder
 
         // Add CRUD variations for common resources if not explicitly in menu
         // This is a simplification; in a real app, we might define these more explicitly
-        $resources = ['users', 'roles', 'products', 'customers', 'suppliers', 'quotations', 'sales_orders', 'purchase_orders', 'goods_receipts', 'delivery_orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists'];
+        $resources = ['users', 'roles', 'products', 'customers', 'suppliers', 'quotations', 'sales_orders', 'purchase_orders', 'goods_receipts', 'delivery_orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists', 'product-stock'];
         foreach ($resources as $resource) {
+            $permissions[] = "{$resource}.read";
             $permissions[] = "{$resource}.create";
             $permissions[] = "{$resource}.update";
             $permissions[] = "{$resource}.delete";

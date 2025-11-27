@@ -14,16 +14,19 @@ class UserController extends Controller
     /**
      * Display a listing of the resource with search, filters, and pagination.
      */
+    /**
+     * Display a listing of the resource with search, filters, and pagination.
+     */
     public function index(Request $request)
     {
-        $query = User::with(['role', 'warehouse']);
+        $query = User::with(['roles', 'warehouse']);
 
         // Search by name or email
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
+                    ->orWhere('email', 'LIKE', "%{$search}%");
             });
         }
 
@@ -35,7 +38,7 @@ class UserController extends Controller
 
         // Filter by role
         if ($request->filled('role') && $request->role !== '') {
-            $query->where('role_id', $request->role);
+            $query->role($request->role);
         }
 
         // Paginate results
@@ -53,7 +56,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'role_id' => 'required|exists:roles,id',
+            'role' => 'required', // Can be ID or name
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'can_access_multiple_warehouses' => 'boolean'
         ]);
@@ -62,22 +65,18 @@ class UserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role_id' => $request->role_id,
             'warehouse_id' => $request->warehouse_id,
             'can_access_multiple_warehouses' => $request->boolean('can_access_multiple_warehouses', false),
             'is_active' => 1 // Default to active
         ]);
 
         // Assign Spatie role
-        if ($request->role_id) {
-            $role = Role::find($request->role_id);
-            if ($role) {
-                $user->assignRole($role);
-            }
+        if ($request->role) {
+            $user->assignRole($request->role);
         }
 
         // Load relationships for response
-        $user->load(['role', 'warehouse']);
+        $user->load(['roles', 'warehouse']);
 
         return response()->json($user, 201);
     }
@@ -87,7 +86,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with(['role', 'warehouse'])->findOrFail($id);
+        $user = User::with(['roles', 'warehouse'])->findOrFail($id);
         return response()->json($user);
     }
 
@@ -102,7 +101,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8|confirmed',
-            'role_id' => 'required|exists:roles,id',
+            'role' => 'required', // Can be ID or name
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'can_access_multiple_warehouses' => 'boolean'
         ]);
@@ -110,7 +109,6 @@ class UserController extends Controller
         $updateData = [
             'name' => $request->name,
             'email' => $request->email,
-            'role_id' => $request->role_id,
             'warehouse_id' => $request->warehouse_id,
             'can_access_multiple_warehouses' => $request->boolean('can_access_multiple_warehouses', false)
         ];
@@ -124,15 +122,12 @@ class UserController extends Controller
         }
 
         // Update Spatie role
-        if ($request->role_id) {
-            $role = Role::find($request->role_id);
-            if ($role) {
-                $user->syncRoles([$role]);
-            }
+        if ($request->role) {
+            $user->syncRoles([$request->role]);
         }
 
         // Load relationships for response
-        $user->load(['role', 'warehouse']);
+        $user->load(['roles', 'warehouse']);
 
         return response()->json($user);
     }
@@ -241,7 +236,7 @@ class UserController extends Controller
         User::whereIn('id', $request->user_ids)
             ->get()
             ->each(function ($user) use ($role, &$updated) {
-                $user->update(['role_id' => $role->id]);
+                // $user->update(['role_id' => $role->id]); // Removed role_id update
                 $user->syncRoles([$role]);
                 $updated++;
             });
