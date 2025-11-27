@@ -3,23 +3,9 @@
 return [
     [
         'title' => 'Dashboard',
-        'path' => '/dashboard/main',
+        'path' => '/dashboard',
         'icon' => 'bi-speedometer2',
         'permission' => 'dashboard.read',
-        'children' => [
-            [
-                'title' => 'Monitoring',
-                'path' => '/dashboard/main',
-                'icon' => 'bi-activity',
-                'permission' => 'dashboard.read'
-            ],
-            [
-                'title' => 'Approval',
-                'path' => '/dashboard/approval',
-                'icon' => 'bi-check-square',
-                'permission' => 'approvals.read'
-            ]
-        ]
     ],
     [
         'title' => 'Sales',
@@ -28,19 +14,19 @@ return [
         'permission' => 'quotations.read',
         'children' => [
             [
-                'title' => 'Customers',
+                'title' => 'Customer',
                 'path' => '/dashboard/customers',
                 'icon' => 'bi-people',
                 'permission' => 'customers.read'
             ],
             [
-                'title' => 'Quotations',
+                'title' => 'Quotation',
                 'path' => '/dashboard/quotations',
                 'icon' => 'bi-file-text',
                 'permission' => 'quotations.read'
             ],
             [
-                'title' => 'Sales Orders',
+                'title' => 'Sales Order',
                 'path' => '/dashboard/sales-orders',
                 'icon' => 'bi-cart-check',
                 'permission' => 'sales_orders.read'
@@ -54,74 +40,48 @@ return [
         'permission' => 'products.read',
         'children' => [
             [
-                'title' => 'Suppliers',
-                'path' => '/dashboard/suppliers',
-                'icon' => 'bi-truck',
-                'permission' => 'suppliers.read'
-            ],
-            [
-                'title' => 'Products',
+                'title' => 'Product',
                 'path' => '/dashboard/products',
                 'icon' => 'bi-box',
                 'permission' => 'products.read'
             ],
             [
-                'title' => 'On Hand Stock',
+                'title' => 'On Hands Stock',
                 'path' => '/dashboard/stock',
                 'icon' => 'bi-archive',
                 'permission' => 'stock.read'
             ],
             [
-                'title' => 'Warehouses',
+                'title' => 'Warehouse',
                 'path' => '/dashboard/warehouses',
                 'icon' => 'bi-building',
                 'permission' => 'warehouses.read'
-            ]
-        ]
-    ],
-    [
-        'title' => 'Purchasing',
-        'path' => '/dashboard/purchased',
-        'icon' => 'bi-bag-check',
-        'permission' => 'purchase-orders.read',
-        'children' => [
-            [
-                'title' => 'Purchase Orders',
-                'path' => '/dashboard/purchase-orders',
-                'icon' => 'bi-cart-plus',
-                'permission' => 'purchase-orders.read'
             ],
             [
-                'title' => 'Goods Receipts',
-                'path' => '/dashboard/goods-receipts',
-                'icon' => 'bi-receipt-cutoff',
-                'permission' => 'goods_receipts.read'
+                'title' => 'Supplier',
+                'path' => '/dashboard/suppliers',
+                'icon' => 'bi-truck',
+                'permission' => 'suppliers.read'
             ]
         ]
     ],
     [
-        'title' => 'Warehouse Ops',
+        'title' => 'Warehouse Operation',
         'path' => '/dashboard/warehouse-ops',
-        'icon' => 'bi-truck',
+        'icon' => 'bi-gear',
         'permission' => 'delivery_orders.read',
         'children' => [
             [
-                'title' => 'Picking Lists',
-                'path' => '/dashboard/picking-lists',
-                'icon' => 'bi-list-check',
-                'permission' => 'picking-lists.read'
-            ],
-            [
-                'title' => 'Delivery Orders',
-                'path' => '/dashboard/delivery-orders',
-                'icon' => 'bi-truck',
-                'permission' => 'delivery_orders.read'
-            ],
-            [
-                'title' => 'Internal Transfers',
+                'title' => 'Warehouse Transfer',
                 'path' => '/dashboard/warehouse-transfers',
                 'icon' => 'bi-arrow-left-right',
                 'permission' => 'warehouse-transfers.read'
+            ],
+            [
+                'title' => 'Delivery Order',
+                'path' => '/dashboard/delivery-orders',
+                'icon' => 'bi-truck',
+                'permission' => 'delivery_orders.read'
             ]
         ]
     ],
@@ -132,19 +92,19 @@ return [
         'permission' => 'invoices.read',
         'children' => [
             [
-                'title' => 'Invoices',
+                'title' => 'Invoice',
                 'path' => '/dashboard/invoices',
                 'icon' => 'bi-receipt',
                 'permission' => 'invoices.read'
             ],
             [
-                'title' => 'Payments',
+                'title' => 'Payment',
                 'path' => '/dashboard/payments',
                 'icon' => 'bi-credit-card',
                 'permission' => 'payments.read'
             ],
             [
-                'title' => 'Reports',
+                'title' => 'Report',
                 'path' => '/dashboard/reports',
                 'icon' => 'bi-graph-up',
                 'permission' => 'reports.read'
@@ -152,28 +112,16 @@ return [
         ]
     ],
     [
-        'title' => 'System',
+        'title' => 'System Management',
         'path' => '/dashboard/system',
         'icon' => 'bi-gear',
         'permission' => 'users.read',
         'children' => [
             [
-                'title' => 'Users',
+                'title' => 'User Management',
                 'path' => '/dashboard/users',
                 'icon' => 'bi-people',
                 'permission' => 'users.read'
-            ],
-            [
-                'title' => 'Roles & Permissions',
-                'path' => '/dashboard/roles',
-                'icon' => 'bi-shield-check',
-                'permission' => 'manage_roles'
-            ],
-            [
-                'title' => 'Activity Logs',
-                'path' => '/dashboard/activity-logs',
-                'icon' => 'bi-clock-history',
-                'permission' => 'activity-logs.read'
             ],
             [
                 'title' => 'Settings',

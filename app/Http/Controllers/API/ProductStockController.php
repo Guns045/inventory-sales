@@ -3,27 +3,41 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreProductStockRequest;
+use App\Http\Requests\UpdateProductStockRequest;
+use App\Http\Requests\AdjustStockRequest;
+use App\Http\Resources\ProductStockResource;
 use App\Models\ProductStock;
-use App\Models\Product;
-use App\Models\Warehouse;
-use App\Models\StockMovement;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
+use App\Services\ProductStockService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ProductStockController extends Controller
 {
+    protected $productStockService;
+
+    public function __construct(ProductStockService $productStockService)
+    {
+        $this->productStockService = $productStockService;
+    }
+
     /**
      * Display a listing of the resource with role-based filtering.
      */
     public function index(Request $request)
     {
-        $viewMode = $request->get('view_mode', 'per-warehouse');
-        $search = $request->get('search', '');
-        $warehouseId = $request->get('warehouse_id', '');
+        try {
+            $filters = [
+                'view_mode' => $request->get('view_mode', 'per-warehouse'),
+                'search' => $request->get('search', ''),
+                'warehouse_id' => $request->get('warehouse_id', ''),
+                'per_page' => $request->get('per_page', 10),
+            ];
 
-        $query = ProductStock::with(['product', 'warehouse']);
+            $stocks = $this->productStockService->getStockLevels($filters, $request->user());
+            return ProductStockResource::collection($stocks);
 
+<<<<<<< HEAD
         // Search functionality
         if ($search) {
             $query->whereHas('product', function ($q) use ($search) {
@@ -99,32 +113,33 @@ class ProductStockController extends Controller
         }
 
         return response()->json($stocks);
+=======
+        } catch (\Exception $e) {
+            Log::error('ProductStock Index Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error fetching stock levels',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+>>>>>>> 214b47b930652cb6065d8cc620c97749ae2d42bc
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreProductStockRequest $request)
     {
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'quantity' => 'required|integer|min:0',
-            'reserved_quantity' => 'required|integer|min:0',
-        ]);
+        try {
+            $productStock = $this->productStockService->createStock($request->validated());
+            return new ProductStockResource($productStock);
 
-        // Check if combination already exists
-        $existing = ProductStock::where('product_id', $request->product_id)
-            ->where('warehouse_id', $request->warehouse_id)
-            ->first();
-
-        if ($existing) {
-            return response()->json(['error' => 'Product stock record already exists for this product and warehouse'], 422);
+        } catch (\Exception $e) {
+            Log::error('ProductStock Store Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create product stock',
+                'error' => $e->getMessage()
+            ], 422);
         }
-
-        $productStock = ProductStock::create($request->all());
-
-        return response()->json($productStock, 201);
     }
 
     /**
@@ -132,37 +147,36 @@ class ProductStockController extends Controller
      */
     public function show($id)
     {
-        $productStock = ProductStock::with(['product', 'warehouse'])->findOrFail($id);
-        return response()->json($productStock);
+        try {
+            $productStock = ProductStock::with(['product', 'warehouse'])->findOrFail($id);
+            return new ProductStockResource($productStock);
+
+        } catch (\Exception $e) {
+            Log::error('ProductStock Show Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Product stock not found',
+                'error' => $e->getMessage()
+            ], 404);
+        }
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateProductStockRequest $request, $id)
     {
-        $productStock = ProductStock::findOrFail($id);
+        try {
+            $productStock = ProductStock::findOrFail($id);
+            $productStock = $this->productStockService->updateStock($productStock, $request->validated());
+            return new ProductStockResource($productStock);
 
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'quantity' => 'required|integer|min:0',
-            'reserved_quantity' => 'required|integer|min:0',
-        ]);
-
-        // Ensure the combination doesn't already exist for a different record
-        $existing = ProductStock::where('product_id', $request->product_id)
-            ->where('warehouse_id', $request->warehouse_id)
-            ->where('id', '!=', $id)
-            ->first();
-
-        if ($existing) {
-            return response()->json(['error' => 'Product stock record already exists for this product and warehouse'], 422);
+        } catch (\Exception $e) {
+            Log::error('ProductStock Update Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update product stock',
+                'error' => $e->getMessage()
+            ], 422);
         }
-
-        $productStock->update($request->all());
-
-        return response()->json($productStock);
     }
 
     /**
@@ -170,17 +184,27 @@ class ProductStockController extends Controller
      */
     public function destroy($id)
     {
-        $productStock = ProductStock::findOrFail($id);
-        $productStock->delete();
+        try {
+            $productStock = ProductStock::findOrFail($id);
+            $this->productStockService->deleteStock($productStock);
 
-        return response()->json(['message' => 'Product stock deleted successfully']);
+            return response()->json(['message' => 'Product stock deleted successfully']);
+
+        } catch (\Exception $e) {
+            Log::error('ProductStock Delete Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete product stock',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Adjust stock quantity manually.
      */
-    public function adjustStock(Request $request)
+    public function adjustStock(AdjustStockRequest $request)
     {
+<<<<<<< HEAD
         $request->validate([
             'product_stock_id' => 'required|exists:product_stock,id',
             'adjustment_type' => 'required|in:increase,decrease',
@@ -220,15 +244,20 @@ class ProductStockController extends Controller
                 'previous_quantity' => $productStock->quantity - $quantityChange,
                 'new_quantity' => $productStock->quantity
             ]);
+=======
+        try {
+            $result = $this->productStockService->adjustStock($request->validated());
+            return response()->json($result);
+>>>>>>> 214b47b930652cb6065d8cc620c97749ae2d42bc
 
+        } catch (\Exception $e) {
+            Log::error('Stock Adjustment Error: ' . $e->getMessage());
             return response()->json([
-                'success' => true,
-                'message' => 'Stock adjusted successfully',
-                'new_quantity' => $productStock->quantity,
-                'adjustment_type' => $request->adjustment_type,
-                'quantity_changed' => $request->quantity
-            ]);
-        });
+                'success' => false,
+                'message' => 'Failed to adjust stock',
+                'error' => $e->getMessage()
+            ], 422);
+        }
     }
 
     /**
@@ -236,14 +265,16 @@ class ProductStockController extends Controller
      */
     public function getMovementHistory($productStockId)
     {
-        $productStock = ProductStock::findOrFail($productStockId);
+        try {
+            $movements = $this->productStockService->getMovementHistory($productStockId);
+            return response()->json($movements);
 
-        $movements = StockMovement::where('product_id', $productStock->product_id)
-            ->where('warehouse_id', $productStock->warehouse_id)
-            ->with(['user'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(50);
-
-        return response()->json($movements);
+        } catch (\Exception $e) {
+            Log::error('Movement History Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to fetch movement history',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

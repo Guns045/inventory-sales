@@ -7,18 +7,22 @@ use App\Http\Requests\StoreSalesOrderRequest;
 use App\Http\Requests\UpdateSalesOrderRequest;
 use App\Http\Requests\UpdateSalesOrderStatusRequest;
 use App\Http\Resources\SalesOrderResource;
+use App\Http\Resources\PickingListResource;
 use App\Models\SalesOrder;
 use App\Services\SalesOrderService;
+use App\Services\PickingListService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SalesOrderController extends Controller
 {
     protected $salesOrderService;
+    protected $pickingListService;
 
-    public function __construct(SalesOrderService $salesOrderService)
+    public function __construct(SalesOrderService $salesOrderService, PickingListService $pickingListService)
     {
         $this->salesOrderService = $salesOrderService;
+        $this->pickingListService = $pickingListService;
     }
 
     /**
@@ -137,13 +141,17 @@ class SalesOrderController extends Controller
     public function createPickingList(Request $request, $id)
     {
         try {
-            $salesOrder = SalesOrder::with(['items.product'])->findOrFail($id);
-
-            $pickingList = $this->salesOrderService->createPickingList($salesOrder, $request->notes);
+            // Use PickingListService to create the picking list
+            // Note: The service expects (int $salesOrderId, User $user, ?string $notes)
+            $pickingList = $this->pickingListService->createFromOrder(
+                $id,
+                auth()->user(),
+                $request->notes
+            );
 
             return response()->json([
                 'message' => 'Picking List created successfully!',
-                'data' => $pickingList
+                'data' => new PickingListResource($pickingList)
             ], 201);
 
         } catch (\Exception $e) {

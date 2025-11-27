@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\Quotation;
+use App\Models\SalesOrder;
+use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Log;
 
 class InventoryService
@@ -131,5 +133,122 @@ class InventoryService
             'total_available' => $totalAvailable,
             'warehouse_stocks' => $warehouseStocks
         ];
+    }
+    /**
+     * Deduct stock for a Sales Order (when shipped/completed)
+     *
+     * @param SalesOrder $salesOrder
+     * @param int $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function deductStockForSalesOrder(SalesOrder $salesOrder, int $userId): array
+    {
+        if ($salesOrder->status !== 'SHIPPED') {
+            throw new \Exception('Sales Order must be in SHIPPED status to deduct stock.');
+        }
+
+        $stockMovements = [];
+
+        foreach ($salesOrder->items as $item) {
+            $productStock = ProductStock::where('product_id', $item->product_id)->first();
+
+            if (!$productStock) {
+                throw new \Exception("No stock record found for product ID: {$item->product_id}");
+            }
+
+            // Calculate actual quantity to deduct
+            $actualQuantity = min($item->quantity, $productStock->quantity);
+
+            if ($actualQuantity > 0) {
+                // Update stock quantities
+                $newQuantity = $productStock->quantity - $actualQuantity;
+                $newReserved = max(0, $productStock->reserved_quantity - $actualQuantity);
+
+                $productStock->update([
+                    'quantity' => $newQuantity,
+                    'reserved_quantity' => $newReserved,
+                ]);
+
+                // Create stock movement record
+                $stockMovement = StockMovement::create([
+                    'product_id' => $item->product_id,
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'type' => 'OUT',
+                    'quantity_change' => -$actualQuantity,
+                    'previous_quantity' => $productStock->quantity + $actualQuantity,
+                    'new_quantity' => $newQuantity,
+                    'movement_date' => now(),
+                    'reference_type' => 'SalesOrder',
+                    'reference_id' => $salesOrder->id,
+                    'reference_number' => $salesOrder->sales_order_number,
+                    'created_by' => $userId,
+                    'notes' => "Stock deducted for Sales Order {$salesOrder->sales_order_number}",
+                ]);
+
+                $stockMovements[] = $stockMovement;
+            }
+        }
+
+        // Update sales order status to COMPLETED
+        $salesOrder->update(['status' => 'COMPLETED']);
+
+        // Log activity
+        ActivityLog::create([
+            'user_id' => $userId,
+            'action' => 'Deducted Stock', // Standardized action name
+            'description' => 'Deducted stock for Sales Order ' . $salesOrder->sales_order_number,
+            'reference_type' => 'SalesOrder', // Standardized reference type
+            'reference_id' => $salesOrder->id,
+        ]);
+
+        return $stockMovements;
+    }
+
+    /**
+     * Reserve stock for a Sales Order
+     *
+     * @param SalesOrder $salesOrder
+     * @param int $userId
+     * @return void
+     * @throws \Exception
+     */
+    public function reserveStockForSalesOrder(SalesOrder $salesOrder, int $userId): void
+    {
+        if ($salesOrder->status !== 'PENDING') {
+            throw new \Exception('Sales Order must be in PENDING status to reserve stock.');
+        }
+
+        foreach ($salesOrder->items as $item) {
+            $productStock = ProductStock::where('product_id', $item->product_id)->first();
+
+            if (!$productStock) {
+                throw new \Exception("No stock record found for product ID: {$item->product_id}");
+            }
+
+            // Calculate reserved quantity
+            $availableQuantity = $productStock->quantity - $productStock->reserved_quantity;
+            $reserveQuantity = min($item->quantity, $availableQuantity);
+
+            if ($reserveQuantity > 0) {
+                $productStock->increment('reserved_quantity', $reserveQuantity);
+
+                // Log stock reservation
+                StockMovement::create([
+                    'product_id' => $item->product_id,
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'type' => 'RESERVATION',
+                    'quantity_change' => $reserveQuantity,
+                    'previous_quantity' => $productStock->reserved_quantity - $reserveQuantity,
+                    'new_quantity' => $productStock->reserved_quantity,
+                    'movement_date' => now(),
+                    'reference_type' => 'SalesOrder',
+                    'reference_id' => $salesOrder->id,
+                    'reference_number' => $salesOrder->sales_order_number,
+                    'created_by' => $userId,
+                    'notes' => "Stock reserved for Sales Order {$salesOrder->sales_order_number}",
+                ]);
+            }
+        }
     }
 }

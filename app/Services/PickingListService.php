@@ -6,33 +6,33 @@ use App\Models\PickingList;
 use App\Models\PickingListItem;
 use App\Models\SalesOrder;
 use App\Models\ProductStock;
-use App\Models\ActivityLog;
-use App\Models\Notification;
-use App\Models\WarehouseTransfer;
-use App\Transformers\PickingListTransformer;
+use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\User;
 
 class PickingListService
 {
+    use DocumentNumberHelper;
+
     /**
-     * Create a picking list from a sales order
+     * Create a new Picking List from a Sales Order.
      *
      * @param int $salesOrderId
+     * @param User $user
      * @param string|null $notes
      * @return PickingList
      * @throws \Exception
      */
-    public function createFromSalesOrder(int $salesOrderId, ?string $notes = null): PickingList
+    public function createFromOrder(int $salesOrderId, User $user, ?string $notes = null): PickingList
     {
-        return DB::transaction(function () use ($salesOrderId, $notes) {
+        return DB::transaction(function () use ($salesOrderId, $user, $notes) {
             $salesOrder = SalesOrder::with(['items.product'])->findOrFail($salesOrderId);
 
             if ($salesOrder->status !== 'PENDING') {
                 throw new \Exception('Sales Order is not in PENDING status.');
             }
 
-            $existingPickingList = PickingList::where('sales_order_id', $salesOrderId)
+            $existingPickingList = PickingList::where('sales_order_id', $salesOrder->id)
                 ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
                 ->first();
 
@@ -40,10 +40,13 @@ class PickingListService
                 throw new \Exception('Picking List already exists for this Sales Order.');
             }
 
+            // Determine warehouse ID based on user or default
+            $warehouseId = $this->getUserWarehouseIdForPicking($user);
+
             $pickingList = PickingList::create([
+                'picking_list_number' => $this->generatePickingListNumber($warehouseId),
                 'sales_order_id' => $salesOrder->id,
-                'user_id' => auth()->id(),
-                'warehouse_id' => $salesOrder->warehouse_id,
+                'user_id' => $user->id,
                 'status' => 'READY',
                 'notes' => $notes,
             ]);
@@ -65,31 +68,12 @@ class PickingListService
 
             $salesOrder->update(['status' => 'PROCESSING']);
 
-            // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'activity' => 'Created picking list ' . $pickingList->picking_list_number . ' from sales order ' . $salesOrder->sales_order_number,
-                'module' => 'Picking List',
-                'data_id' => $pickingList->id,
-            ]);
-
-            // Create notification
-            Notification::create([
-                'user_id' => auth()->id(),
-                'title' => 'Picking List Created',
-                'message' => 'Picking List ' . $pickingList->picking_list_number . ' has been created for Sales Order ' . $salesOrder->sales_order_number,
-                'type' => 'info',
-                'module' => 'Picking List',
-                'data_id' => $pickingList->id,
-                'read' => false,
-            ]);
-
-            return $pickingList->load(['salesOrder.customer', 'user', 'items.product']);
+            return $pickingList;
         });
     }
 
     /**
-     * Update a picking list
+     * Update a Picking List.
      *
      * @param PickingList $pickingList
      * @param array $data
@@ -99,61 +83,56 @@ class PickingListService
     public function updatePickingList(PickingList $pickingList, array $data): PickingList
     {
         return DB::transaction(function () use ($pickingList, $data) {
-            if (!in_array($pickingList->status, ['READY', 'PICKING'])) {
-                throw new \Exception('Cannot edit Picking List in current status.');
-            }
-
             $allCompleted = true;
             $hasUpdates = false;
 
-            foreach ($data['items'] as $itemId => $itemData) {
-                $pickingListItem = $pickingList->items()->findOrFail($itemId);
+            if (isset($data['items'])) {
+                foreach ($data['items'] as $itemId => $itemData) {
+                    $pickingListItem = $pickingList->items()->findOrFail($itemId);
 
-                $oldQuantity = $pickingListItem->quantity_picked;
-                $newQuantity = $itemData['quantity_picked'];
+                    $oldQuantity = $pickingListItem->quantity_picked;
+                    $newQuantity = $itemData['quantity_picked'];
 
-                if ($oldQuantity != $newQuantity) {
-                    $hasUpdates = true;
-                }
+                    if ($oldQuantity != $newQuantity) {
+                        $hasUpdates = true;
+                    }
 
-                $status = 'PENDING';
-                if ($newQuantity >= $pickingListItem->quantity_required) {
-                    $status = 'COMPLETED';
-                } elseif ($newQuantity > 0) {
-                    $status = 'PARTIAL';
-                }
+                    $status = 'PENDING';
+                    if ($newQuantity >= $pickingListItem->quantity_required) {
+                        $status = 'COMPLETED';
+                    } elseif ($newQuantity > 0) {
+                        $status = 'PARTIAL';
+                    }
 
-                $pickingListItem->update([
-                    'quantity_picked' => $newQuantity,
-                    'location_code' => $itemData['location_code'] ?? $pickingListItem->location_code,
-                    'notes' => $itemData['notes'] ?? $pickingListItem->notes,
-                    'status' => $status,
-                ]);
+                    $pickingListItem->update([
+                        'quantity_picked' => $newQuantity,
+                        'location_code' => $itemData['location_code'] ?? $pickingListItem->location_code,
+                        'notes' => $itemData['notes'] ?? $pickingListItem->notes,
+                        'status' => $status,
+                    ]);
 
-                if ($status !== 'COMPLETED') {
-                    $allCompleted = false;
+                    if ($status !== 'COMPLETED') {
+                        $allCompleted = false;
+                    }
                 }
             }
 
-            $newStatus = $allCompleted ? 'COMPLETED' : ($hasUpdates ? 'PICKING' : $pickingList->status);
-
             $pickingList->update([
                 'notes' => $data['notes'] ?? $pickingList->notes,
-                'status' => $newStatus,
+                'status' => $allCompleted ? 'COMPLETED' : ($hasUpdates ? 'PICKING' : $pickingList->status),
                 'completed_at' => $allCompleted ? now() : $pickingList->completed_at,
             ]);
 
             if ($allCompleted) {
                 $pickingList->salesOrder->update(['status' => 'READY_TO_SHIP']);
-                $this->logCompletion($pickingList);
             }
 
-            return $pickingList->load(['salesOrder.customer', 'user', 'items.product']);
+            return $pickingList;
         });
     }
 
     /**
-     * Complete a picking list
+     * Complete a Picking List.
      *
      * @param PickingList $pickingList
      * @return PickingList
@@ -181,14 +160,12 @@ class PickingListService
 
             $pickingList->salesOrder->update(['status' => 'READY_TO_SHIP']);
 
-            $this->logCompletion($pickingList);
-
-            return $pickingList->load(['salesOrder.customer', 'user', 'items.product']);
+            return $pickingList;
         });
     }
 
     /**
-     * Delete a picking list
+     * Delete a Picking List.
      *
      * @param PickingList $pickingList
      * @return void
@@ -203,103 +180,43 @@ class PickingListService
 
             $pickingList->salesOrder->update(['status' => 'PENDING']);
 
-            // Log activity
-            ActivityLog::create([
-                'user_id' => auth()->id(),
-                'activity' => 'Deleted picking list ' . $pickingList->picking_list_number,
-                'module' => 'Picking List',
-                'data_id' => $pickingList->id,
-            ]);
-
             $pickingList->delete();
         });
     }
 
     /**
-     * Generate PDF for picking list
+     * Get warehouse code based on user role for picking lists.
      *
-     * @param PickingList $pickingList
-     * @return mixed
+     * @param User $user
+     * @return int
      */
-    public function generatePDF(PickingList $pickingList)
+    private function getUserWarehouseIdForPicking(User $user): int
     {
-        // Load picking list with relationships
-        $pickingList->load([
-            'salesOrder',
-            'items.product',
-            'warehouse',
-            'user'
-        ]);
+        // Check if user has a specific warehouse assignment
+        if ($user->warehouse_id) {
+            return $user->warehouse_id;
+        }
 
-        // Transform data
-        $pickingListData = PickingListTransformer::transform($pickingList);
-        $companyData = PickingListTransformer::getCompanyData();
+        // Check if user can access all warehouses, default to MKS
+        if ($user->canAccessAllWarehouses()) {
+            return config('inventory.warehouses.mks', 2);
+        }
 
-        // Log activity
-        ActivityLog::log(
-            'PRINT_PICKING_LIST_PDF',
-            "User printed picking list {$pickingList->picking_list_number}",
-            $pickingList
-        );
+        // Check role-based defaults
+        if ($user->role) {
+            switch ($user->role->name) {
+                case config('inventory.roles.warehouse_manager_jkt'):
+                    return config('inventory.warehouses.jkt', 1);
+                case config('inventory.roles.warehouse_manager_mks'):
+                    return config('inventory.warehouses.mks', 2);
+                case config('inventory.roles.super_admin'):
+                case config('inventory.roles.admin'):
+                    return config('inventory.warehouses.mks', 2);
+                case config('inventory.roles.warehouse_staff'):
+                    return $user->warehouse_id ?: config('inventory.warehouses.mks', 2);
+            }
+        }
 
-        // Generate PDF
-        $pdf = PDF::loadView('pdf.picking-list-universal', [
-            'pl' => $pickingListData,
-            'source_type' => 'SO',
-            'company' => $companyData
-        ])->setPaper('a4', 'portrait');
-
-        return $pdf;
-    }
-
-    /**
-     * Generate PDF from Warehouse Transfer
-     * 
-     * @param WarehouseTransfer $transfer
-     * @return array
-     */
-    public function generatePDFFromTransfer(WarehouseTransfer $transfer): array
-    {
-        // Transform data
-        $plData = PickingListTransformer::transformFromWarehouseTransfer($transfer);
-        $companyData = PickingListTransformer::getCompanyData();
-
-        // Generate PDF
-        $pdf = PDF::loadView('pdf.picking-list-universal', [
-            'pl' => $plData,
-            'source_type' => 'IT', // Internal Transfer
-            'company' => $companyData
-        ])->setPaper('a4', 'portrait');
-
-        $pdfContent = $pdf->output();
-        $filename = "PickingList_Transfer_" . str_replace(['/', '\\'], '_', $plData['PL']) . ".pdf";
-
-        return [
-            'picking_list_number' => $plData['PL'],
-            'pdf_content' => base64_encode($pdfContent),
-            'filename' => $filename
-        ];
-    }
-
-    private function logCompletion(PickingList $pickingList)
-    {
-        // Log activity
-        ActivityLog::create([
-            'user_id' => auth()->id(),
-            'activity' => 'Completed picking list ' . $pickingList->picking_list_number,
-            'module' => 'Picking List',
-            'data_id' => $pickingList->id,
-        ]);
-
-        // Create notification
-        Notification::create([
-            'user_id' => auth()->id(),
-            'title' => 'Picking List Completed',
-            'message' => 'Picking List ' . $pickingList->picking_list_number . ' has been completed and is ready to ship',
-            'type' => 'success',
-            'module' => 'Picking List',
-            'data_id' => $pickingList->id,
-            'read' => false,
-        ]);
+        return config('inventory.warehouses.mks', 2);
     }
 }

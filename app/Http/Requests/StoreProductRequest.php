@@ -6,14 +6,19 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductRequest extends FormRequest
 {
+<<<<<<< HEAD
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
+=======
+    public function authorize()
+>>>>>>> 214b47b930652cb6065d8cc620c97749ae2d42bc
     {
         return true;
     }
 
+<<<<<<< HEAD
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,6 +28,12 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'sku' => 'required|string|max:255|unique:products,sku',
+=======
+    public function rules()
+    {
+        return [
+            'sku' => 'required|string|max:255|unique:products',
+>>>>>>> 214b47b930652cb6065d8cc620c97749ae2d42bc
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'nullable|exists:categories,id',

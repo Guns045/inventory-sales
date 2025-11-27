@@ -10,10 +10,16 @@ use App\Models\SalesOrderItem;
 use App\Models\ProductStock;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 class Quotation extends Model
 {
+<<<<<<< HEAD
     use HasFactory;
     use DocumentNumberHelper;
+=======
+    use DocumentNumberHelper, HasFactory;
+>>>>>>> 214b47b930652cb6065d8cc620c97749ae2d42bc
     protected $fillable = [
         'quotation_number',
         'customer_id',
