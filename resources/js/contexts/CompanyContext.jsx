@@ -18,7 +18,7 @@ export const useCompany = () => {
 export const CompanyProvider = ({ children }) => {
   const { get } = useAPI();
   const [companySettings, setCompanySettings] = useState({
-    company_name: 'Inventory Management System',
+    company_name: 'Jinan Truck Power Indonesia',
     company_logo: null,
     company_address: '',
     company_phone: '',

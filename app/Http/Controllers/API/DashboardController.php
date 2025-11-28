@@ -87,8 +87,8 @@ class DashboardController extends Controller
 
             // Unread Notifications for Admin
             $unreadNotifications = Notification::with('user')
-                ->whereHas('user', function($query) use ($user) {
-                    $query->whereHas('role', function($roleQuery) {
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->whereHas('role', function ($roleQuery) {
                         $roleQuery->where('name', 'Admin');
                     });
                 })
@@ -179,6 +179,7 @@ class DashboardController extends Controller
                 'unread_notifications' => $unreadNotifications,
                 'sales_by_status' => $salesByStatus,
                 'top_products' => $topProducts,
+                'monthly_sales' => $this->getMonthlySalesData(),
             ]);
 
         } catch (\Exception $e) {
@@ -257,7 +258,7 @@ class DashboardController extends Controller
             ];
 
             // Get recent quotations with customer names
-            $recentQuotations = $quotations->sortByDesc('created_at')->take(5)->map(function($quotation) {
+            $recentQuotations = $quotations->sortByDesc('created_at')->take(5)->map(function ($quotation) {
                 return [
                     'id' => $quotation->id,
                     'quotation_number' => $quotation->quotation_number ?? 'Q-' . date('Y-m-d') . '-' . str_pad($quotation->id, 3, '0', STR_PAD_LEFT),
@@ -268,7 +269,7 @@ class DashboardController extends Controller
             })->values();
 
             // Get recent sales orders with customer names
-            $recentSalesOrders = $salesOrders->sortByDesc('created_at')->take(5)->map(function($salesOrder) {
+            $recentSalesOrders = $salesOrders->sortByDesc('created_at')->take(5)->map(function ($salesOrder) {
                 return [
                     'id' => $salesOrder->id,
                     'sales_order_number' => $salesOrder->sales_order_number ?? 'SO-' . date('Y-m-d') . '-' . str_pad($salesOrder->id, 3, '0', STR_PAD_LEFT),
@@ -452,7 +453,7 @@ class DashboardController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->take(10)
                 ->get()
-                ->map(function($order) {
+                ->map(function ($order) {
                     return [
                         'id' => $order->id,
                         'invoice_number' => 'INV-' . date('Y-m-d') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
@@ -763,5 +764,58 @@ class DashboardController extends Controller
                 ]
             ], 500);
         }
+    }
+
+    private function getMonthlySalesData()
+    {
+        // TEMPORARY: Dummy data for visualization
+        $data = [];
+        $current = now()->subMonths(11)->startOfMonth();
+
+        for ($i = 0; $i < 12; $i++) {
+            $data[] = [
+                'name' => $current->format('M'),
+                'revenue' => rand(50000000, 500000000), // Random revenue between 50M and 500M
+                'sales' => rand(10, 100),
+            ];
+
+            $current->addMonth();
+        }
+
+        return $data;
+
+        /* Real Data Logic (Commented out)
+        $rawData = SalesOrder::selectRaw('
+                DATE_FORMAT(created_at, "%Y-%m") as month_key,
+                DATE_FORMAT(created_at, "%b") as name,
+                SUM(total_amount) as revenue,
+                COUNT(*) as sales
+            ')
+            ->where('created_at', '>=', now()->subMonths(11)->startOfMonth())
+            ->whereIn('status', ['SHIPPED', 'COMPLETED'])
+            ->groupByRaw('DATE_FORMAT(created_at, "%Y-%m"), DATE_FORMAT(created_at, "%b")')
+            ->get()
+            ->keyBy('month_key');
+
+        $data = [];
+        $current = now()->subMonths(11)->startOfMonth();
+
+        for ($i = 0; $i < 12; $i++) {
+            $key = $current->format('Y-m');
+            $name = $current->format('M');
+
+            $record = $rawData->get($key);
+
+            $data[] = [
+                'name' => $name,
+                'revenue' => $record ? (float)$record->revenue : 0,
+                'sales' => $record ? (int)$record->sales : 0,
+            ];
+
+            $current->addMonth();
+        }
+
+        return $data;
+        */
     }
 }

@@ -23,7 +23,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role_id',
         'warehouse_id',
         'can_access_multiple_warehouses',
         'is_active',
@@ -38,6 +37,13 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['role', 'role_id'];
 
     /**
      * Get the attributes that should be cast.
@@ -259,5 +265,21 @@ class User extends Authenticatable
     public function canViewReports(): bool
     {
         return $this->hasPermissionTo('reports.read');
+    }
+
+    /**
+     * Get the user's primary role.
+     */
+    public function getRoleAttribute()
+    {
+        return $this->roles->first();
+    }
+
+    /**
+     * Get the user's primary role ID.
+     */
+    public function getRoleIdAttribute()
+    {
+        return $this->roles->first()?->id;
     }
 }

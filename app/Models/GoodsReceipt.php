@@ -109,8 +109,5 @@ class GoodsReceipt extends Model
         return $this->status === 'RECEIVED';
     }
 
-    public function isCompleted()
-    {
-        return $this->status === 'RECEIVED';
-    }
+
 }

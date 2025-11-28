@@ -94,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('suppliers', SupplierController::class);
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('warehouses', WarehouseController::class);
+    Route::get('/products/statistics', [ProductController::class, 'getStatistics']);
     Route::apiResource('products', ProductController::class);
 
     // Inventory management
@@ -265,4 +266,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings/raw-products/statistics', [SettingsController::class, 'getRawProductsStatistics'])->middleware('permission:products.read');
     Route::delete('/settings/raw-products/{id}', [SettingsController::class, 'deleteRawProduct'])->middleware('permission:products.delete');
     Route::post('/settings/raw-products/bulk-delete', [SettingsController::class, 'bulkDeleteRawProducts'])->middleware('permission:products.delete');
+    Route::post('/settings/raw-products/import', [SettingsController::class, 'importToProducts'])->middleware('permission:products.create');
 });

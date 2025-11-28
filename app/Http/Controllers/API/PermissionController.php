@@ -16,30 +16,53 @@ class PermissionController extends Controller
     {
         $permissionModules = [
             'User Management' => [
-                'view_users', 'create_users', 'edit_users', 'delete_users'
+                'view_users',
+                'create_users',
+                'edit_users',
+                'delete_users'
             ],
             'Product Management' => [
-                'view_products', 'create_products', 'edit_products', 'delete_products'
+                'view_products',
+                'create_products',
+                'edit_products',
+                'delete_products'
             ],
             'Warehouse Management' => [
-                'view_warehouses', 'create_warehouses', 'edit_warehouses'
+                'view_warehouses',
+                'create_warehouses',
+                'edit_warehouses'
             ],
             'Quotations & Sales' => [
-                'view_quotations', 'create_quotations', 'edit_quotations', 'approve_quotations',
-                'view_sales_orders', 'create_sales_orders', 'edit_sales_orders'
+                'view_quotations',
+                'create_quotations',
+                'edit_quotations',
+                'approve_quotations',
+                'view_sales_orders',
+                'create_sales_orders',
+                'edit_sales_orders'
             ],
             'Purchase Orders' => [
-                'view_purchase_orders', 'create_purchase_orders', 'edit_purchase_orders'
+                'view_purchase_orders',
+                'create_purchase_orders',
+                'edit_purchase_orders'
             ],
             'Inventory & Stock' => [
-                'view_stock', 'adjust_stock', 'view_stock_movements'
+                'view_stock',
+                'adjust_stock',
+                'view_stock_movements'
             ],
             'Goods Receipt' => [
-                'view_goods_receipts', 'create_goods_receipts', 'edit_goods_receipts'
+                'view_goods_receipts',
+                'create_goods_receipts',
+                'edit_goods_receipts'
             ],
             'Invoices & Payments' => [
-                'view_invoices', 'create_invoices', 'edit_invoices',
-                'view_payments', 'create_payments', 'edit_payments'
+                'view_invoices',
+                'create_invoices',
+                'edit_invoices',
+                'view_payments',
+                'create_payments',
+                'edit_payments'
             ],
             'Document Management' => [
                 'print_quotation',        // Print PQ
@@ -49,13 +72,18 @@ class PermissionController extends Controller
                 'print_invoice'          // Print PI
             ],
             'Internal Transfers' => [
-                'view_transfers', 'create_transfers', 'approve_transfers'
+                'view_transfers',
+                'create_transfers',
+                'approve_transfers'
             ],
             'Reports' => [
-                'view_reports', 'export_reports'
+                'view_reports',
+                'export_reports'
             ],
             'System Settings' => [
-                'view_company_settings', 'edit_company_settings', 'manage_roles'
+                'view_company_settings',
+                'edit_company_settings',
+                'manage_roles'
             ]
         ];
 
@@ -64,16 +92,15 @@ class PermissionController extends Controller
         foreach ($permissionModules as $module => $permissions) {
             $modulePermissions = Permission::whereIn('name', $permissions)->get();
 
-            $groupedPermissions[] = [
-                'module' => $module,
-                'permissions' => $modulePermissions->map(function ($permission) {
+            if ($modulePermissions->isNotEmpty()) {
+                $groupedPermissions[$module] = $modulePermissions->map(function ($permission) {
                     return [
                         'id' => $permission->id,
                         'name' => $permission->name,
                         'display_name' => ucwords(str_replace('_', ' ', $permission->name))
                     ];
-                })
-            ];
+                });
+            }
         }
 
         return response()->json($groupedPermissions);
@@ -121,7 +148,7 @@ class PermissionController extends Controller
         $permission = Permission::findOrFail($id);
 
         $request->validate([
-            'name' => 'required|string|max:255|unique:permissions,name,'.$id
+            'name' => 'required|string|max:255|unique:permissions,name,' . $id
         ]);
 
         $permission->update([

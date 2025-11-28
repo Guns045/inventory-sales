@@ -38,13 +38,17 @@ export function useCRUD(endpoint, options = {}) {
             // Handle both paginated and non-paginated responses
             if (response.data.data) {
                 setItems(response.data.data);
+
+                // Check for Resource Collection structure (meta) or Standard Pagination
+                const meta = response.data.meta || response.data;
+
                 setPagination({
-                    current_page: response.data.current_page || 1,
-                    last_page: response.data.last_page || 1,
-                    per_page: response.data.per_page || pagination.per_page,
-                    total: response.data.total || 0,
-                    from: response.data.from || 0,
-                    to: response.data.to || 0
+                    current_page: meta.current_page || 1,
+                    last_page: meta.last_page || 1,
+                    per_page: meta.per_page || pagination.per_page,
+                    total: meta.total || 0,
+                    from: meta.from || 0,
+                    to: meta.to || 0
                 });
             } else {
                 setItems(response.data);

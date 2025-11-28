@@ -51,30 +51,45 @@ const Products = () => {
   const [deletingProduct, setDeletingProduct] = useState(null);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0
+  });
 
-  // Fetch categories and suppliers
+  // Fetch categories, suppliers, and stats
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [categoriesRes, suppliersRes] = await Promise.all([
+        const [categoriesRes, suppliersRes, statsRes] = await Promise.all([
           api.get('/categories'),
-          api.get('/suppliers')
+          api.get('/suppliers'),
+          api.get('/products/statistics')
         ]);
         setCategories(categoriesRes.data);
         setSuppliers(suppliersRes.data);
+        setStats({
+          total: statsRes.data.total,
+          inStock: statsRes.data.in_stock,
+          lowStock: statsRes.data.low_stock,
+          outOfStock: statsRes.data.out_of_stock,
+          totalValue: statsRes.data.total_value
+        });
       } catch (err) {
         console.error('Error fetching data:', err);
       }
     };
     fetchData();
-  }, [api]);
+  }, [api, products]); // Refresh stats when products change (e.g. create/delete)
 
   // Search effect
   useEffect(() => {
     if (searchTerm) {
-      refresh({ search: searchTerm });
+      refresh({ search: searchTerm, per_page: 20 });
     } else {
-      refresh();
+      refresh({ per_page: 20 });
     }
   }, [searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,15 +154,6 @@ const Products = () => {
     } else {
       showError(result.error);
     }
-  };
-
-  // Calculate stats
-  const stats = {
-    total: pagination.total,
-    inStock: products.filter(p => p.current_stock > 0).length,
-    lowStock: products.filter(p => p.current_stock <= p.min_stock_level && p.current_stock > 0).length,
-    outOfStock: products.filter(p => p.current_stock === 0).length,
-    totalValue: products.reduce((sum, p) => sum + (p.total_stock * p.sell_price), 0)
   };
 
   return (

@@ -18,6 +18,7 @@ class StoreProductStockRequest extends FormRequest
             'warehouse_id' => 'required|exists:warehouses,id',
             'quantity' => 'required|integer|min:0',
             'reserved_quantity' => 'required|integer|min:0',
+            'bin_location' => 'nullable|string|max:255',
         ];
     }
 }

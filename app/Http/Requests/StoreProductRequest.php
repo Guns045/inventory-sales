@@ -21,7 +21,7 @@ class StoreProductRequest extends FormRequest
             'supplier_id' => 'nullable|exists:suppliers,id',
             'buy_price' => 'required|numeric|min:0',
             'sell_price' => 'required|numeric|min:0',
-            'min_stock_level' => 'required|integer|min:0',
+            'min_stock_level' => 'nullable|integer|min:0',
         ];
     }
 }

@@ -55,6 +55,8 @@ class ProductStockService
 
         if ($viewMode === 'consolidated') {
             return $this->getConsolidatedView($query, $perPage);
+        } elseif ($viewMode === 'all-warehouses') {
+            return $this->getAllWarehousesView($query, $perPage);
         } else {
             return $this->getPerWarehouseView($query, $perPage);
         }
@@ -116,6 +118,49 @@ class ProductStockService
         $data = $stocks->getCollection()->map(function ($item) {
             $item->available_quantity = $item->quantity - $item->reserved_quantity;
             $item->view_mode = 'per-warehouse';
+            return $item;
+        });
+
+        $stocks->setCollection($data);
+        return $stocks;
+    }
+
+    /**
+     * Get all warehouses view (pivot style)
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $perPage
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    private function getAllWarehousesView($query, int $perPage)
+    {
+        // Group by product_id to get unique products
+        // Note: We need to be careful with strict mode in MySQL. 
+        // Selecting only product_id is safe with groupBy product_id.
+        $stocks = $query->select('product_id')
+            ->groupBy('product_id')
+            ->with('product')
+            ->paginate($perPage);
+
+        // Fetch all related stocks for these products to avoid N+1
+        $productIds = $stocks->pluck('product_id');
+        $allStocks = ProductStock::whereIn('product_id', $productIds)
+            ->with('warehouse')
+            ->get()
+            ->groupBy('product_id');
+
+        // Transform data
+        $data = $stocks->getCollection()->map(function ($item) use ($allStocks) {
+            $productStocks = $allStocks->get($item->product_id) ?? collect();
+
+            $item->stocks = $productStocks;
+            $item->quantity = $productStocks->sum('quantity');
+            $item->reserved_quantity = $productStocks->sum('reserved_quantity');
+            $item->view_mode = 'all-warehouses';
+
+            // Set a dummy ID to avoid issues if resource expects unique ID
+            $item->id = 'pivot_' . $item->product_id;
+
             return $item;
         });
 

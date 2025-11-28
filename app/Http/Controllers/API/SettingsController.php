@@ -153,30 +153,34 @@ class SettingsController extends Controller
             $sheetData = $excelData[0];
             $headers = array_shift($sheetData); // Remove header row
 
-            // Normalize headers
-            $normalizedHeaders = array_map(function($header) {
-                return strtolower(str_replace(' ', '_', trim($header)));
+            // Normalize headers: lowercase and remove non-alphanumeric characters
+            $normalizedHeaders = array_map(function ($header) {
+                $header = strtolower(trim($header));
+                return preg_replace('/[^a-z0-9]/', '', $header);
             }, $headers);
 
+            Log::info('Normalized Headers:', $normalizedHeaders);
+
             $processedData = [];
-            $requiredColumns = ['part_number', 'description'];
 
             foreach ($sheetData as $rowIndex => $row) {
-                if (empty(array_filter($row))) continue; // Skip empty rows
+                if (empty(array_filter($row)))
+                    continue; // Skip empty rows
 
                 $rowData = [];
                 foreach ($normalizedHeaders as $colIndex => $header) {
+                    // Skip empty headers
+                    if (empty($header))
+                        continue;
                     $rowData[$header] = $row[$colIndex] ?? null;
                 }
 
-                // Validate required columns
-                if (empty($rowData['part_number']) && empty($rowData['partnumber'])) {
-                    continue;
-                }
+                // Handle various column names (now simplified due to aggressive normalization)
+                // partnumber covers: "Part Number", "PartNumber", "Part_Number", "Part-Number"
+                $partNumber = $rowData['partnumber'] ?? $rowData['partno'] ?? $rowData['sku'] ?? $rowData['kodebarang'] ?? $rowData['partid'] ?? null;
 
-                // Handle both part_number and partnumber column names
-                $partNumber = !empty($rowData['part_number']) ? $rowData['part_number'] : $rowData['partnumber'];
-                $description = $rowData['description'] ?? '';
+                // description covers: "Description", "Desc", "Product Name", "Product Description"
+                $description = $rowData['description'] ?? $rowData['desc'] ?? $rowData['productname'] ?? $rowData['namabarang'] ?? $rowData['productdesc'] ?? '';
 
                 if (empty($partNumber) || empty($description)) {
                     continue;
@@ -205,13 +209,14 @@ class SettingsController extends Controller
      */
     private function parsePrice($price)
     {
-        if (empty($price)) return null;
+        if (empty($price))
+            return null;
 
         // Remove currency symbols and formatting
-        $price = preg_replace('/[^0-9.,]/', '', (string)$price);
+        $price = preg_replace('/[^0-9.,]/', '', (string) $price);
         $price = str_replace(',', '.', $price);
 
-        return is_numeric($price) ? (float)$price : null;
+        return is_numeric($price) ? (float) $price : null;
     }
 
     /**
@@ -298,7 +303,7 @@ class SettingsController extends Controller
                 ->get(['id', 'part_number', 'description', 'category', 'supplier']);
 
             return response()->json([
-                'data' => $products->map(function($product) {
+                'data' => $products->map(function ($product) {
                     return [
                         'id' => $product->id,
                         'part_number' => $product->part_number,
@@ -389,6 +394,62 @@ class SettingsController extends Controller
             Log::error('Get Statistics Error: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Failed to fetch statistics',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Import raw products to products table
+     */
+    public function importToProducts(Request $request)
+    {
+        try {
+            $ids = $request->get('ids', []);
+            $mode = $request->get('mode', 'all'); // 'all' or 'selected'
+
+            $query = RawProduct::query()->unprocessed();
+
+            if ($mode === 'selected' && !empty($ids)) {
+                $query->whereIn('id', $ids);
+            }
+
+            $rawProducts = $query->get();
+            $importedCount = 0;
+            $skippedCount = 0;
+
+            foreach ($rawProducts as $raw) {
+                // Check if SKU already exists
+                if (\App\Models\Product::where('sku', $raw->part_number)->exists()) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                \App\Models\Product::create([
+                    'sku' => $raw->part_number,
+                    'name' => $raw->description,
+                    'category_id' => null, // Nullable now
+                    'supplier_id' => null, // Nullable now
+                    'buy_price' => 0,
+                    'sell_price' => 0,
+                    'min_stock_level' => 0,
+                ]);
+
+                $raw->is_processed = true;
+                $raw->save();
+                $importedCount++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Imported {$importedCount} products. Skipped {$skippedCount} duplicates.",
+                'imported_count' => $importedCount,
+                'skipped_count' => $skippedCount
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Import to Products Error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to import products',
                 'message' => $e->getMessage()
             ], 500);
         }

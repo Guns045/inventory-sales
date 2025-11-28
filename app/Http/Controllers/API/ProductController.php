@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -115,6 +116,54 @@ class ProductController extends Controller
                 'message' => 'Failed to delete product',
                 'error' => $e->getMessage()
             ], 422);
+        }
+    }
+    /**
+     * Get product statistics
+     */
+    public function getStatistics()
+    {
+        try {
+            // Eager load productStock to avoid N+1 and allow accessor to work efficiently
+            $products = Product::with('productStock')->get();
+
+            $total = $products->count();
+
+            // Use the current_stock accessor (quantity - reserved)
+            $outOfStock = $products->filter(function ($product) {
+                return $product->current_stock <= 0;
+            })->count();
+
+            $inStock = $products->filter(function ($product) {
+                return $product->current_stock > 0;
+            })->count();
+
+            $lowStock = $products->filter(function ($product) {
+                return $product->current_stock > 0 && $product->current_stock <= $product->min_stock_level;
+            })->count();
+
+            // Calculate total value (quantity * sell_price)
+            // We can calculate this in PHP or via DB query. DB query is faster for sum.
+            // But since we already have products loaded, we can do it here if memory allows.
+            // For 638 products, it's fine.
+            $totalValue = $products->sum(function ($product) {
+                return $product->total_stock * $product->sell_price;
+            });
+
+            return response()->json([
+                'total' => $total,
+                'in_stock' => $inStock,
+                'low_stock' => $lowStock,
+                'out_of_stock' => $outOfStock,
+                'total_value' => $totalValue
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Product Statistics Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to fetch statistics',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

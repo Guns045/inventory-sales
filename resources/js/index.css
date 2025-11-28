@@ -9,4 +9,86 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-border: #e5e7eb;
+    --color-input: #e5e7eb;
+    --color-ring: #4f46e5;
+    --color-background: #ffffff;
+    --color-foreground: #030712;
+
+    --color-primary: #4f46e5;
+    --color-primary-foreground: #ffffff;
+
+    --color-secondary: #f3f4f6;
+    --color-secondary-foreground: #111827;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-muted: #f3f4f6;
+    --color-muted-foreground: #6b7280;
+
+    --color-accent: #f3f4f6;
+    --color-accent-foreground: #111827;
+
+    --color-popover: #ffffff;
+    --color-popover-foreground: #030712;
+
+    --color-card: #ffffff;
+    --color-card-foreground: #030712;
+}
+
+/* Custom Utilities for Shadcn */
+@layer utilities {
+    .border-border {
+        border-color: var(--color-border);
+    }
+    .bg-background {
+        background-color: var(--color-background);
+    }
+    .text-foreground {
+        color: var(--color-foreground);
+    }
+    .bg-primary {
+        background-color: var(--color-primary);
+    }
+    .text-primary-foreground {
+        color: var(--color-primary-foreground);
+    }
+    .bg-secondary {
+        background-color: var(--color-secondary);
+    }
+    .text-secondary-foreground {
+        color: var(--color-secondary-foreground);
+    }
+    .bg-destructive {
+        background-color: var(--color-destructive);
+    }
+    .text-destructive-foreground {
+        color: var(--color-destructive-foreground);
+    }
+    .bg-muted {
+        background-color: var(--color-muted);
+    }
+    .text-muted-foreground {
+        color: var(--color-muted-foreground);
+    }
+    .bg-accent {
+        background-color: var(--color-accent);
+    }
+    .text-accent-foreground {
+        color: var(--color-accent-foreground);
+    }
+    .bg-popover {
+        background-color: var(--color-popover);
+    }
+    .text-popover-foreground {
+        color: var(--color-popover-foreground);
+    }
+    .bg-card {
+        background-color: var(--color-card);
+    }
+    .text-card-foreground {
+        color: var(--color-card-foreground);
+    }
 }

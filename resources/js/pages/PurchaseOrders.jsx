@@ -1,44 +1,42 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Table, Button, Badge, Alert, Form, Modal } from 'react-bootstrap';
-import { useAPI } from '../contexts/APIContext';
-import { usePermissions } from '../contexts/PermissionContext';
-import 'jquery';
-import 'selectize';
-import 'selectize/dist/css/selectize.default.css';
-import './PurchaseOrders.css';
-
-// Make jQuery available globally for selectize
-import $ from 'jquery';
-window.jQuery = $;
-window.$ = $;
+import React, { useState, useEffect } from 'react';
+import { useAPI } from '@/contexts/APIContext';
+import { usePermissions } from '@/contexts/PermissionContext';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PurchaseOrderTable } from '@/components/purchasing/PurchaseOrderTable';
+import { Plus, RefreshCw, Trash2, Printer, Send, Eye, Loader2 } from "lucide-react";
+import { useToast } from '@/hooks/useToast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const PurchaseOrders = () => {
   const { api } = useAPI();
-  const { user } = usePermissions();
-  const { hasPermission, canRead, canCreate, canUpdate, canDelete } = usePermissions();
+  const { hasPermission } = usePermissions();
+  const { showSuccess, showError } = useToast();
 
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showItemsModal, setShowItemsModal] = useState(false);
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [editingOrder, setEditingOrder] = useState(null);
-  const [orderItems, setOrderItems] = useState([]);
+
+  // Data for forms
   const [suppliers, setSuppliers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
-  const [productSearch, setProductSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 20,
-    total: 0,
-    from: 0,
-    to: 0
-  });
+
+  // Modal States
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showItemsModal, setShowItemsModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [orderItems, setOrderItems] = useState([]);
+
+  // Form Data
   const [formData, setFormData] = useState({
     supplier_id: '',
     warehouse_id: '',
@@ -52,7 +50,7 @@ const PurchaseOrders = () => {
     product_name: '',
     quantity: 1,
     unit_price: 0,
-    tax_rate: 11 // Default tax 11%
+    tax_rate: 11
   });
 
   const [items, setItems] = useState([]);
@@ -63,6 +61,25 @@ const PurchaseOrders = () => {
     custom_message: ''
   });
 
+  // Auto-suggest state
+  const [productSearch, setProductSearch] = useState('');
+  const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const wrapperRef = React.useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [wrapperRef]);
+
   useEffect(() => {
     fetchPurchaseOrders();
     fetchSuppliers();
@@ -70,32 +87,14 @@ const PurchaseOrders = () => {
     fetchProducts();
   }, []);
 
-  
   const fetchPurchaseOrders = async (page = 1) => {
     try {
       setLoading(true);
-      setError('');
       const response = await api.get(`/purchase-orders?page=${page}`);
-      if (response && response.data) {
-        if (response.data.data) {
-          setPurchaseOrders(response.data.data);
-          setPagination({
-            current_page: response.data.current_page,
-            last_page: response.data.last_page,
-            per_page: response.data.per_page,
-            total: response.data.total,
-            from: response.data.from,
-            to: response.data.to
-          });
-        } else {
-          const purchaseOrdersData = Array.isArray(response.data) ? response.data : [];
-          setPurchaseOrders(purchaseOrdersData);
-        }
-      }
+      setPurchaseOrders(response.data.data || response.data || []);
     } catch (err) {
       console.error('Error fetching purchase orders:', err);
-      setError('Failed to fetch purchase orders');
-      setPurchaseOrders([]);
+      showError('Failed to fetch purchase orders');
     } finally {
       setLoading(false);
     }
@@ -104,12 +103,7 @@ const PurchaseOrders = () => {
   const fetchSuppliers = async () => {
     try {
       const response = await api.get('/suppliers');
-      console.log('Suppliers API response:', response);
-      if (response && response.data) {
-        const suppliersData = Array.isArray(response.data) ? response.data : [];
-        console.log('Suppliers data:', suppliersData);
-        setSuppliers(suppliersData);
-      }
+      setSuppliers(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching suppliers:', err);
     }
@@ -118,9 +112,7 @@ const PurchaseOrders = () => {
   const fetchWarehouses = async () => {
     try {
       const response = await api.get('/warehouses');
-      if (response && response.data) {
-        setWarehouses(Array.isArray(response.data) ? response.data : []);
-      }
+      setWarehouses(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching warehouses:', err);
     }
@@ -129,61 +121,20 @@ const PurchaseOrders = () => {
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products?per_page=1000');
-      if (response && response.data) {
-        const productsData = response.data.data || response.data;
-        const productsArray = Array.isArray(productsData) ? productsData : [];
-        setProducts(productsArray);
-        console.log('Products fetched:', productsArray.length, 'products');
-        if (productsArray.length > 0) {
-          console.log('Sample product structure:', productsArray[0]);
-        }
-      }
+      const productsData = response.data.data || response.data;
+      setProducts(Array.isArray(productsData) ? productsData : []);
     } catch (err) {
       console.error('Error fetching products:', err);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Form Handlers
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleItemChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'product_search') {
-      // Handle product search
-      setProductSearch(value);
-
-      // Try to find exact match first
-      const exactMatch = products.find(p =>
-        (p.name && p.name.toLowerCase() === value.toLowerCase()) ||
-        (p.sku && p.sku.toLowerCase() === value.toLowerCase()) ||
-        (p.part_number && p.part_number.toLowerCase() === value.toLowerCase())
-      );
-
-      if (exactMatch) {
-        // Auto-fill unit price when exact match is found
-        const unitPrice = exactMatch.buy_price || 0;
-        setNewItem(prev => ({
-          ...prev,
-          product_id: exactMatch.id,
-          product_name: exactMatch.name || exactMatch.description || '',
-          unit_price: unitPrice
-        }));
-      } else {
-        // Clear product selection when no match
-        setNewItem(prev => ({
-          ...prev,
-          product_id: '',
-          product_name: value,
-          unit_price: 0
-        }));
-      }
-    } else if (name === 'product_id') {
-      // Handle product selection from dropdown
+  const handleNewItemChange = (field, value) => {
+    if (field === 'product_id') {
       const selectedProduct = products.find(p => p.id === parseInt(value));
       const unitPrice = selectedProduct ? selectedProduct.buy_price || 0 : 0;
       const productName = selectedProduct ? (selectedProduct.name || selectedProduct.description || '') : '';
@@ -194,26 +145,8 @@ const PurchaseOrders = () => {
         product_name: productName,
         unit_price: unitPrice
       }));
-      setProductSearch(productName);
-    } else if (name === 'quantity') {
-      // Ensure quantity is always an integer
-      const intValue = parseInt(value) || 1;
-      setNewItem(prev => ({
-        ...prev,
-        [name]: intValue
-      }));
-    } else if (name === 'tax_rate') {
-      // Ensure tax_rate is a number
-      const numValue = parseFloat(value) || 0;
-      setNewItem(prev => ({
-        ...prev,
-        [name]: numValue
-      }));
     } else {
-      setNewItem(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setNewItem(prev => ({ ...prev, [field]: value }));
     }
   };
 
@@ -227,43 +160,24 @@ const PurchaseOrders = () => {
     };
   };
 
-  // Filter products for search
-  const filteredProducts = products.filter(product =>
-    productSearch === '' ||
-    product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    (product.sku && product.sku.toLowerCase().includes(productSearch.toLowerCase())) ||
-    (product.part_number && product.part_number.toLowerCase().includes(productSearch.toLowerCase())) ||
-    (product.description && product.description.toLowerCase().includes(productSearch.toLowerCase()))
-  );
-
   const addItem = () => {
-    if ((!newItem.product_id && !newItem.product_name) || newItem.quantity <= 0) return;
+    if (!newItem.product_id || newItem.quantity <= 0) return;
 
-    let selectedProduct = null;
-    if (newItem.product_id) {
-      selectedProduct = products.find(p => p.id === parseInt(newItem.product_id));
-    } else if (newItem.product_name) {
-      // Try to find product by name
-      selectedProduct = products.find(p =>
-        p.name.toLowerCase() === newItem.product_name.toLowerCase()
-      );
-    }
-
-    // Ensure quantity is integer
+    const selectedProduct = products.find(p => p.id === parseInt(newItem.product_id));
     const quantity = parseInt(newItem.quantity) || 1;
-    const unitPrice = parseFloat(selectedProduct.buy_price || newItem.unit_price);
+    const unitPrice = parseFloat(newItem.unit_price);
     const taxRate = parseFloat(newItem.tax_rate);
 
     const calculations = calculateItemTotal(quantity, unitPrice, taxRate);
 
     const item = {
-      id: Date.now(), // temporary ID
-      product_id: newItem.product_id || null,
-      product_name: selectedProduct ? (selectedProduct.name || selectedProduct.description || 'Product') : (newItem.product_name || 'Custom Product'),
-      sku: selectedProduct ? (selectedProduct.sku || '') : '',
-      part_number: selectedProduct ? (selectedProduct.part_number || selectedProduct.sku || '') : '',
-      description: selectedProduct ? (selectedProduct.description || selectedProduct.name || '') : (newItem.product_name || 'Custom Product'),
-      quantity: quantity,
+      id: Date.now(),
+      product_id: newItem.product_id,
+      product_name: selectedProduct ? (selectedProduct.name || selectedProduct.description) : 'Unknown',
+      sku: selectedProduct?.sku || '',
+      part_number: selectedProduct?.part_number || '',
+      description: selectedProduct?.description || '',
+      quantity,
       unit_price: unitPrice,
       tax_rate: taxRate,
       subtotal: calculations.subtotal,
@@ -286,23 +200,45 @@ const PurchaseOrders = () => {
     setItems(prev => prev.filter(item => item.id !== id));
   };
 
-  const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const taxAmount = items.reduce((sum, item) => sum + item.tax_amount, 0);
-    const total = items.reduce((sum, item) => sum + item.total, 0);
+  const handleProductSearchChange = async (e) => {
+    const value = e.target.value;
+    setProductSearch(value);
 
-    return {
-      subtotal,
-      taxAmount,
-      total
-    };
+    if (value.length < 2) {
+      setSuggestedProducts([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setLoadingSuggestions(true);
+      const response = await api.get(`/products?search=${value}&per_page=10`);
+      setSuggestedProducts(response.data.data || []);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Error searching products:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSelectProduct = (product) => {
+    const unitPrice = product.buy_price || 0;
+    const productName = product.name || product.description || '';
 
+    setNewItem(prev => ({
+      ...prev,
+      product_id: product.id.toString(),
+      product_name: productName,
+      unit_price: unitPrice
+    }));
+    setProductSearch(`${productName} (${product.sku})`);
+    setShowSuggestions(false);
+  };
+
+  const handleSubmit = async () => {
     if (items.length === 0) {
-      setError('Please add at least one item to the purchase order');
+      showError('Please add at least one item');
       return;
     }
 
@@ -318,52 +254,22 @@ const PurchaseOrders = () => {
       };
 
       if (editingOrder) {
-        // Update existing order
         await api.put(`/purchase-orders/${editingOrder.id}`, payload);
+        showSuccess('Purchase order updated successfully');
       } else {
-        // Create new order
         await api.post('/purchase-orders', payload);
+        showSuccess('Purchase order created successfully');
       }
 
-      // Reset form and state
-      setShowCreateForm(false);
-      setEditingOrder(null);
-      setItems([]);
-      setFormData({
-        supplier_id: '',
-        warehouse_id: '',
-        status: 'DRAFT',
-        expected_delivery_date: '',
-        notes: ''
-      });
-      setNewItem({
-        product_id: '',
-        quantity: 1,
-        unit_price: 0,
-        tax_rate: 11
-      });
-      setProductSearch('');
+      setShowCreateModal(false);
+      resetForm();
       fetchPurchaseOrders();
     } catch (err) {
-      console.error('Error saving purchase order:', err);
-      setError('Failed to save purchase order');
+      showError('Failed to save purchase order');
     }
   };
 
-  const handleEdit = (order) => {
-    setEditingOrder(order);
-    setFormData({
-      supplier_id: order.supplier_id,
-      warehouse_id: order.warehouse_id,
-      status: order.status,
-      expected_date: order.expected_date,
-      notes: order.notes
-    });
-    setShowCreateForm(true);
-  };
-
-  const handleCancelForm = () => {
-    setShowCreateForm(false);
+  const resetForm = () => {
     setEditingOrder(null);
     setItems([]);
     setFormData({
@@ -383,17 +289,47 @@ const PurchaseOrders = () => {
     setProductSearch('');
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this purchase order?')) {
-      return;
+  const handleEdit = (order) => {
+    setEditingOrder(order);
+    setFormData({
+      supplier_id: order.supplier_id.toString(),
+      warehouse_id: order.warehouse_id.toString(),
+      status: order.status,
+      expected_delivery_date: order.expected_delivery_date ? order.expected_delivery_date.split('T')[0] : '',
+      notes: order.notes || ''
+    });
+
+    // Transform items if needed, or fetch them
+    // For simplicity, we might need to fetch items or map them if included in order object
+    // Assuming order.items is available and populated
+    if (order.items) {
+      const mappedItems = order.items.map(item => ({
+        id: item.id,
+        product_id: item.product_id.toString(),
+        product_name: item.product?.name || 'Unknown',
+        part_number: item.product?.part_number || '',
+        description: item.product?.description || '',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        tax_rate: 11, // Default or from item if available
+        subtotal: item.quantity * item.unit_price,
+        tax_amount: (item.quantity * item.unit_price) * 0.11,
+        total: (item.quantity * item.unit_price) * 1.11
+      }));
+      setItems(mappedItems);
     }
 
+    setShowCreateModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this purchase order?')) return;
     try {
       await api.delete(`/purchase-orders/${id}`);
+      showSuccess('Purchase order deleted successfully');
       fetchPurchaseOrders();
     } catch (err) {
-      console.error('Error deleting purchase order:', err);
-      setError('Failed to delete purchase order');
+      showError('Failed to delete purchase order');
     }
   };
 
@@ -401,79 +337,26 @@ const PurchaseOrders = () => {
     setSelectedOrder(order);
     try {
       const response = await api.get(`/purchase-orders/${order.id}/items`);
-      if (response && response.data) {
-        setOrderItems(Array.isArray(response.data) ? response.data : []);
-      }
+      setOrderItems(Array.isArray(response.data) ? response.data : []);
       setShowItemsModal(true);
     } catch (err) {
-      console.error('Error fetching order items:', err);
-      setError('Failed to fetch order items');
+      showError('Failed to fetch order items');
     }
   };
 
-  const handleStatusUpdate = async (order, newStatus) => {
-    try {
-      await api.put(`/purchase-orders/${order.id}/status`, { status: newStatus });
-      fetchPurchaseOrders();
-    } catch (err) {
-      console.error('Error updating status:', err);
-      setError('Failed to update status');
-    }
-  };
-
-  // Print PDF Function
   const handlePrintPDF = async (orderId) => {
     try {
-      console.log('Attempting to print purchase order:', orderId);
-
-      // Use authenticated API call to get PDF
       const response = await api.get(`/purchase-orders/${orderId}/print`, {
         responseType: 'blob',
-        headers: {
-          'Accept': 'application/pdf',
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Accept': 'application/pdf' }
       });
-
-      // Create blob URL and open in new window
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-
-      // Open PDF in new window for printing
-      const printWindow = window.open(url, '_blank');
-
-      if (printWindow) {
-        printWindow.onload = function() {
-          // Auto-trigger print dialog when PDF loads
-          setTimeout(() => {
-            printWindow.print();
-          }, 1000);
-        };
-      } else {
-        // Fallback: download the PDF
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `purchase-order-${orderId}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        alert('PDF downloaded. Please open the file to print.');
-      }
-
-      console.log('PDF loaded successfully');
-
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
     } catch (error) {
-      console.error('Error printing purchase order:', error);
-      if (error.response) {
-        console.error('Error response:', error.response.status, error.response.data);
-      }
-      setError('Gagal mencetak purchase order: ' + (error.response?.data?.message || error.message || 'Unknown error'));
+      showError('Failed to print purchase order');
     }
   };
 
-  // Send PO Functions
   const handleSendPO = (order) => {
     setSelectedOrder(order);
     setSendFormData({
@@ -481,77 +364,23 @@ const PurchaseOrders = () => {
       custom_message: ''
     });
     setShowSendModal(true);
-    setError('');
-    setSuccess('');
   };
 
-  const handleSendPOChange = (e) => {
-    const { name, value } = e.target;
-    setSendFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSendPOSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
+  const handleSendPOSubmit = async () => {
     try {
       await api.post(`/purchase-orders/${selectedOrder.id}/send`, sendFormData);
-
+      showSuccess('Purchase Order sent successfully!');
       setShowSendModal(false);
-      setSendFormData({
-        recipient_email: '',
-        custom_message: ''
-      });
       fetchPurchaseOrders();
-
-      setSuccess('Purchase Order sent successfully!');
-      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      console.error('Error sending purchase order:', err);
-      setError('Failed to send purchase order');
+      showError('Failed to send purchase order');
     }
   };
 
-  const handleCloseSendModal = () => {
-    setShowSendModal(false);
-    setSelectedOrder(null);
-    setSendFormData({
-      recipient_email: '',
-      custom_message: ''
-    });
-    setError('');
-    setSuccess('');
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      'DRAFT': { bg: 'secondary', text: 'DRAFT' },
-      'SENT': { bg: 'info', text: 'SENT' },
-      'CONFIRMED': { bg: 'primary', text: 'CONFIRMED' },
-      'PARTIAL_RECEIVED': { bg: 'warning', text: 'PARTIAL RECEIVED' },
-      'COMPLETED': { bg: 'success', text: 'COMPLETED' }, // Use COMPLETED instead of RECEIVED
-      'CANCELLED': { bg: 'danger', text: 'CANCELLED' }
-    };
-
-    const config = statusConfig[status] || { bg: 'secondary', text: status };
-    return <Badge bg={config.bg}>{config.text}</Badge>;
-  };
-
-  const canEditOrder = (order) => {
-    return hasPermission('purchase-orders.update') && order.status === 'DRAFT';
-  };
-
-  const canDeleteOrder = (order) => {
-    return hasPermission('purchase-orders.delete') && order.status === 'DRAFT';
-  };
-
-  const canSendOrder = (order) => {
-    return hasPermission('purchase-orders.update') && order.status === 'DRAFT';
-  };
+  // Permissions
+  const canEdit = (order) => hasPermission('edit_purchase_orders') && order.status === 'DRAFT';
+  const canDelete = (order) => hasPermission('edit_purchase_orders') && order.status === 'DRAFT'; // Using edit permission for delete as delete is not defined
+  const canSend = (order) => hasPermission('edit_purchase_orders') && order.status === 'DRAFT';
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -561,605 +390,294 @@ const PurchaseOrders = () => {
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString; // Return original if invalid
-
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-
-      return `${day}-${month}-${year}`;
-    } catch (error) {
-      return dateString; // Return original if error
-    }
-  };
-
-  const renderPagination = () => {
-    if (pagination.last_page <= 1) return null;
-
-    const pages = [];
-    const currentPage = pagination.current_page;
-    const lastPage = pagination.last_page;
-
-    // Show limited page numbers
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(lastPage, currentPage + 2);
-
-    if (currentPage <= 3) {
-      endPage = Math.min(5, lastPage);
-    }
-
-    if (currentPage >= lastPage - 2) {
-      startPage = Math.max(1, lastPage - 4);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(
-        <Button
-          key={i}
-          variant={i === currentPage ? "primary" : "outline-primary"}
-          size="sm"
-          className="me-1"
-          onClick={() => fetchPurchaseOrders(i)}
-        >
-          {i}
-        </Button>
-      );
-    }
-
-    return (
-      <div className="d-flex justify-content-center align-items-center mt-3">
-        <Button
-          variant="outline-primary"
-          size="sm"
-          className="me-2"
-          disabled={currentPage <= 1}
-          onClick={() => fetchPurchaseOrders(currentPage - 1)}
-        >
-          Previous
-        </Button>
-        {pages}
-        <Button
-          variant="outline-primary"
-          size="sm"
-          className="ms-2"
-          disabled={currentPage >= lastPage}
-          onClick={() => fetchPurchaseOrders(currentPage + 1)}
-        >
-          Next
-        </Button>
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-3">Loading purchase orders...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="purchase-orders">
-      <Container fluid>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h2 className="mb-1">Purchase Orders</h2>
-            <p className="text-muted mb-0">
-              Showing {pagination.from || 0} to {pagination.to || 0} of {pagination.total} purchase orders
-            </p>
-          </div>
-          <div>
-            {hasPermission('purchase-orders.create') && (
-              <Button variant="primary" onClick={() => setShowCreateForm(true)}>
-                <i className="bi bi-plus-lg me-2"></i>
-                Create Purchase Order
-              </Button>
-            )}
-          </div>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Purchase Orders</h2>
+          <p className="text-muted-foreground">Manage purchase orders and suppliers</p>
         </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => fetchPurchaseOrders()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          {hasPermission('create_purchase_orders') && (
+            <Button onClick={() => { resetForm(); setShowCreateModal(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Order
+            </Button>
+          )}
+        </div>
+      </div>
 
-        {error && (
-          <Alert variant="danger" role="alert">
-            {error}
-          </Alert>
-        )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Orders List</CardTitle>
+          <CardDescription>View and manage all purchase orders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PurchaseOrderTable
+            data={purchaseOrders}
+            loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onViewItems={handleViewItems}
+            onPrint={handlePrintPDF}
+            onSend={handleSendPO}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            canSend={canSend}
+          />
+        </CardContent>
+      </Card>
 
-        {success && (
-          <Alert variant="success" role="alert">
-            {success}
-          </Alert>
-        )}
+      {/* Create/Edit Modal */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingOrder ? 'Edit Purchase Order' : 'Create Purchase Order'}</DialogTitle>
+          </DialogHeader>
 
-        {showCreateForm && (
-          <div className="form-container">
-            <h2>{editingOrder ? 'Edit Purchase Order' : 'Add New Purchase Order'}</h2>
-            <Form onSubmit={handleSubmit}>
-              {/* Simple Header Section */}
-              <div className="form-row">
-                <div className="form-group">
-                  <Form.Label>Supplier:</Form.Label>
-                  <Form.Select
-                    name="supplier_id"
-                    value={formData.supplier_id}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Select Supplier</option>
-                    {suppliers.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </option>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <Select value={formData.supplier_id} onValueChange={(v) => handleInputChange('supplier_id', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select Supplier" /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(s => (
+                      <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
                     ))}
-                  </Form.Select>
-                </div>
-                <div className="form-group">
-                  <Form.Label>Deliver To:</Form.Label>
-                  <Form.Select
-                    name="warehouse_id"
-                    value={formData.warehouse_id}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Select Warehouse</option>
-                    {warehouses.map((warehouse) => (
-                      <option key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Warehouse</Label>
+                <Select value={formData.warehouse_id} onValueChange={(v) => handleInputChange('warehouse_id', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select Warehouse" /></SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map(w => (
+                      <SelectItem key={w.id} value={w.id.toString()}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <Form.Label>Expected Date:</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="expected_delivery_date"
-                    value={formData.expected_delivery_date}
-                    onChange={handleInputChange}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Expected Date</Label>
+                <Input
+                  type="date"
+                  value={formData.expected_delivery_date}
+                  onChange={(e) => handleInputChange('expected_delivery_date', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(v) => handleInputChange('status', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="SENT">Sent</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={formData.notes}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
+                placeholder="Optional notes..."
+              />
+            </div>
+
+            {/* Items Section */}
+            <div className="border rounded-md p-4 space-y-4">
+              <h3 className="font-semibold">Order Items</h3>
+
+              <div className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-4 space-y-2">
+                  <Label>Product</Label>
+                  <div className="relative" ref={wrapperRef}>
+                    <Input
+                      placeholder="Search product..."
+                      value={productSearch}
+                      onChange={handleProductSearchChange}
+                      onFocus={() => {
+                        if (productSearch.length >= 2) setShowSuggestions(true);
+                      }}
+                    />
+                    {loadingSuggestions && (
+                      <div className="absolute right-3 top-2.5">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                    {showSuggestions && suggestedProducts.length > 0 && (
+                      <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                        {suggestedProducts.map((product) => (
+                          <div
+                            key={product.id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                            onClick={() => handleSelectProduct(product)}
+                          >
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-xs text-gray-500">{product.sku}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Qty</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newItem.quantity}
+                    onChange={(e) => handleNewItemChange('quantity', e.target.value)}
                   />
                 </div>
-                <div className="form-group">
-                  <Form.Label>Status:</Form.Label>
-                  <Form.Select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="DRAFT">Draft</option>
-                    <option value="SENT">Sent</option>
-                    <option value="CONFIRMED">Confirmed</option>
-                  </Form.Select>
+                <div className="col-span-3 space-y-2">
+                  <Label>Unit Price</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newItem.unit_price}
+                    onChange={(e) => handleNewItemChange('unit_price', e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Tax (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newItem.tax_rate}
+                    onChange={(e) => handleNewItemChange('tax_rate', e.target.value)}
+                  />
+                </div>
+                <div className="col-span-1">
+                  <Button onClick={addItem} size="icon"><Plus className="h-4 w-4" /></Button>
                 </div>
               </div>
 
-              {/* Order Items Table */}
-              <div className="form-group" style={{marginTop: '2rem'}}>
-                <h3>Order Items</h3>
-
-                {/* Items Table */}
-                {items.length > 0 && (
-                  <div className="table-container" style={{marginTop: '1rem', marginBottom: '1rem'}}>
-                    <Table striped bordered hover size="sm">
-                      <thead>
-                        <tr>
-                          <th width="25%">Product</th>
-                          <th width="15%">Quantity</th>
-                          <th width="15%">Unit Price</th>
-                          <th width="15%">Taxes</th>
-                          <th width="15%" className="text-end">Amount</th>
-                          <th width="10%">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map(item => (
-                          <tr key={item.id}>
-                            <td>
-                              <strong>{item.part_number}</strong><br/>
-                              <small>{item.description}</small>
-                            </td>
-                            <td>{item.quantity}</td>
-                            <td>{formatCurrency(item.unit_price)}</td>
-                            <td>{item.tax_rate}%</td>
-                            <td className="text-end">{formatCurrency(item.total)}</td>
-                            <td>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => removeItem(item.id)}
-                              >
-                                <i className="bi bi-trash"></i>
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </div>
-                )}
-
-                {/* Add New Item Row */}
-                <div className="table-container" style={{marginTop: '1rem'}}>
-                  <Table striped bordered hover size="sm">
-                    <thead>
-                      <tr>
-                        <th width="25%">Product</th>
-                        <th width="15%">Quantity</th>
-                        <th width="15%">Unit Price</th>
-                        <th width="15%">Taxes</th>
-                        <th width="15%" className="text-end">Amount</th>
-                        <th width="10%">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>
-                          <div style={{position: 'relative'}}>
-                            <Form.Control
-                              type="text"
-                              name="product_search"
-                              value={productSearch}
-                              onChange={handleItemChange}
-                              placeholder="Type to search or select product..."
-                              style={{fontSize: '0.9rem'}}
-                              size="sm"
-                              disabled={products.length === 0}
-                              list="product-list"
-                            />
-                            <datalist id="product-list">
-                              {filteredProducts.slice(0, 20).map(product => (
-                                <option key={product.id} value={product.name || product.description || ''}>
-                                  {product.sku || product.part_number || 'NO-SKU'} - {formatCurrency(product.buy_price || 0)}
-                                </option>
-                              ))}
-                            </datalist>
-                            {productSearch && filteredProducts.length === 0 && (
-                              <small className="text-muted d-block mt-1">No products found</small>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="number"
-                            name="quantity"
-                            value={newItem.quantity}
-                            onChange={handleItemChange}
-                            min="1"
-                            step="1"
-                            size="sm"
-                          />
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="number"
-                            name="unit_price"
-                            value={newItem.unit_price}
-                            onChange={handleItemChange}
-                            min="0"
-                            step="0.01"
-                            size="sm"
-                            readOnly
-                            className="bg-light"
-                          />
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="number"
-                            name="tax_rate"
-                            value={newItem.tax_rate}
-                            onChange={handleItemChange}
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            size="sm"
-                          />
-                        </td>
-                        <td className="text-end">
-                          <strong>
-                            {newItem.product_id && newItem.quantity > 0
-                              ? formatCurrency(
-                                  calculateItemTotal(
-                                    parseFloat(newItem.quantity),
-                                    parseFloat(newItem.unit_price),
-                                    parseFloat(newItem.tax_rate)
-                                  ).total
-                                )
-                              : formatCurrency(0)
-                            }
-                          </strong>
-                        </td>
-                        <td>
-                          <Button
-                            type="button"
-                            variant="success"
-                            size="sm"
-                            onClick={addItem}
-                            disabled={!newItem.product_id || newItem.quantity <= 0}
-                          >
-                            <i className="bi bi-plus-lg"></i> Add
+              {items.length > 0 && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item, idx) => (
+                      <TableRow key={item.id || idx}>
+                        <TableCell>
+                          <div className="font-medium">{item.part_number}</div>
+                          <div className="text-xs text-muted-foreground">{item.product_name}</div>
+                        </TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{formatCurrency(item.unit_price)}</TableCell>
+                        <TableCell>{formatCurrency(item.total)}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </Table>
-                </div>
-
-                {/* Totals Section */}
-                {items.length > 0 && (() => {
-                  const totals = calculateTotals();
-                  return (
-                    <div className="table-container" style={{marginTop: '1rem'}}>
-                      <Table size="sm">
-                        <tbody>
-                          <tr>
-                            <td width="70%"></td>
-                            <td width="15%" className="text-end fw-bold">Subtotal:</td>
-                            <td width="15%" className="text-end">{formatCurrency(totals.subtotal)}</td>
-                          </tr>
-                          <tr>
-                            <td></td>
-                            <td className="text-end fw-bold">Taxes:</td>
-                            <td className="text-end">{formatCurrency(totals.taxAmount)}</td>
-                          </tr>
-                          <tr className="table-primary fw-bold">
-                            <td></td>
-                            <td className="text-end">Total:</td>
-                            <td className="text-end">{formatCurrency(totals.total)}</td>
-                          </tr>
-                        </tbody>
-                      </Table>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div className="form-actions" style={{marginTop: '2rem'}}>
-                <Button type="submit" variant="success" disabled={items.length === 0}>
-                  {editingOrder ? 'Update' : 'Create'}
-                </Button>
-                <Button type="button" variant="secondary" onClick={handleCancelForm}>
-                  Cancel
-                </Button>
-              </div>
-            </Form>
-          </div>
-        )}
-
-        <Card className="table-container">
-          <Card.Body>
-            <div className="table-responsive">
-              <Table hover>
-                <thead>
-                  <tr>
-                    <th>PO Number</th>
-                    <th>Supplier</th>
-                    <th>Warehouse</th>
-                    <th>Status</th>
-                    <th>Expected Date</th>
-                    <th>Total Amount</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {purchaseOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="fw-medium">{order.po_number}</td>
-                      <td>{order.supplier?.name || 'N/A'}</td>
-                      <td>{order.warehouse?.name || 'N/A'}</td>
-                      <td>{getStatusBadge(order.status)}</td>
-                      <td>{formatDate(order.expected_delivery_date)}</td>
-                      <td className="text-end">{formatCurrency(order.total_amount)}</td>
-                      <td>
-                        <div className="btn-group" role="group">
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => handleViewItems(order)}
-                          >
-                            <i className="bi bi-eye"></i>
-                          </Button>
-                          {canSendOrder(order) && (
-                            <Button
-                              variant="outline-success"
-                              size="sm"
-                              onClick={() => handleSendPO(order)}
-                            >
-                              <i className="bi bi-envelope"></i>
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline-info"
-                            size="sm"
-                            onClick={() => handlePrintPDF(order.id)}
-                            title="Print PDF"
-                          >
-                            <i className="bi bi-file-earmark-pdf"></i>
-                          </Button>
-                          {canEditOrder(order) && (
-                            <Button
-                              variant="outline-secondary"
-                              size="sm"
-                              onClick={() => handleEdit(order)}
-                            >
-                              <i className="bi bi-pencil"></i>
-                            </Button>
-                          )}
-                          {canDeleteOrder(order) && (
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleDelete(order.id)}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-          </Card.Body>
-        </Card>
-
-        {renderPagination()}
-
-        
-        {/* View Items Modal */}
-        <Modal show={showItemsModal} onHide={() => setShowItemsModal(false)} size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>Order Items - {selectedOrder?.po_number}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {orderItems.length > 0 ? (
-              <Table hover>
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Quantity</th>
-                    <th>Unit Price</th>
-                    <th>Line Total</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orderItems.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.product?.name || 'N/A'}</td>
-                      <td>{item.quantity}</td>
-                      <td>{formatCurrency(item.unit_price)}</td>
-                      <td className="text-end">{formatCurrency(item.line_total)}</td>
-                      <td>
-                        <Badge bg={item.quantity_received >= item.quantity ? 'success' : 'warning'}>
-                          {item.quantity_received}/{item.quantity} received
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            ) : (
-              <p className="text-center text-muted">No items found</p>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowItemsModal(false)}>
-              Close
-            </Button>
-          </Modal.Footer>
-        </Modal>
-
-        {/* Send PO Modal */}
-        <Modal show={showSendModal} onHide={handleCloseSendModal} size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>
-              <i className="bi bi-envelope me-2"></i>
-              Send Purchase Order - {selectedOrder?.po_number}
-            </Modal.Title>
-          </Modal.Header>
-          <Form onSubmit={handleSendPOSubmit}>
-            <Modal.Body>
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>PO Details</Form.Label>
-                    <div className="p-3 bg-light rounded">
-                      <p><strong>PO Number:</strong> {selectedOrder?.po_number}</p>
-                      <p><strong>Supplier:</strong> {selectedOrder?.supplier?.name}</p>
-                      <p><strong>Warehouse:</strong> {selectedOrder?.warehouse?.name}</p>
-                      <p><strong>Total Amount:</strong> {formatCurrency(selectedOrder?.total_amount)}</p>
-                      <p><strong>Expected Delivery:</strong> {formatDate(selectedOrder?.expected_delivery_date)}</p>
-                    </div>
-                  </Form.Group>
-                </Col>
-              </Row>
-
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Recipient Email *</Form.Label>
-                    <Form.Control
-                      type="email"
-                      name="recipient_email"
-                      value={sendFormData.recipient_email}
-                      onChange={handleSendPOChange}
-                      placeholder="supplier@example.com"
-                      required
-                    />
-                    <Form.Text className="text-muted">
-                      Enter the recipient's email address
-                    </Form.Text>
-                  </Form.Group>
-                </Col>
-              </Row>
-
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Custom Message (Optional)</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      name="custom_message"
-                      value={sendFormData.custom_message}
-                      onChange={handleSendPOChange}
-                      rows={4}
-                      placeholder="Enter any additional message for the supplier..."
-                    />
-                    <Form.Text className="text-muted">
-                      This message will be included in the email body
-                    </Form.Text>
-                  </Form.Group>
-                </Col>
-              </Row>
-
-              {error && (
-                <Alert variant="danger" className="mt-3">
-                  {error}
-                </Alert>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
+            </div>
+          </div>
 
-              <Row className="mt-3">
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Attachments</Form.Label>
-                    <div className="p-3 bg-light rounded border">
-                      <p><i className="bi bi-file-pdf me-2"></i>
-                        Purchase Order - {selectedOrder?.po_number}.pdf
-                      </p>
-                      <small className="text-muted">
-                        This PDF will be attached to the email automatically
-                      </small>
-                    </div>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={handleCloseSendModal}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="success">
-                <i className="bi bi-send me-2"></i>
-                Send Purchase Order
-              </Button>
-            </Modal.Footer>
-          </Form>
-        </Modal>
-      </Container>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button onClick={handleSubmit}>Save Order</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Items Modal */}
+      <Dialog open={showItemsModal} onOpenChange={setShowItemsModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Items for {selectedOrder?.po_number}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orderItems.map((item, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="font-medium">{item.product?.name}</div>
+                      <div className="text-xs text-muted-foreground">{item.product?.part_number}</div>
+                    </TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.total_price)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowItemsModal(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send PO Modal */}
+      <Dialog open={showSendModal} onOpenChange={setShowSendModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Purchase Order</DialogTitle>
+            <DialogDescription>
+              Send PO {selectedOrder?.po_number} to supplier via email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Recipient Email</Label>
+              <Input
+                value={sendFormData.recipient_email}
+                onChange={(e) => setSendFormData({ ...sendFormData, recipient_email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <Textarea
+                value={sendFormData.custom_message}
+                onChange={(e) => setSendFormData({ ...sendFormData, custom_message: e.target.value })}
+                placeholder="Optional message..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSendModal(false)}>Cancel</Button>
+            <Button onClick={handleSendPOSubmit}>
+              <Send className="mr-2 h-4 w-4" />
+              Send Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

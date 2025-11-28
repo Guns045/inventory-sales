@@ -60,19 +60,26 @@ export const PermissionProvider = ({ children }) => {
   }, [token]);
 
   const hasPermission = (permission) => {
-    if (!permission || !userPermissions.permissions || typeof userPermissions.permissions !== 'object') {
-      return false;
-    }
-    const [resource, action] = permission.split('.');
+    if (!permission) return false;
 
-    // Check for nested permission structure (e.g., permissions["dashboard"] includes "warehouse")
-    if (userPermissions.permissions[resource]?.includes(action)) {
-      return true;
+    // Handle array of strings (Standard Spatie response)
+    if (Array.isArray(userPermissions.permissions)) {
+      return userPermissions.permissions.includes(permission);
     }
 
-    // Check for direct permission structure (e.g., permissions["dashboard.warehouse"] includes "read")
-    if (userPermissions.permissions[permission]?.includes('read')) {
-      return true;
+    // Handle object structure (Legacy/Alternative)
+    if (userPermissions.permissions && typeof userPermissions.permissions === 'object') {
+      const [resource, action] = permission.split('.');
+
+      // Check for nested permission structure (e.g., permissions["dashboard"] includes "warehouse")
+      if (userPermissions.permissions[resource]?.includes(action)) {
+        return true;
+      }
+
+      // Check for direct permission structure
+      if (userPermissions.permissions[permission]?.includes('read')) {
+        return true;
+      }
     }
 
     return false;

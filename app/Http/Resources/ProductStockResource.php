@@ -18,7 +18,9 @@ class ProductStockResource extends JsonResource
             'reserved_quantity' => $this->reserved_quantity,
             'available_quantity' => $this->available_quantity ?? ($this->quantity - $this->reserved_quantity),
             'min_stock_level' => $this->min_stock_level ?? null,
+            'bin_location' => $this->bin_location,
             'view_mode' => $this->view_mode ?? 'per-warehouse',
+            'stocks' => $this->stocks ?? null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

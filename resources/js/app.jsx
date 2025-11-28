@@ -20,6 +20,7 @@ const Customers = React.lazy(() => import('@/pages/Customers'));
 const Suppliers = React.lazy(() => import('@/pages/Suppliers'));
 const Warehouses = React.lazy(() => import('@/pages/Warehouses'));
 const Users = React.lazy(() => import('@/pages/Users'));
+const Roles = React.lazy(() => import('@/pages/Roles'));
 const Quotations = React.lazy(() => import('@/pages/Quotations'));
 const SalesOrders = React.lazy(() => import('@/pages/SalesOrders'));
 const PurchaseOrders = React.lazy(() => import('@/pages/PurchaseOrders'));
@@ -70,6 +71,7 @@ function App() {
                                                 <Route path="suppliers" element={<Suppliers />} />
                                                 <Route path="warehouses" element={<Warehouses />} />
                                                 <Route path="users" element={<Users />} />
+                                                <Route path="roles" element={<Roles />} />
                                                 <Route path="quotations" element={<Quotations />} />
                                                 <Route path="sales-orders" element={<SalesOrders />} />
                                                 <Route path="purchase-orders" element={<PurchaseOrders />} />

@@ -8,6 +8,9 @@ import { QuotationTable } from '@/components/transactions/QuotationTable';
 import { QuotationForm } from '@/components/transactions/QuotationForm';
 import { RejectModal } from '@/components/transactions/RejectModal';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 const Quotations = () => {
   const { api } = useAPI();
@@ -229,25 +232,40 @@ const Quotations = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <PageHeader
-        title="Quotations"
-        description="Manage customer quotations"
-        onAdd={handleCreate}
-        addButtonText="Create Quotation"
-      />
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Quotations</h2>
+        <div className="flex items-center space-x-2">
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Quotation
+          </Button>
+        </div>
+      </div>
 
-      <QuotationTable
-        data={quotations}
-        loading={loading}
-        onEdit={handleEdit}
-        onDelete={handleDeleteClick}
-        onApprove={handleApprove}
-        onReject={handleRejectClick}
-        onSubmit={handleSubmitForApproval}
-        onConvert={handleConvertToSO}
-        onPrint={handlePrint}
-      />
+      <div className="hidden h-full flex-1 flex-col space-y-8 md:flex">
+        <Card>
+          <CardHeader>
+            <CardTitle>Manage Quotations</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Create, view, and manage customer quotations.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <QuotationTable
+              data={quotations}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={handleDeleteClick}
+              onApprove={handleApprove}
+              onReject={handleRejectClick}
+              onSubmit={handleSubmitForApproval}
+              onConvert={handleConvertToSO}
+              onPrint={handlePrint}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <RejectModal
         open={isRejectOpen}

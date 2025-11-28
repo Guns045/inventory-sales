@@ -17,30 +17,53 @@ class PermissionSeeder extends Seeder
         // Define permission modules as per implementation plan
         $permissionModules = [
             'User Management' => [
-                'view_users', 'create_users', 'edit_users', 'delete_users'
+                'view_users',
+                'create_users',
+                'edit_users',
+                'delete_users'
             ],
             'Product Management' => [
-                'view_products', 'create_products', 'edit_products', 'delete_products'
+                'view_products',
+                'create_products',
+                'edit_products',
+                'delete_products'
             ],
             'Warehouse Management' => [
-                'view_warehouses', 'create_warehouses', 'edit_warehouses'
+                'view_warehouses',
+                'create_warehouses',
+                'edit_warehouses'
             ],
             'Quotations & Sales' => [
-                'view_quotations', 'create_quotations', 'edit_quotations', 'approve_quotations',
-                'view_sales_orders', 'create_sales_orders', 'edit_sales_orders'
+                'view_quotations',
+                'create_quotations',
+                'edit_quotations',
+                'approve_quotations',
+                'view_sales_orders',
+                'create_sales_orders',
+                'edit_sales_orders'
             ],
             'Purchase Orders' => [
-                'view_purchase_orders', 'create_purchase_orders', 'edit_purchase_orders'
+                'view_purchase_orders',
+                'create_purchase_orders',
+                'edit_purchase_orders'
             ],
             'Inventory & Stock' => [
-                'view_stock', 'adjust_stock', 'view_stock_movements'
+                'view_stock',
+                'adjust_stock',
+                'view_stock_movements'
             ],
             'Goods Receipt' => [
-                'view_goods_receipts', 'create_goods_receipts', 'edit_goods_receipts'
+                'view_goods_receipts',
+                'create_goods_receipts',
+                'edit_goods_receipts'
             ],
             'Invoices & Payments' => [
-                'view_invoices', 'create_invoices', 'edit_invoices',
-                'view_payments', 'create_payments', 'edit_payments'
+                'view_invoices',
+                'create_invoices',
+                'edit_invoices',
+                'view_payments',
+                'create_payments',
+                'edit_payments'
             ],
             'Document Management' => [
                 'print_quotation',        // Print PQ
@@ -50,13 +73,18 @@ class PermissionSeeder extends Seeder
                 'print_invoice'          // Print PI
             ],
             'Internal Transfers' => [
-                'view_transfers', 'create_transfers', 'approve_transfers'
+                'view_transfers',
+                'create_transfers',
+                'approve_transfers'
             ],
             'Reports' => [
-                'view_reports', 'export_reports'
+                'view_reports',
+                'export_reports'
             ],
             'System Settings' => [
-                'view_company_settings', 'edit_company_settings', 'manage_roles'
+                'view_company_settings',
+                'edit_company_settings',
+                'manage_roles'
             ]
         ];
 
@@ -67,9 +95,11 @@ class PermissionSeeder extends Seeder
             }
         }
 
-        // For now, just ensure permissions are created
-        // Role assignment will be handled separately to avoid conflicts
-        $this->command->info('Permissions created successfully. Role assignment will be handled in the next step.');
+        // Assign all permissions to Super Admin
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']);
+        $superAdmin->syncPermissions(Permission::all());
+
+        $this->command->info('Permissions created and assigned to Super Admin successfully.');
     }
 
     /**
@@ -119,87 +149,132 @@ class PermissionSeeder extends Seeder
 
         // Map legacy permissions to new format
         foreach ($legacyPermissions as $resource => $actions) {
-            if (!is_array($actions)) continue;
+            if (!is_array($actions))
+                continue;
 
             foreach ($actions as $action) {
                 switch ($resource) {
                     case 'users':
-                        if ($action === 'read') $newPermissions[] = 'view_users';
-                        if ($action === 'create') $newPermissions[] = 'create_users';
-                        if ($action === 'update') $newPermissions[] = 'edit_users';
-                        if ($action === 'delete') $newPermissions[] = 'delete_users';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_users';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_users';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_users';
+                        if ($action === 'delete')
+                            $newPermissions[] = 'delete_users';
                         break;
                     case 'products':
-                        if ($action === 'read') $newPermissions[] = 'view_products';
-                        if ($action === 'create') $newPermissions[] = 'create_products';
-                        if ($action === 'update') $newPermissions[] = 'edit_products';
-                        if ($action === 'delete') $newPermissions[] = 'delete_products';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_products';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_products';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_products';
+                        if ($action === 'delete')
+                            $newPermissions[] = 'delete_products';
                         break;
                     case 'warehouses':
-                        if ($action === 'read') $newPermissions[] = 'view_warehouses';
-                        if ($action === 'create') $newPermissions[] = 'create_warehouses';
-                        if ($action === 'update') $newPermissions[] = 'edit_warehouses';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_warehouses';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_warehouses';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_warehouses';
                         break;
                     case 'quotations':
-                        if ($action === 'read') $newPermissions[] = 'view_quotations';
-                        if ($action === 'create') $newPermissions[] = 'create_quotations';
-                        if ($action === 'update') $newPermissions[] = 'edit_quotations';
-                        if ($action === 'approve') $newPermissions[] = 'approve_quotations';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_quotations';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_quotations';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_quotations';
+                        if ($action === 'approve')
+                            $newPermissions[] = 'approve_quotations';
                         break;
                     case 'sales_orders':
                     case 'sales-orders':
-                        if ($action === 'read') $newPermissions[] = 'view_sales_orders';
-                        if ($action === 'create') $newPermissions[] = 'create_sales_orders';
-                        if ($action === 'update') $newPermissions[] = 'edit_sales_orders';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_sales_orders';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_sales_orders';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_sales_orders';
                         break;
                     case 'purchase_orders':
                     case 'purchase-orders':
-                        if ($action === 'read') $newPermissions[] = 'view_purchase_orders';
-                        if ($action === 'create') $newPermissions[] = 'create_purchase_orders';
-                        if ($action === 'update') $newPermissions[] = 'edit_purchase_orders';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_purchase_orders';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_purchase_orders';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_purchase_orders';
                         break;
                     case 'stock_movements':
-                        if ($action === 'read') $newPermissions[] = 'view_stock_movements';
-                        if ($action === 'create') $newPermissions[] = 'adjust_stock';
-                        if ($action === 'update') $newPermissions[] = 'adjust_stock';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_stock_movements';
+                        if ($action === 'create')
+                            $newPermissions[] = 'adjust_stock';
+                        if ($action === 'update')
+                            $newPermissions[] = 'adjust_stock';
                         break;
                     case 'product-stock':
-                        if ($action === 'read') $newPermissions[] = 'view_stock';
-                        if ($action === 'create') $newPermissions[] = 'adjust_stock';
-                        if ($action === 'update') $newPermissions[] = 'adjust_stock';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_stock';
+                        if ($action === 'create')
+                            $newPermissions[] = 'adjust_stock';
+                        if ($action === 'update')
+                            $newPermissions[] = 'adjust_stock';
                         break;
                     case 'invoices':
-                        if ($action === 'read') $newPermissions[] = 'view_invoices';
-                        if ($action === 'create') $newPermissions[] = 'create_invoices';
-                        if ($action === 'update') $newPermissions[] = 'edit_invoices';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_invoices';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_invoices';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_invoices';
                         break;
                     case 'payments':
-                        if ($action === 'read') $newPermissions[] = 'view_payments';
-                        if ($action === 'create') $newPermissions[] = 'create_payments';
-                        if ($action === 'update') $newPermissions[] = 'edit_payments';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_payments';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_payments';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_payments';
                         break;
                     case 'goods_receipts':
                     case 'goods-receipts':
-                        if ($action === 'read') $newPermissions[] = 'view_goods_receipts';
-                        if ($action === 'create') $newPermissions[] = 'create_goods_receipts';
-                        if ($action === 'update') $newPermissions[] = 'edit_goods_receipts';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_goods_receipts';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_goods_receipts';
+                        if ($action === 'update')
+                            $newPermissions[] = 'edit_goods_receipts';
                         break;
                     case 'picking_lists':
                     case 'picking-lists':
-                        if ($action === 'print') $newPermissions[] = 'print_picking_list';
+                        if ($action === 'print')
+                            $newPermissions[] = 'print_picking_list';
                         break;
                     case 'delivery_orders':
-                        if ($action === 'read') $newPermissions[] = 'view_stock'; // mapped to stock view
-                        if ($action === 'print') $newPermissions[] = 'print_delivery_order';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_stock'; // mapped to stock view
+                        if ($action === 'print')
+                            $newPermissions[] = 'print_delivery_order';
                         break;
                     case 'transfers':
-                        if ($action === 'read') $newPermissions[] = 'view_transfers';
-                        if ($action === 'create') $newPermissions[] = 'create_transfers';
-                        if ($action === 'approve') $newPermissions[] = 'approve_transfers';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_transfers';
+                        if ($action === 'create')
+                            $newPermissions[] = 'create_transfers';
+                        if ($action === 'approve')
+                            $newPermissions[] = 'approve_transfers';
                         break;
                     case 'reports':
-                        if ($action === 'read') $newPermissions[] = 'view_reports';
-                        if ($action === 'export') $newPermissions[] = 'export_reports';
+                        if ($action === 'read')
+                            $newPermissions[] = 'view_reports';
+                        if ($action === 'export')
+                            $newPermissions[] = 'export_reports';
                         break;
                     case 'customers':
                     case 'suppliers':

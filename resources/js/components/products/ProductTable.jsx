@@ -22,7 +22,7 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
 
     const columns = [
         {
-            header: "SKU",
+            header: "Part Number",
             accessorKey: "sku",
             cell: (row) => (
                 <code className="text-xs bg-gray-100 px-2 py-1 rounded">
@@ -31,7 +31,7 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             )
         },
         {
-            header: "Product",
+            header: "Description",
             accessorKey: "name",
             cell: (row) => (
                 <div>
@@ -41,6 +41,36 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
                             {row.description}
                         </div>
                     )}
+                </div>
+            )
+        },
+        {
+            header: "Total Stock",
+            accessorKey: "total_stock",
+            cell: (row) => (
+                <div className="text-center font-semibold">
+                    {row.total_stock}
+                </div>
+            )
+        },
+        {
+            header: "Available",
+            accessorKey: "current_stock",
+            cell: (row) => {
+                const isLowStock = row.current_stock <= row.min_stock_level
+                return (
+                    <div className={`text-center font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
+                        {row.current_stock}
+                    </div>
+                )
+            }
+        },
+        {
+            header: "Reserved",
+            accessorKey: "reserved_stock",
+            cell: (row) => (
+                <div className="text-center text-yellow-600 font-medium">
+                    {row.reserved_stock}
                 </div>
             )
         },
@@ -56,32 +86,6 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             accessorKey: "supplier",
             cell: (row) => (
                 <span className="text-sm text-gray-600">{row.supplier}</span>
-            )
-        },
-        {
-            header: "Stock",
-            accessorKey: "current_stock",
-            cell: (row) => {
-                const isLowStock = row.current_stock <= row.min_stock_level
-                return (
-                    <div className="text-center">
-                        <div className={`font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
-                            {row.current_stock}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                            of {row.total_stock}
-                        </div>
-                    </div>
-                )
-            }
-        },
-        {
-            header: "Reserved",
-            accessorKey: "reserved_stock",
-            cell: (row) => (
-                <div className="text-center text-yellow-600 font-medium">
-                    {row.reserved_stock}
-                </div>
             )
         },
         {
@@ -108,7 +112,10 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             cell: (row) => {
                 const inStock = row.current_stock > 0
                 return (
-                    <Badge variant={inStock ? "success" : "destructive"}>
+                    <Badge
+                        variant={inStock ? "success" : "outline"}
+                        className={!inStock ? "bg-red-500/10 text-red-600 border-red-200 hover:bg-red-500/20" : ""}
+                    >
                         {inStock ? "In Stock" : "Out of Stock"}
                     </Badge>
                 )
@@ -126,9 +133,10 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
                 <Pencil className="h-3 w-3" />
             </Button>
             <Button
-                variant="destructive"
+                variant="outline"
                 size="sm"
                 onClick={() => onDelete(row)}
+                className="bg-red-500/10 text-red-600 border-red-200 hover:bg-red-500/20 hover:text-red-700"
             >
                 <Trash2 className="h-3 w-3" />
             </Button>

@@ -174,14 +174,14 @@ export function Sidebar({ className }) {
 
                 <SheetContent side="left" className="p-0 w-[280px] bg-[#172554] border-r-indigo-800 text-white">
                     <SheetHeader className="p-4 border-b border-indigo-800">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-center gap-3 w-full">
                             {logoUrl ? (
-                                <img src={logoUrl} alt="Logo" className="h-8 w-auto" />
+                                <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain" />
                             ) : (
-                                <Box className="h-6 w-6 text-indigo-300" />
+                                <Box className="h-12 w-12 text-indigo-300" />
                             )}
-                            <SheetTitle className="text-left text-white">
-                                {companySettings?.company_name || 'Inventory System'}
+                            <SheetTitle className="text-center text-white text-lg font-bold leading-tight">
+                                {companySettings?.company_name || 'Jinan Truck Power Indonesia'}
                             </SheetTitle>
                         </div>
                         <SheetDescription className="sr-only">
@@ -204,7 +204,7 @@ export function Sidebar({ className }) {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate text-white">{user?.name}</p>
-                                <p className="text-xs text-indigo-300 truncate">{user?.role}</p>
+                                <p className="text-xs text-indigo-300 truncate">{user?.role?.name}</p>
                             </div>
                         </div>
                         <Button
@@ -222,23 +222,30 @@ export function Sidebar({ className }) {
             {/* Desktop Sidebar */}
             <div className={cn("hidden md:flex flex-col w-[280px] shrink-0 border-r border-indigo-800 bg-[#172554] h-screen sticky top-0 text-white", className)}>
                 <div className="p-6 border-b border-indigo-800">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-center gap-3 w-full">
                         {logoUrl ? (
-                            <img src={logoUrl} alt="Logo" className="h-8 w-auto" />
+                            <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain" />
                         ) : (
-                            <Box className="h-6 w-6 text-indigo-300" />
+                            <Box className="h-12 w-12 text-indigo-300" />
                         )}
-                        <span className="font-bold text-lg truncate text-white">
-                            {companySettings?.company_name || 'Inventory System'}
+                        <span className="font-bold text-lg text-center text-white leading-tight">
+                            {companySettings?.company_name || 'Jinan Truck Power Indonesia'}
                         </span>
                     </div>
                 </div>
 
                 <ScrollArea className="flex-1">
-                    <SidebarContent
-                        menuItems={visibleMenuItems}
-                        pathname={location.pathname}
-                    />
+                    {visibleMenuItems && visibleMenuItems.length > 0 ? (
+                        <SidebarContent
+                            menuItems={visibleMenuItems}
+                            pathname={location.pathname}
+                        />
+                    ) : (
+                        <div className="p-4 text-indigo-200 text-sm">
+                            <p>No menu items available.</p>
+                            <p className="mt-2 text-xs">Role: {user?.role?.name || 'None'}</p>
+                        </div>
+                    )}
                 </ScrollArea>
 
                 <div className="p-4 border-t border-indigo-800">
@@ -250,7 +257,7 @@ export function Sidebar({ className }) {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate text-white">{user?.name}</p>
-                            <p className="text-xs text-indigo-300 truncate">{user?.role}</p>
+                            <p className="text-xs text-indigo-300 truncate">{user?.role?.name}</p>
                         </div>
                     </div>
                     <Button

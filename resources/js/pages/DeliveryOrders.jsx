@@ -1,42 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useAPI } from '../contexts/APIContext';
-import { Button } from 'react-bootstrap';
-import './DeliveryOrders.css';
+import { useAPI } from '@/contexts/APIContext';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DeliveryOrderTable } from '@/components/warehouse/DeliveryOrderTable';
+import { RefreshCw } from "lucide-react";
+import { useToast } from '@/hooks/useToast';
 
 const DeliveryOrders = () => {
-  const { api, user } = useAPI();
+  const { api } = useAPI();
+  const { showSuccess, showError } = useToast();
+
   const [salesOrders, setSalesOrders] = useState([]);
   const [deliveryOrders, setDeliveryOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'transfer'
-  const [salesPagination, setSalesPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 10,
-    total: 0,
-    from: 1,
-    to: 10,
-  });
-  const [transferPagination, setTransferPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 10,
-    total: 0,
-    from: 1,
-    to: 10,
-  });
-  const [deliveryForm, setDeliveryForm] = useState({
-    shipping_date: new Date().toISOString().split('T')[0],
-    driver_name: '',
-    vehicle_plate_number: '',
-    kurir: ''
-  });
+  const [activeTab, setActiveTab] = useState('sales');
+
+  // Pagination state
+  const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [transferPagination, setTransferPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
 
   useEffect(() => {
     if (activeTab === 'sales') {
       fetchSalesDeliveryOrders();
-    } else if (activeTab === 'transfer') {
+    } else {
       fetchTransferDeliveryOrders();
     }
   }, [activeTab]);
@@ -45,21 +32,16 @@ const DeliveryOrders = () => {
     try {
       setLoading(true);
       const response = await api.get(`/delivery-orders?source_type=SO&page=${page}`);
-      const orders = response.data.data || response.data || [];
-      setSalesOrders(orders);
-
-      // Set pagination info
+      const data = response.data.data || response.data || [];
+      setSalesOrders(data);
       setSalesPagination({
         current_page: response.data.current_page || 1,
         last_page: response.data.last_page || 1,
-        per_page: response.data.per_page || 10,
-        total: response.data.total || 0,
-        from: response.data.from || 1,
-        to: response.data.to || 10,
+        total: response.data.total || 0
       });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch sales delivery orders');
-      console.error('Error fetching sales delivery orders:', err);
+      showError('Failed to fetch sales delivery orders');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -69,85 +51,72 @@ const DeliveryOrders = () => {
     try {
       setLoading(true);
       const response = await api.get(`/delivery-orders?source_type=IT&page=${page}`);
-      const orders = response.data.data || response.data || [];
-      setDeliveryOrders(orders);
-
-      // Set pagination info
+      const data = response.data.data || response.data || [];
+      setDeliveryOrders(data);
       setTransferPagination({
         current_page: response.data.current_page || 1,
         last_page: response.data.last_page || 1,
-        per_page: response.data.per_page || 10,
-        total: response.data.total || 0,
-        from: response.data.from || 1,
-        to: response.data.to || 10,
+        total: response.data.total || 0
       });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch transfer delivery orders');
-      console.error('Error fetching transfer delivery orders:', err);
+      showError('Failed to fetch transfer delivery orders');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Create Picking List from Sales Order
+  const handleUpdateStatus = async (order, status) => {
+    try {
+      await api.put(`/delivery-orders/${order.id}/status`, { status });
+
+      const successMessages = {
+        'READY_TO_SHIP': 'Status updated to READY_TO_SHIP!',
+        'SHIPPED': 'Status updated to SHIPPED!',
+        'DELIVERED': 'Status updated to DELIVERED!'
+      };
+      showSuccess(successMessages[status] || 'Status updated successfully!');
+
+      if (activeTab === 'sales') fetchSalesDeliveryOrders(salesPagination.current_page);
+      else fetchTransferDeliveryOrders(transferPagination.current_page);
+
+    } catch (error) {
+      showError(error.response?.data?.message || 'Failed to update status');
+    }
+  };
+
   const handleCreatePickingList = async (order) => {
     try {
       const response = await api.post('/picking-lists/from-sales-order', {
         sales_order_id: order.sales_order_id
       });
+      showSuccess(`Picking List ${response.data.picking_list_number} generated!`);
 
-      if (response.data) {
-        alert(`✅ Picking List ${response.data.picking_list_number} generated successfully!`);
-
-        if (!response.data.pdf_content) {
-          throw new Error('No PDF content received from server');
-        }
-
+      if (response.data.pdf_content) {
         downloadAndOpenPDF(response.data.pdf_content, response.data.filename);
       }
     } catch (err) {
-      console.error('Error generating picking list:', err);
-      alert('❌ Failed to generate picking list: ' + (err.response?.data?.message || err.message));
+      showError(err.response?.data?.message || 'Failed to generate picking list');
     }
   };
 
-  // Print Delivery Order
   const handlePrintDeliveryOrder = async (order) => {
     try {
-      const response = await api.get(`/delivery-orders/${order.id}/print`, {
-        responseType: 'blob'
-      });
-
-      if (response.data) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const base64Content = e.target.result.split(',')[1];
-          const filename = `delivery-order-${order.delivery_order_number.replace(/\//g, '_')}.pdf`;
-          downloadAndOpenPDF(base64Content, filename);
-        };
-        reader.readAsDataURL(response.data);
-      }
+      const response = await api.get(`/delivery-orders/${order.id}/print`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
     } catch (error) {
-      console.error('Error printing delivery order:', error);
-      alert('❌ Failed to print delivery order: ' + (error.response?.data?.message || error.message));
+      showError('Failed to print delivery order');
     }
   };
 
-  // View Delivery Order Details
-  const handleView = (order) => {
-    alert(`Viewing details for ${order.delivery_order_number}\n\nCustomer: ${order.customer?.company_name || 'N/A'}\nStatus: ${order.status}\nCreated: ${formatDate(order.created_at)}`);
-  };
-
-  // Download and Open PDF
   const downloadAndOpenPDF = (base64Content, filename) => {
     try {
       const cleanBase64 = base64Content.replace(/\s/g, '');
       const binaryData = atob(cleanBase64);
       const bytes = new Uint8Array(binaryData.length);
-
-      for (let i = 0; i < binaryData.length; i++) {
-        bytes[i] = binaryData.charCodeAt(i);
-      }
+      for (let i = 0; i < binaryData.length; i++) bytes[i] = binaryData.charCodeAt(i);
 
       const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
@@ -159,417 +128,76 @@ const DeliveryOrders = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('PDF download error:', error);
-      alert('❌ Failed to download PDF: ' + error.message);
+      showError('Failed to download PDF');
     }
   };
 
-  // Update Delivery Order Status
-  const handleUpdateStatus = async (order, status) => {
-    try {
-      setLoading(true);
-
-      const response = await api.put(`/delivery-orders/${order.id}/status`, {
-        status: status
-      });
-
-      // Update local state
-      if (activeTab === 'sales') {
-        setSalesOrders(salesOrders.map(o =>
-          o.id === order.id ? { ...o, status: status } : o
-        ));
-      } else {
-        setDeliveryOrders(deliveryOrders.map(o =>
-          o.id === order.id ? { ...o, status: status } : o
-        ));
-      }
-
-      // Refresh data
-      if (activeTab === 'sales') {
-        fetchSalesDeliveryOrders();
-      } else {
-        fetchTransferDeliveryOrders();
-      }
-
-      // Show success message with sales order sync info
-      const successMessages = {
-        'READY_TO_SHIP': '✅ Status updated to READY_TO_SHIP! Sales Order status has been synchronized.',
-        'SHIPPED': '🚚 Status updated to SHIPPED! Sales Order status has been synchronized.',
-        'DELIVERED': '✅ Status updated to DELIVERED! Sales Order marked as COMPLETED.'
-      };
-
-      alert(successMessages[status] || '✅ Status updated successfully!');
-
-    } catch (error) {
-      console.error('Error updating delivery order status:', error);
-      setError('Failed to update status: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
+  const handleView = (order) => {
+    // Placeholder for view details modal
+    console.log('View order', order);
   };
-
-  const handleSalesPageChange = (page) => {
-    fetchSalesDeliveryOrders(page);
-  };
-
-  const handleTransferPageChange = (page) => {
-    fetchTransferDeliveryOrders(page);
-  };
-
-  const getStatusClass = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'preparing': return 'status-blue';
-      case 'ready': return 'status-green';
-      case 'ready_to_ship': return 'status-green';
-      case 'shipped': return 'status-yellow';
-      case 'delivered': return 'status-success';
-      case 'cancelled': return 'status-red';
-      case 'processing': return 'status-blue';
-      default: return 'status-gray';
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount) return 'Rp 0';
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  if (loading) {
-    return <div className="loading">Loading delivery orders...</div>;
-  }
 
   return (
-    <div className="delivery-orders">
-      <div className="header">
-        <h1>Delivery Management</h1>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Delivery Management</h2>
+          <p className="text-muted-foreground">Manage delivery orders for sales and internal transfers</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => activeTab === 'sales' ? fetchSalesDeliveryOrders() : fetchTransferDeliveryOrders()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {error && (
-        <div className="alert alert-error">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="btn-close">×</button>
-        </div>
-      )}
+      <Tabs defaultValue="sales" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="sales">Sales Orders ({salesPagination.total})</TabsTrigger>
+          <TabsTrigger value="transfer">Internal Transfer ({transferPagination.total})</TabsTrigger>
+        </TabsList>
 
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button
-          className={`tab-btn ${activeTab === 'sales' ? 'active' : ''}`}
-          onClick={() => setActiveTab('sales')}
-        >
-          Sales Orders ({salesOrders.length})
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'transfer' ? 'active' : ''}`}
-          onClick={() => setActiveTab('transfer')}
-        >
-          Internal Transfer ({deliveryOrders.length})
-        </button>
-      </div>
+        <TabsContent value="sales" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Orders Delivery</CardTitle>
+              <CardDescription>Manage deliveries for customer sales orders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DeliveryOrderTable
+                data={salesOrders}
+                loading={loading}
+                type="sales"
+                onView={handleView}
+                onUpdateStatus={handleUpdateStatus}
+                onPrint={handlePrintDeliveryOrder}
+                onCreatePickingList={handleCreatePickingList}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Sales Orders Tab */}
-      {activeTab === 'sales' && (
-        <div className="table-container">
-          <h2>Sales Orders Delivery</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>DO Number</th>
-                <th>Sales Order</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Created Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {salesOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center">
-                    No sales delivery orders found.
-                  </td>
-                </tr>
-              ) : (
-                salesOrders.map(order => (
-                  <tr key={order.id}>
-                    <td>{order.delivery_order_number}</td>
-                    <td>{order.sales_order?.sales_order_number || '-'}</td>
-                    <td>{order.customer?.name || order.customer?.company_name || 'N/A'}</td>
-                    <td>
-                      <span className={`status ${getStatusClass(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td>{formatDate(order.created_at)}</td>
-                    <td>
-                      <div className="btn-group">
-                        <button
-                          className="btn btn-sm btn-info"
-                          onClick={() => handleView(order)}
-                          disabled={loading}
-                        >
-                          <i className="bi bi-eye"></i>
-                        </button>
-                        {order.status === 'PREPARING' && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleCreatePickingList(order)}
-                            disabled={loading}
-                            title="Create Picking List"
-                          >
-                            <i className="bi bi-clipboard-check"></i>
-                          </button>
-                        )}
-                        {order.status === 'READY_TO_SHIP' && (
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handlePrintDeliveryOrder(order)}
-                            disabled={loading}
-                            title="Print Delivery Order"
-                          >
-                            <i className="bi bi-printer"></i>
-                          </button>
-                        )}
-                        {/* Status Update Actions */}
-                        {order.status === 'PREPARING' && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleUpdateStatus(order, 'READY_TO_SHIP')}
-                            disabled={loading}
-                            title="Ready to Ship"
-                          >
-                            <i className="bi bi-truck"></i>
-                          </button>
-                        )}
-                        {order.status === 'READY_TO_SHIP' && (
-                          <button
-                            className="btn btn-sm btn-warning"
-                            onClick={() => handleUpdateStatus(order, 'SHIPPED')}
-                            disabled={loading}
-                            title="Ship Order"
-                          >
-                            <i className="bi bi-box-seam"></i>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {/* Pagination for Sales Orders */}
-          {salesPagination.last_page > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <div className="text-muted">
-                Showing {salesPagination.from} to {salesPagination.to} of {salesPagination.total} entries
-              </div>
-              <div className="btn-group" role="group">
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => handleSalesPageChange(salesPagination.current_page - 1)}
-                  disabled={salesPagination.current_page === 1}
-                >
-                  <i className="bi bi-chevron-left"></i> Previous
-                </Button>
-
-                {/* Page Numbers */}
-                {[...Array(Math.min(5, salesPagination.last_page))].map((_, index) => {
-                  const pageNumber = index + 1;
-                  const isActive = pageNumber === salesPagination.current_page;
-                  return (
-                    <Button
-                      key={pageNumber}
-                      variant={isActive ? "primary" : "outline-secondary"}
-                      size="sm"
-                      onClick={() => handleSalesPageChange(pageNumber)}
-                    >
-                      {pageNumber}
-                    </Button>
-                  );
-                })}
-
-                {salesPagination.last_page > 5 && (
-                  <>
-                    <span className="btn btn-outline-secondary btn-sm disabled">...</span>
-                    <Button
-                      variant={salesPagination.current_page === salesPagination.last_page ? "primary" : "outline-secondary"}
-                      size="sm"
-                      onClick={() => handleSalesPageChange(salesPagination.last_page)}
-                    >
-                      {salesPagination.last_page}
-                    </Button>
-                  </>
-                )}
-
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => handleSalesPageChange(salesPagination.current_page + 1)}
-                  disabled={salesPagination.current_page === salesPagination.last_page}
-                >
-                  Next <i className="bi bi-chevron-right"></i>
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Internal Transfer Tab */}
-      {activeTab === 'transfer' && (
-        <div className="table-container">
-          <h2>Internal Transfer Delivery</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>DO Number</th>
-                <th>Sales Order</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Created Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deliveryOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center">
-                    No delivery orders found.
-                  </td>
-                </tr>
-              ) : (
-                deliveryOrders.map(order => (
-                  <tr key={order.id}>
-                    <td>{order.delivery_order_number}</td>
-                    <td>{order.sales_order?.sales_order_number || '-'}</td>
-                    <td>{order.customer?.company_name || 'N/A'}</td>
-                    <td>
-                      <span className={`status ${getStatusClass(order.status)}`}>
-                        {order.status_label || order.status}
-                      </span>
-                    </td>
-                    <td>{formatDate(order.created_at)}</td>
-                    <td>
-                      <div className="btn-group">
-                        <button
-                          className="btn btn-sm btn-info"
-                          onClick={() => handleView(order)}
-                          disabled={loading}
-                        >
-                          <i className="bi bi-eye"></i>
-                        </button>
-                        {order.status === 'READY_TO_SHIP' && (
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handlePrintDeliveryOrder(order)}
-                            disabled={loading}
-                            title="Print Delivery Order"
-                          >
-                            <i className="bi bi-printer"></i>
-                          </button>
-                        )}
-                        {/* Status Update Actions */}
-                        {order.status === 'PREPARING' && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleUpdateStatus(order, 'READY_TO_SHIP')}
-                            disabled={loading}
-                            title="Ready to Ship"
-                          >
-                            <i className="bi bi-truck"></i>
-                          </button>
-                        )}
-                        {order.status === 'READY_TO_SHIP' && (
-                          <button
-                            className="btn btn-sm btn-warning"
-                            onClick={() => handleUpdateStatus(order, 'SHIPPED')}
-                            disabled={loading}
-                            title="Ship Order"
-                          >
-                            <i className="bi bi-box-seam"></i>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {/* Pagination for Internal Transfer */}
-          {transferPagination.last_page > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <div className="text-muted">
-                Showing {transferPagination.from} to {transferPagination.to} of {transferPagination.total} entries
-              </div>
-              <div className="btn-group" role="group">
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => handleTransferPageChange(transferPagination.current_page - 1)}
-                  disabled={transferPagination.current_page === 1}
-                >
-                  <i className="bi bi-chevron-left"></i> Previous
-                </Button>
-
-                {/* Page Numbers */}
-                {[...Array(Math.min(5, transferPagination.last_page))].map((_, index) => {
-                  const pageNumber = index + 1;
-                  const isActive = pageNumber === transferPagination.current_page;
-                  return (
-                    <Button
-                      key={pageNumber}
-                      variant={isActive ? "primary" : "outline-secondary"}
-                      size="sm"
-                      onClick={() => handleTransferPageChange(pageNumber)}
-                    >
-                      {pageNumber}
-                    </Button>
-                  );
-                })}
-
-                {transferPagination.last_page > 5 && (
-                  <>
-                    <span className="btn btn-outline-secondary btn-sm disabled">...</span>
-                    <Button
-                      variant={transferPagination.current_page === transferPagination.last_page ? "primary" : "outline-secondary"}
-                      size="sm"
-                      onClick={() => handleTransferPageChange(transferPagination.last_page)}
-                    >
-                      {transferPagination.last_page}
-                    </Button>
-                  </>
-                )}
-
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => handleTransferPageChange(transferPagination.current_page + 1)}
-                  disabled={transferPagination.current_page === transferPagination.last_page}
-                >
-                  Next <i className="bi bi-chevron-right"></i>
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        <TabsContent value="transfer" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Internal Transfer Delivery</CardTitle>
+              <CardDescription>Manage deliveries for internal warehouse transfers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DeliveryOrderTable
+                data={deliveryOrders}
+                loading={loading}
+                type="transfer"
+                onView={handleView}
+                onUpdateStatus={handleUpdateStatus}
+                onPrint={handlePrintDeliveryOrder}
+                onCreatePickingList={handleCreatePickingList}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
