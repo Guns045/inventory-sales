@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAPI } from '@/contexts/APIContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/contexts/PermissionContext';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductStockTable } from '@/components/inventory/ProductStockTable';
-import { Plus, Search, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Search, RefreshCw, Loader2, CheckCircle } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { FormDialog } from "@/components/common/FormDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 const ProductStock = () => {
   const { api } = useAPI();
   const { user } = useAuth();
+  const { canCreate } = usePermissions();
   const { showSuccess, showError } = useToast();
 
   const [productStock, setProductStock] = useState([]);
@@ -112,8 +114,8 @@ const ProductStock = () => {
       if (searchTerm) params.append('search', searchTerm);
       if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
 
-      // Add view mode for Sales Team / Super Admin only when All Warehouses is selected
-      if ((user?.role?.name === 'Sales Team' || user?.role?.name === 'Super Admin') && selectedWarehouse === 'all') {
+      // Enable all-warehouses view mode when All Warehouses is selected
+      if (selectedWarehouse === 'all') {
         params.append('view_mode', 'all-warehouses');
       }
 
@@ -163,6 +165,10 @@ const ProductStock = () => {
   const handleProductSearchChange = async (e) => {
     const value = e.target.value;
     setProductSearch(value);
+    // Clear selected product when user types
+    if (formData.product_id) {
+      setFormData(prev => ({ ...prev, product_id: '' }));
+    }
 
     if (value.length < 2) {
       setSuggestedProducts([]);
@@ -189,6 +195,11 @@ const ProductStock = () => {
   };
 
   const handleSubmitCreate = async () => {
+    if (!formData.product_id) {
+      showError('Please select a valid product from the list');
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
@@ -231,10 +242,12 @@ const ProductStock = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={handleCreateStock}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Stock
-          </Button>
+          {canCreate('product-stock') && (
+            <Button onClick={handleCreateStock}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Stock
+            </Button>
+          )}
         </div>
       </div>
 
@@ -283,6 +296,8 @@ const ProductStock = () => {
               onViewHistory={handleViewHistory}
               onDelete={handleDeleteStock}
               userRole={user?.role?.name}
+              canUpdate={canCreate('product-stock')} // Assuming create implies update for now, or use specific permission
+              canDelete={canCreate('product-stock')} // Assuming create implies delete for now
               warehouses={warehouses}
               viewMode={selectedWarehouse === 'all' ? 'all-warehouses' : 'per-warehouse'}
             />
@@ -330,6 +345,16 @@ const ProductStock = () => {
                 </div>
               )}
             </div>
+            {!formData.product_id && productSearch.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                Please select a product from the dropdown list
+              </p>
+            )}
+            {formData.product_id && (
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" /> Product selected
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Warehouse</Label>

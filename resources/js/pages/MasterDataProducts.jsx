@@ -234,10 +234,11 @@ const MasterDataProducts = () => {
   const columns = [
     {
       id: "select",
-      header: () => (
+      header: (
         <Checkbox
           checked={rawProducts.length > 0 && selectedProducts.length === rawProducts.length}
           onCheckedChange={handleSelectAll}
+          aria-label="Select all"
         />
       ),
       cell: (row) => (

@@ -24,6 +24,7 @@ use App\Http\Controllers\API\CompanySettingsController;
 use App\Http\Controllers\API\PickingListController;
 use App\Http\Controllers\API\SettingsController;
 use App\Http\Controllers\API\PermissionController;
+use App\Http\Controllers\API\ReportController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -65,6 +66,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // User and Role Management
     Route::get('/user/permissions', [RoleController::class, 'getUserPermissions']);
     Route::post('/check-permission/{permission}', [RoleController::class, 'checkPermission']);
+
+    // Profile Routes
+    Route::get('/profile', [App\Http\Controllers\API\ProfileController::class, 'show']);
+    Route::put('/profile', [App\Http\Controllers\API\ProfileController::class, 'update']);
+    Route::post('/profile/avatar', [App\Http\Controllers\API\ProfileController::class, 'uploadAvatar']);
+
     Route::apiResource('users', UserController::class);
     // Route::post('users', [UserController::class, 'store'])->middleware('permission:users.create');
     // Route::put('users/{id}', [UserController::class, 'update'])->middleware('permission:users.update');
@@ -209,6 +216,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard routes
     Route::get('/dashboard', [DashboardController::class, 'getDashboardData'])->middleware('permission:dashboard.read');
+    Route::get('/dashboard/admin', [DashboardController::class, 'adminDashboard'])->middleware('permission:dashboard.read');
     Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard'])->middleware('permission:dashboard.sales');
     Route::get('/dashboard/approval', [DashboardController::class, 'approvalDashboard']);//->middleware('permission:dashboard.approval');
     Route::get('/dashboard/warehouse', [DashboardController::class, 'warehouseDashboard'])->middleware('permission:dashboard.warehouse');
@@ -230,12 +238,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/stock', [DashboardController::class, 'stockReports']);
     Route::get('/reports/sales', [DashboardController::class, 'salesReports']);
 
+
+
     // Advanced Reports routes
-    // Route::get('/reports/sales-performance', [ReportController::class, 'salesPerformance'])->middleware('permission:reports.read');
-    // Route::get('/reports/inventory-turnover', [ReportController::class, 'inventoryTurnover'])->middleware('permission:reports.read');
-    // Route::get('/reports/financial-performance', [ReportController::class, 'financialPerformance'])->middleware('permission:reports.read');
-    // Route::get('/reports/customer-analysis', [ReportController::class, 'customerAnalysis'])->middleware('permission:reports.read');
-    // Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
+    Route::get('/reports/sales-performance', [ReportController::class, 'salesPerformance'])->middleware('permission:reports.read');
+    Route::get('/reports/inventory-turnover', [ReportController::class, 'inventoryTurnover'])->middleware('permission:reports.read');
+    Route::get('/reports/financial-performance', [ReportController::class, 'financialPerformance'])->middleware('permission:reports.read');
+    Route::get('/reports/customer-analysis', [ReportController::class, 'customerAnalysis'])->middleware('permission:reports.read');
+    Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
 
     // Company Settings routes (Admin only)
     Route::apiResource('company-settings', CompanySettingsController::class)->middleware('super.admin.or.company.settings');

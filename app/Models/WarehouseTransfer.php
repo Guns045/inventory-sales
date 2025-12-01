@@ -48,6 +48,40 @@ class WarehouseTransfer extends Model
 
 
     // Scopes
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function warehouseFrom(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_from_id');
+    }
+
+    public function warehouseTo(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_to_id');
+    }
+
+    public function requestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function deliveredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delivered_by');
+    }
+
+    public function receivedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'received_by');
+    }
     public function scopeForUser($query, $user)
     {
         // If no user provided, return all transfers
@@ -98,5 +132,26 @@ class WarehouseTransfer extends Model
     public function scopeWithProduct($query)
     {
         return $query->with(['product', 'warehouseFrom', 'warehouseTo', 'requestedBy', 'approvedBy']);
+    }
+
+    // State Checks
+    public function canBeApproved(): bool
+    {
+        return $this->status === 'REQUESTED';
+    }
+
+    public function canBeDelivered(): bool
+    {
+        return $this->status === 'APPROVED';
+    }
+
+    public function canBeReceived(): bool
+    {
+        return $this->status === 'IN_TRANSIT';
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->status, ['REQUESTED', 'APPROVED']);
     }
 }

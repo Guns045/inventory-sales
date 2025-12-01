@@ -17,14 +17,15 @@ class PickingListTransformer
         // Prepare items data
         $items = [];
 
-        foreach ($pickingList->items as $item) {
+        foreach ($pickingList->items as $index => $item) {
             $items[] = [
+                'no' => $index + 1,
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
                 'description' => $item->product->description ?? $item->description ?? 'No description',
-                'qty' => $item->quantity,
-                'location' => $item->product->warehouse_location ?? $item->location ?? 'A-01-01',
-                'picked_qty' => $item->picked_quantity ?? $item->quantity,
-                'status' => $item->picked_quantity >= $item->quantity ? 'COMPLETED' : 'PENDING'
+                'qty' => $item->quantity_required,
+                'location' => $item->location_code ?? $item->product->location ?? 'A-01-01',
+                'picked_qty' => $item->quantity_picked ?? $item->quantity_required,
+                'status' => $item->quantity_picked >= $item->quantity_required ? 'COMPLETED' : 'PENDING'
             ];
         }
 
@@ -54,7 +55,8 @@ class PickingListTransformer
             'target_time' => $pickingList->target_time ?? '16:00',
             'picker' => $pickingList->user->name ?? 'Warehouse Staff',
             'items' => $items,
-            'notes' => $pickingList->notes ?? ''
+            'notes' => $pickingList->notes ?? '',
+            'customer_name' => $pickingList->salesOrder->customer->company_name ?? $pickingList->salesOrder->customer->name ?? 'N/A'
         ];
     }
 
@@ -71,7 +73,7 @@ class PickingListTransformer
             $pickingListNumber = \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
         } catch (\Exception $e) {
             // Fallback manual number generation if DocumentCounter fails
-            $pickingListNumber = 'PL-' . date('ymd') . '-' . str_pad((string)mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+            $pickingListNumber = 'PL-' . date('ymd') . '-' . str_pad((string) mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
         }
 
         // Prepare items data
@@ -117,16 +119,33 @@ class PickingListTransformer
     /**
      * Transform WarehouseTransfer untuk picking list
      */
-    public static function transformFromWarehouseTransfer(\App\Models\WarehouseTransfer $transfer): array
+    public static function transformFromWarehouseTransfer(\App\Models\WarehouseTransfer $transfer, ?string $existingNumber = null): array
     {
-        // Generate picking list number using DocumentCounter
-        try {
-            $warehouseId = $transfer->warehouse_from_id;
-            $pickingListNumber = \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
-        } catch (\Exception $e) {
-            // Fallback manual number generation
-            $pickingListNumber = 'PL-' . date('ymd') . '-' . str_pad((string)mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        // Use existing number if provided, otherwise generate new one
+        if ($existingNumber) {
+            $pickingListNumber = $existingNumber;
+        } else {
+            // Generate picking list number using DocumentCounter
+            try {
+                $warehouseId = $transfer->warehouse_from_id;
+                \Illuminate\Support\Facades\Log::info('Generating Picking List for Transfer', [
+                    'transfer_id' => $transfer->id,
+                    'warehouse_from_id' => $warehouseId,
+                    'transfer_number' => $transfer->transfer_number
+                ]);
+                $pickingListNumber = \App\Models\DocumentCounter::getNextNumber('PICKING_LIST', $warehouseId);
+            } catch (\Exception $e) {
+                // Fallback manual number generation
+                $pickingListNumber = 'PL-' . date('ymd') . '-' . str_pad((string) mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+            }
         }
+
+        // Fetch ProductStock for bin location
+        $productStock = \App\Models\ProductStock::where('product_id', $transfer->product_id)
+            ->where('warehouse_id', $transfer->warehouse_from_id)
+            ->first();
+
+        $location = $productStock->bin_location ?? $transfer->product->location ?? '-';
 
         // Prepare items data
         $items = [];
@@ -136,7 +155,9 @@ class PickingListTransformer
             'description' => $transfer->product->description ?? '-',
             'qty' => $transfer->quantity_requested,
             'unit' => $transfer->product->unit ?? 'pcs',
-            'location' => $transfer->product->location ?? '-',
+            'location' => $location,
+            'from_location' => $location,
+            'to_location' => $transfer->warehouseTo->name ?? '-',
             'notes' => "Transfer from " . $transfer->warehouseFrom->name . " to " . $transfer->warehouseTo->name
         ];
 

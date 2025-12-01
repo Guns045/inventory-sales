@@ -43,11 +43,15 @@ class DashboardController extends Controller
                 ]);
 
             // Pending Approvals
+            DB::enableQueryLog();
             $pendingQuotations = Quotation::with(['customer', 'user'])
                 ->where('status', 'SUBMITTED')
                 ->orderBy('created_at', 'desc')
                 ->take(10)
                 ->get();
+
+            Log::info('Pending Quotations Query:', DB::getQueryLog());
+            Log::info('Pending Quotations Count: ' . $pendingQuotations->count());
 
             // Ready to Ship Orders
             $readyToShipOrders = SalesOrder::with(['customer'])
@@ -88,8 +92,9 @@ class DashboardController extends Controller
             // Unread Notifications for Admin
             $unreadNotifications = Notification::with('user')
                 ->whereHas('user', function ($query) use ($user) {
-                    $query->whereHas('role', function ($roleQuery) {
-                        $roleQuery->where('name', 'Admin');
+                    $query->whereHas('roles', function ($roleQuery) {
+                        $roleQuery->where('name', 'Super Admin')
+                            ->orWhere('name', 'Admin');
                     });
                 })
                 ->where('is_read', false)
@@ -148,6 +153,8 @@ class DashboardController extends Controller
                 ->take(10)
                 ->get();
 
+            Log::info('Admin Dashboard: Data fetched successfully for user ' . $user->id);
+
             return response()->json([
                 'summary' => [
                     'critical_stocks' => $criticalStocks->count(),
@@ -180,12 +187,28 @@ class DashboardController extends Controller
                 'sales_by_status' => $salesByStatus,
                 'top_products' => $topProducts,
                 'monthly_sales' => $this->getMonthlySalesData(),
+                'recent_sales' => SalesOrder::with('customer')
+                    ->whereIn('status', ['SHIPPED', 'COMPLETED'])
+                    ->orderBy('created_at', 'desc')
+                    ->take(5)
+                    ->get()
+                    ->map(function ($order) {
+                        return [
+                            'id' => $order->id,
+                            'name' => $order->customer->company_name,
+                            'email' => $order->customer->email ?? 'N/A',
+                            'amount' => $order->total_amount,
+                            'avatar' => null // You can add logic for avatar if needed
+                        ];
+                    }),
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Admin Dashboard Error: ' . $e->getMessage());
+            Log::error('Admin Dashboard Error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
 
             return response()->json([
+                'error' => $e->getMessage(), // Expose error to frontend
                 'summary' => [
                     'critical_stocks' => 0,
                     'pending_approvals' => 0,
@@ -237,6 +260,7 @@ class DashboardController extends Controller
             // Calculate quotation statistics
             $quotationStats = [
                 'draft' => $quotations->where('status', 'DRAFT')->count(),
+                'submitted' => $quotations->where('status', 'SUBMITTED')->count(),
                 'approved' => $quotations->where('status', 'APPROVED')->count(),
                 'rejected' => $quotations->where('status', 'REJECTED')->count(),
                 'total' => $quotations->count()
@@ -280,12 +304,23 @@ class DashboardController extends Controller
                 ];
             })->values();
 
+            // Get approval notifications (recently approved/rejected quotations)
+            $approvalNotifications = \App\Models\Approval::whereHasMorph('approvable', [Quotation::class], function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+                ->whereIn('status', ['APPROVED', 'REJECTED'])
+                ->orderBy('updated_at', 'desc')
+                ->take(5)
+                ->with(['approvable', 'approver'])
+                ->get();
+
             return response()->json([
-                'quotations' => $quotationStats,
-                'sales_orders' => $salesOrderStats,
-                'invoices' => $invoiceStats,
+                'quotation_stats' => $quotationStats,
+                'sales_order_stats' => $salesOrderStats,
+                'invoice_stats' => $invoiceStats,
                 'recent_quotations' => $recentQuotations,
-                'recent_sales_orders' => $recentSalesOrders
+                'recent_sales_orders' => $recentSalesOrders,
+                'approval_notifications' => $approvalNotifications
             ]);
 
         } catch (\Exception $e) {
@@ -293,11 +328,12 @@ class DashboardController extends Controller
 
             // Return default data structure on error
             return response()->json([
-                'quotations' => ['draft' => 0, 'approved' => 0, 'rejected' => 0],
-                'sales_orders' => ['pending' => 0, 'processing' => 0, 'completed' => 0],
-                'invoices' => ['paid' => 0, 'unpaid' => 0],
+                'quotation_stats' => ['draft' => 0, 'approved' => 0, 'rejected' => 0, 'submitted' => 0],
+                'sales_order_stats' => ['pending' => 0, 'processing' => 0, 'completed' => 0],
+                'invoice_stats' => ['paid' => 0, 'unpaid' => 0],
                 'recent_quotations' => [],
-                'recent_sales_orders' => []
+                'recent_sales_orders' => [],
+                'approval_notifications' => []
             ]);
         }
     }
@@ -351,66 +387,51 @@ class DashboardController extends Controller
     public function warehouseDashboard(Request $request)
     {
         try {
-            // Get sales orders statistics for task cards
-            $tasks = [
-                'pending_orders' => SalesOrder::where('status', 'PENDING')->count(),
-                'processing_orders' => SalesOrder::where('status', 'PROCESSING')->count(),
-                'ready_to_ship' => SalesOrder::where('status', 'READY_TO_SHIP')->count(),
-                'completed_today' => SalesOrder::where('status', 'COMPLETED')
-                    ->whereDate('updated_at', today())->count(),
+            // Get Pending Sales Orders
+            $pendingOrders = SalesOrder::with(['customer', 'user', 'items.product'])
+                ->where('status', 'PENDING')
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Get Processing Sales Orders
+            $processingOrders = SalesOrder::with(['customer', 'user', 'items.product'])
+                ->where('status', 'PROCESSING')
+                ->orderBy('updated_at', 'asc')
+                ->get();
+
+            // Get Ready to Ship Orders
+            $readyToShipOrders = SalesOrder::with(['customer', 'user', 'items.product'])
+                ->where('status', 'READY_TO_SHIP')
+                ->orderBy('updated_at', 'asc')
+                ->get();
+
+            // Calculate Stats
+            $warehouseStats = [
+                'pending_processing' => $pendingOrders->count(),
+                'processing' => $processingOrders->count(),
+                'ready_to_ship' => $readyToShipOrders->count(),
+                'total_orders' => SalesOrder::count(),
             ];
 
-            // Get picking lists statistics
-            $pickingListsStats = [
-                'ready' => \App\Models\PickingList::where('status', 'READY')->count(),
-                'picking' => \App\Models\PickingList::where('status', 'PICKING')->count(),
-                'completed_today' => \App\Models\PickingList::where('status', 'COMPLETED')
-                    ->whereDate('completed_at', today())->count(),
-            ];
-
-            // Update tasks to include picking list stats
-            $tasks['processing_orders'] = $pickingListsStats['picking'];
-            $tasks['ready_to_ship'] = $pickingListsStats['ready'] + $tasks['ready_to_ship'];
-
-            // Get inventory summary
-            $inventory = [
-                'total_reserved' => ProductStock::sum('reserved_quantity'),
-                'today_movements' => [
-                    'goods_in' => StockMovement::where('type', 'IN')
-                        ->whereDate('created_at', today())
-                        ->count(),
-                    'goods_out' => StockMovement::where('type', 'OUT')
-                        ->whereDate('created_at', today())
-                        ->count(),
-                ],
-                'low_stock_count' => ProductStock::with('product')
-                    ->join('products', 'product_stock.product_id', '=', 'products.id')
-                    ->where('product_stock.quantity', '<=', DB::raw('products.min_stock_level'))
-                    ->count(),
-            ];
-
-            // Return complete data structure
             return response()->json([
-                'tasks' => $tasks,
-                'inventory' => $inventory,
+                'pending_sales_orders' => $pendingOrders,
+                'processing_sales_orders' => $processingOrders,
+                'ready_to_ship_orders' => $readyToShipOrders,
+                'warehouse_stats' => $warehouseStats,
             ]);
+
         } catch (\Exception $e) {
             \Log::error('Warehouse Dashboard Error: ' . $e->getMessage());
             // Return default data structure on error
             return response()->json([
-                'tasks' => [
-                    'pending_orders' => 0,
-                    'processing_orders' => 0,
+                'pending_sales_orders' => [],
+                'processing_sales_orders' => [],
+                'ready_to_ship_orders' => [],
+                'warehouse_stats' => [
+                    'pending_processing' => 0,
+                    'processing' => 0,
                     'ready_to_ship' => 0,
-                    'completed_today' => 0,
-                ],
-                'inventory' => [
-                    'total_reserved' => 0,
-                    'today_movements' => [
-                        'goods_in' => 0,
-                        'goods_out' => 0,
-                    ],
-                    'low_stock_count' => 0,
+                    'total_orders' => 0,
                 ],
             ]);
         }
@@ -419,91 +440,38 @@ class DashboardController extends Controller
     public function financeDashboard(Request $request)
     {
         try {
-            // Get invoice statistics
-            $totalInvoices = SalesOrder::whereIn('status', ['SHIPPED', 'COMPLETED'])->count();
-            $paidInvoices = SalesOrder::where('status', 'COMPLETED')->count();
-            $unpaidInvoices = SalesOrder::where('status', 'SHIPPED')->count();
-            $overdueInvoices = SalesOrder::where('status', 'SHIPPED')
-                ->where('updated_at', '<', now()->subDays(30))
-                ->count();
+            // Get Shipped Sales Orders (Ready for Invoicing)
+            $shippedOrders = SalesOrder::with(['customer', 'items.product', 'quotation'])
+                ->where('status', 'SHIPPED')
+                ->orderBy('updated_at', 'desc')
+                ->get();
 
-            $invoiceStats = [
-                'total' => $totalInvoices,
-                'paid' => $paidInvoices,
-                'unpaid' => $unpaidInvoices,
-                'overdue' => $overdueInvoices
-            ];
+            // Get Completed Sales Orders (Already Invoiced/Paid)
+            $completedOrders = SalesOrder::with(['customer', 'items.product'])
+                ->where('status', 'COMPLETED')
+                ->orderBy('updated_at', 'desc')
+                ->take(10)
+                ->get();
 
-            // Calculate payment statistics
-            $thisMonthRevenue = SalesOrder::where('status', 'COMPLETED')
+            // Calculate Finance Summary
+            $totalReceivable = SalesOrder::where('status', 'SHIPPED')->sum('total_amount');
+            $monthlyRevenue = SalesOrder::where('status', 'COMPLETED')
                 ->where('updated_at', '>=', now()->startOfMonth())
                 ->sum('total_amount');
+            $pendingInvoices = SalesOrder::where('status', 'SHIPPED')->count();
+            $totalOrders = SalesOrder::count();
 
-            $outstandingPayments = SalesOrder::where('status', 'SHIPPED')
-                ->sum('total_amount');
-
-            $paymentStats = [
-                'this_month' => $thisMonthRevenue,
-                'outstanding' => $outstandingPayments
-            ];
-
-            // Get recent invoices
-            $recentInvoices = SalesOrder::with(['customer'])
-                ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-                ->orderBy('created_at', 'desc')
-                ->take(10)
-                ->get()
-                ->map(function ($order) {
-                    return [
-                        'id' => $order->id,
-                        'invoice_number' => 'INV-' . date('Y-m-d') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
-                        'customer_name' => $order->customer ? $order->customer->company_name : 'Unknown Customer',
-                        'total_amount' => $order->total_amount ?? 0,
-                        'due_date' => $order->updated_at ? $order->updated_at->addDays(30)->format('Y-m-d') : date('Y-m-d', strtotime('+30 days')),
-                        'status' => $order->status === 'COMPLETED' ? 'PAID' : 'UNPAID'
-                    ];
-                })->values();
-
-            // Get top customers (dummy data for now)
-            $topCustomers = [
-                [
-                    'id' => 1,
-                    'name' => 'PT. Mega Corporation',
-                    'total_invoices' => 12,
-                    'total_revenue' => 250000000,
-                    'last_invoice_date' => date('Y-m-d', strtotime('-3 days'))
-                ],
-                [
-                    'id' => 2,
-                    'name' => 'PT. ABC Company',
-                    'total_invoices' => 8,
-                    'total_revenue' => 180000000,
-                    'last_invoice_date' => date('Y-m-d', strtotime('-7 days'))
-                ]
-            ];
-
-            // Get monthly revenue data (dummy data for now)
-            $monthlyRevenue = [
-                [
-                    'month' => date('Y-m', strtotime('-2 months')),
-                    'revenue' => 95000000
-                ],
-                [
-                    'month' => date('Y-m', strtotime('-1 month')),
-                    'revenue' => 115000000
-                ],
-                [
-                    'month' => date('Y-m'),
-                    'revenue' => $thisMonthRevenue
-                ]
+            $financeSummary = [
+                'total_receivable' => $totalReceivable,
+                'monthly_revenue' => $monthlyRevenue,
+                'pending_invoices' => $pendingInvoices,
+                'total_orders' => $totalOrders
             ];
 
             return response()->json([
-                'invoices' => $invoiceStats,
-                'payments' => $paymentStats,
-                'recent_invoices' => $recentInvoices,
-                'top_customers' => $topCustomers,
-                'monthly_revenue' => $monthlyRevenue
+                'shipped_sales_orders' => $shippedOrders,
+                'completed_sales_orders' => $completedOrders,
+                'finance_summary' => $financeSummary
             ]);
 
         } catch (\Exception $e) {
@@ -511,11 +479,14 @@ class DashboardController extends Controller
 
             // Return default data structure on error
             return response()->json([
-                'invoices' => ['total' => 0, 'paid' => 0, 'unpaid' => 0, 'overdue' => 0],
-                'payments' => ['this_month' => 0, 'outstanding' => 0],
-                'recent_invoices' => [],
-                'top_customers' => [],
-                'monthly_revenue' => []
+                'shipped_sales_orders' => [],
+                'completed_sales_orders' => [],
+                'finance_summary' => [
+                    'total_receivable' => 0,
+                    'monthly_revenue' => 0,
+                    'pending_invoices' => 0,
+                    'total_orders' => 0
+                ]
             ]);
         }
     }
@@ -768,23 +739,6 @@ class DashboardController extends Controller
 
     private function getMonthlySalesData()
     {
-        // TEMPORARY: Dummy data for visualization
-        $data = [];
-        $current = now()->subMonths(11)->startOfMonth();
-
-        for ($i = 0; $i < 12; $i++) {
-            $data[] = [
-                'name' => $current->format('M'),
-                'revenue' => rand(50000000, 500000000), // Random revenue between 50M and 500M
-                'sales' => rand(10, 100),
-            ];
-
-            $current->addMonth();
-        }
-
-        return $data;
-
-        /* Real Data Logic (Commented out)
         $rawData = SalesOrder::selectRaw('
                 DATE_FORMAT(created_at, "%Y-%m") as month_key,
                 DATE_FORMAT(created_at, "%b") as name,
@@ -808,14 +762,13 @@ class DashboardController extends Controller
 
             $data[] = [
                 'name' => $name,
-                'revenue' => $record ? (float)$record->revenue : 0,
-                'sales' => $record ? (int)$record->sales : 0,
+                'revenue' => $record ? (float) $record->revenue : 0,
+                'sales' => $record ? (int) $record->sales : 0,
             ];
 
             $current->addMonth();
         }
 
         return $data;
-        */
     }
 }

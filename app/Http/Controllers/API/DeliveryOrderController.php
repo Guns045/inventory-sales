@@ -29,16 +29,93 @@ class DeliveryOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product'])
+        $limit = 10;
+
+        // 1. Get Delivery Orders
+        $query = DeliveryOrder::with([
+            'customer',
+            'salesOrder',
+            'deliveryOrderItems.product',
+            'warehouse',
+            'warehouseTransfer.warehouseTo',
+            'warehouseTransfer.warehouseFrom'
+        ])
             ->orderBy('created_at', 'desc');
 
-        // Filter by source_type if provided
         if ($request->has('source_type')) {
             $query->where('source_type', $request->source_type);
         }
 
-        $deliveryOrders = $query->paginate(10);
-        return DeliveryOrderResource::collection($deliveryOrders);
+        $deliveryOrders = $query->paginate($limit);
+
+        // 2. Get Pending Sales Orders (only for page 1 and if source_type is SO)
+        $pendingSalesOrders = collect([]);
+        if ($request->input('page', 1) == 1 && $request->input('source_type') == 'SO') {
+            $pendingSalesOrders = SalesOrder::with(['customer', 'user', 'pickingList', 'warehouse', 'salesOrderItems.product'])
+                ->where('status', 'PROCESSING')
+                ->doesntHave('deliveryOrder')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        // 3. Transform Pending Sales Orders to match DeliveryOrderResource structure
+        $transformedPending = $pendingSalesOrders->map(function ($so) {
+            return [
+                'id' => $so->id,
+                'is_pending_so' => true,
+                'delivery_order_number' => 'PENDING',
+                'sales_order_id' => $so->id,
+                'sales_order' => $so,
+                'customer_id' => $so->customer_id,
+                'customer' => $so->customer,
+                'warehouse_id' => $so->warehouse_id,
+                'warehouse' => $so->warehouse,
+                'source_type' => 'SO',
+                'status' => 'PREPARING', // Map to PREPARING so it shows up as ready for picking
+                'created_at' => $so->created_at,
+                'updated_at' => $so->updated_at,
+                'picking_list_id' => $so->pickingList?->id,
+                'picking_list' => $so->pickingList,
+                'shipping_date' => null,
+                'items' => $so->salesOrderItems->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'product' => $item->product,
+                        'product_name' => $item->product->name ?? 'Unknown',
+                        'product_code' => $item->product->sku ?? 'N/A',
+                        'quantity' => $item->quantity,
+                        'quantity_shipped' => 0,
+                        'location_code' => $item->product->location_code ?? 'N/A',
+                    ];
+                }),
+            ];
+        });
+
+        // 4. Transform Delivery Orders using Resource
+        $transformedDOs = DeliveryOrderResource::collection($deliveryOrders);
+
+        // 5. Merge
+        $mergedData = $transformedPending->merge($transformedDOs->collection);
+
+        // 6. Return custom paginated response
+        return response()->json([
+            'data' => $mergedData,
+            'links' => [
+                'first' => $deliveryOrders->url(1),
+                'last' => $deliveryOrders->url($deliveryOrders->lastPage()),
+                'prev' => $deliveryOrders->previousPageUrl(),
+                'next' => $deliveryOrders->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $deliveryOrders->currentPage(),
+                'from' => $deliveryOrders->firstItem(),
+                'last_page' => $deliveryOrders->lastPage(),
+                'path' => $deliveryOrders->path(),
+                'per_page' => $deliveryOrders->perPage(),
+                'to' => $deliveryOrders->lastItem(),
+                'total' => $deliveryOrders->total() + $pendingSalesOrders->count(),
+            ]
+        ]);
     }
 
     /**
@@ -106,10 +183,11 @@ class DeliveryOrderController extends Controller
     public function updateStatus(UpdateDeliveryOrderStatusRequest $request, $id)
     {
         try {
-            $deliveryOrder = DeliveryOrder::findOrFail($id);
+            $deliveryOrder = DeliveryOrder::with('deliveryOrderItems')->findOrFail($id);
             $deliveryOrder = $this->deliveryOrderService->updateStatus($deliveryOrder, $request->status);
             return new DeliveryOrderResource($deliveryOrder->load(['customer', 'salesOrder', 'deliveryOrderItems.product']));
         } catch (\Exception $e) {
+            Log::error('Failed to update delivery order status: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to update delivery order status',
                 'error' => $e->getMessage()

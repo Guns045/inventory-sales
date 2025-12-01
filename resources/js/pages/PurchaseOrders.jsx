@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 
 const PurchaseOrders = () => {
   const { api } = useAPI();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, user } = usePermissions();
   const { showSuccess, showError } = useToast();
 
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -292,8 +292,8 @@ const PurchaseOrders = () => {
   const handleEdit = (order) => {
     setEditingOrder(order);
     setFormData({
-      supplier_id: order.supplier_id.toString(),
-      warehouse_id: order.warehouse_id.toString(),
+      supplier_id: order.supplier_id?.toString() || '',
+      warehouse_id: order.warehouse_id?.toString() || '',
       status: order.status,
       expected_delivery_date: order.expected_delivery_date ? order.expected_delivery_date.split('T')[0] : '',
       notes: order.notes || ''
@@ -305,16 +305,16 @@ const PurchaseOrders = () => {
     if (order.items) {
       const mappedItems = order.items.map(item => ({
         id: item.id,
-        product_id: item.product_id.toString(),
+        product_id: (item.product_id || item.product?.id)?.toString() || '',
         product_name: item.product?.name || 'Unknown',
         part_number: item.product?.part_number || '',
         description: item.product?.description || '',
-        quantity: item.quantity,
-        unit_price: item.unit_price,
+        quantity: item.quantity_ordered || 0,
+        unit_price: item.unit_price || 0,
         tax_rate: 11, // Default or from item if available
-        subtotal: item.quantity * item.unit_price,
-        tax_amount: (item.quantity * item.unit_price) * 0.11,
-        total: (item.quantity * item.unit_price) * 1.11
+        subtotal: (item.quantity_ordered || 0) * (item.unit_price || 0),
+        tax_amount: ((item.quantity_ordered || 0) * (item.unit_price || 0)) * 0.11,
+        total: ((item.quantity_ordered || 0) * (item.unit_price || 0)) * 1.11
       }));
       setItems(mappedItems);
     }
@@ -378,9 +378,9 @@ const PurchaseOrders = () => {
   };
 
   // Permissions
-  const canEdit = (order) => hasPermission('edit_purchase_orders') && order.status === 'DRAFT';
-  const canDelete = (order) => hasPermission('edit_purchase_orders') && order.status === 'DRAFT'; // Using edit permission for delete as delete is not defined
-  const canSend = (order) => hasPermission('edit_purchase_orders') && order.status === 'DRAFT';
+  const canEdit = (order) => (hasPermission('edit_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && order.status === 'DRAFT';
+  const canDelete = (order) => (hasPermission('edit_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && order.status === 'DRAFT';
+  const canSend = (order) => (hasPermission('edit_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && order.status === 'DRAFT';
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -402,7 +402,7 @@ const PurchaseOrders = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          {hasPermission('create_purchase_orders') && (
+          {(hasPermission('create_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && (
             <Button onClick={() => { resetForm(); setShowCreateModal(true); }}>
               <Plus className="mr-2 h-4 w-4" />
               Create Order
@@ -629,9 +629,9 @@ const PurchaseOrders = () => {
                       <div className="font-medium">{item.product?.name}</div>
                       <div className="text-xs text-muted-foreground">{item.product?.part_number}</div>
                     </TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right">{item.quantity_ordered}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.total_price)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.quantity_ordered * item.unit_price)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

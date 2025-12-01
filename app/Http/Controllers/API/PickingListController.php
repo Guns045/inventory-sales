@@ -180,26 +180,25 @@ class PickingListController extends Controller
         ]);
 
         try {
-            // This seems redundant with store method, but keeping it as it might be used for preview
-            // Or we can reuse the service logic if needed. 
-            // For now, let's assume this is for generating PDF directly without creating record?
-            // Re-reading original code: it creates a PDF response.
+            $user = auth()->user();
+            $pickingList = $this->pickingListService->createFromOrder(
+                $request->sales_order_id,
+                $user,
+                $request->notes
+            );
 
-            // Ideally this should be handled by the service too, but it's a bit different flow.
-            // Let's keep it simple and delegate to service if possible, or keep logic here if it's just a view.
+            // Generate PDF
+            $pdf = $this->pickingListService->generatePDF($pickingList);
+            $pdfContent = base64_encode($pdf->output());
 
-            // Actually, the original code uses PickingListTransformer::transformFromSalesOrder
-            // We can move this logic to service as well.
-
-            // For now, let's just return a message that this should be done via store method
-            // Or implement a preview method in service.
-
-            // Given the complexity, I'll leave this for now or implement a basic version.
-            return response()->json(['message' => 'Please use store method to create picking list first'], 501);
+            return (new PickingListResource($pickingList))->additional([
+                'pdf_content' => $pdfContent,
+                'filename' => 'PickingList-' . $pickingList->picking_list_number . '.pdf'
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Failed to generate picking list: ' . $e->getMessage()
+                'message' => 'Failed to create picking list: ' . $e->getMessage()
             ], 500);
         }
     }

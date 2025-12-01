@@ -89,6 +89,8 @@ class WarehouseTransferController extends Controller
             $transfer = $this->transferService->requestTransfer($request->validated(), $user);
             return new WarehouseTransferResource($transfer);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Warehouse Transfer Creation Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error($e->getTraceAsString());
             return response()->json([
                 'message' => 'Failed to create warehouse transfer',
                 'error' => $e->getMessage()

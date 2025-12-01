@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { Alert } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardMain from './DashboardMain';
-import DashboardSales from './DashboardSales';
-import DashboardWarehouse from './DashboardWarehouse';
-import DashboardFinance from './DashboardFinance';
+import SalesDashboard from '../components/dashboard/SalesDashboard';
+import WarehouseDashboard from '../components/dashboard/WarehouseDashboard';
+import FinanceDashboard from '../components/dashboard/FinanceDashboard';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -33,9 +33,9 @@ const Dashboard = () => {
       return user.roles[0].name;
     }
 
-    // Check for single role object (legacy/fallback)
+    // Check for single role property (string or object)
     if (user.role) {
-      return user.role.name;
+      return typeof user.role === 'string' ? user.role : user.role.name;
     }
 
     return 'default';
@@ -51,15 +51,16 @@ const Dashboard = () => {
         return <DashboardMain />;
       case 'Sales':
       case 'Sales Team':
-        return <DashboardSales />;
+        return <SalesDashboard />;
       case 'Gudang':
+      case 'Warehouse':
       case 'Warehouse Manager Gudang JKT':
       case 'Warehouse Manager Gudang MKS':
       case 'Warehouse Staff':
-        return <DashboardWarehouse />;
+        return <WarehouseDashboard />;
       case 'Finance':
       case 'Finance Team':
-        return <DashboardFinance />;
+        return <FinanceDashboard />;
       default:
         return <DefaultDashboard />;
     }
@@ -72,16 +73,16 @@ const Dashboard = () => {
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="mb-1">Dashboard</h2>
-            <p className="text-muted mb-0">Ringkasan Sistem Manajemen Inventaris & Penjualan</p>
+            <p className="text-muted mb-0">Inventory & Sales Management System Summary</p>
           </div>
         </div>
 
         <Alert variant="info">
-          <Alert.Heading>Selamat Datang!</Alert.Heading>
-          <p>Role Anda belum dikonfigurasi dengan dashboard khusus. Silakan hubungi administrator untuk mengatur role Anda.</p>
+          <Alert.Heading>Welcome!</Alert.Heading>
+          <p>Your role has not been configured with a specific dashboard. Please contact the administrator to set up your role.</p>
           <hr />
           <p className="mb-0">
-            Role Anda: {user?.role?.name || 'Unknown'}
+            Your Role: {user?.role?.name || 'Unknown'}
           </p>
         </Alert>
       </div>

@@ -59,13 +59,13 @@ export function GoodsReceiptTable({
         },
         {
             header: "Supplier",
-            accessorKey: "purchase_order.supplier.name",
-            cell: (row) => row.purchase_order?.supplier?.name || 'N/A'
+            accessorKey: "purchase_order.supplier_name",
+            cell: (row) => row.purchase_order?.supplier_name || 'N/A'
         },
         {
             header: "Warehouse",
-            accessorKey: "warehouse.name",
-            cell: (row) => row.warehouse?.name || 'N/A'
+            accessorKey: "warehouse_name",
+            cell: (row) => row.warehouse_name || 'N/A'
         },
         {
             header: "Status",

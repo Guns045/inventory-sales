@@ -18,6 +18,7 @@ export function DeliveryOrderTable({
     onUpdateStatus,
     onPrint,
     onCreatePickingList,
+    onPrintPickingList,
     type = 'sales' // 'sales' or 'transfer'
 }) {
     const getStatusBadge = (status) => {
@@ -50,7 +51,7 @@ export function DeliveryOrderTable({
                     <span className="font-mono text-sm">
                         {type === 'sales'
                             ? row.sales_order?.sales_order_number || '-'
-                            : row.source_ref || '-'}
+                            : row.warehouse_transfer?.transfer_number || row.source_ref || '-'}
                     </span>
                 </div>
             )
@@ -63,7 +64,7 @@ export function DeliveryOrderTable({
                     <div className="font-medium">
                         {type === 'sales'
                             ? (row.customer?.name || row.customer?.company_name || 'N/A')
-                            : (row.destination_warehouse?.name || 'N/A')}
+                            : (row.warehouse_transfer?.warehouseTo?.name || row.destination_warehouse?.name || 'N/A')}
                     </div>
                 </div>
             )
@@ -89,9 +90,15 @@ export function DeliveryOrderTable({
 
                 {row.status === 'PREPARING' && (
                     <>
-                        <Button variant="ghost" size="icon" onClick={() => onCreatePickingList(row)} title="Create Picking List">
-                            <ClipboardCheck className="h-4 w-4 text-blue-500" />
-                        </Button>
+                        {row.picking_list_id ? (
+                            <Button variant="ghost" size="icon" onClick={() => onPrintPickingList(row)} title="Print Picking List">
+                                <Printer className="h-4 w-4 text-blue-500" />
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" size="icon" onClick={() => onCreatePickingList(row)} title="Create Picking List">
+                                <ClipboardCheck className="h-4 w-4 text-blue-500" />
+                            </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => onUpdateStatus(row, 'READY_TO_SHIP')} title="Mark Ready to Ship">
                             <Package className="h-4 w-4 text-green-500" />
                         </Button>

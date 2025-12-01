@@ -182,7 +182,7 @@ class QuotationService
         $notificationPath = $quotation->status === 'SUBMITTED' ? '/approvals' : '/quotations';
 
         Notification::createForRole(
-            'Admin',
+            'Super Admin',
             $notificationMessage,
             'info',
             $notificationPath

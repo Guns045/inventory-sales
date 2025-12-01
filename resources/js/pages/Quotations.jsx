@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAPI } from '@/contexts/APIContext';
 import { useCRUD } from '@/hooks/useCRUD';
 import { useModal } from '@/hooks/useModal';
@@ -70,15 +71,33 @@ const Quotations = () => {
     openForm();
   };
 
+  // Handle query params for auto-actions
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      handleCreate();
+      // Clear the param so it doesn't reopen on refresh
+      setSearchParams(params => {
+        const newParams = new URLSearchParams(params);
+        newParams.delete('action');
+        return newParams;
+      });
+    }
+  }, [searchParams]);
+
   const handleEdit = async (quotation) => {
     try {
       setFormLoading(true);
       const { success, data, error } = await getById(quotation.id);
       if (success) {
+        // Unwrap data if it's wrapped in a 'data' property (Laravel Resource)
+        const quotationData = data.data || data;
+
         // Transform data if needed to match form expectation
         const formData = {
-          ...data,
-          items: data.quotation_items || []
+          ...quotationData,
+          items: quotationData.quotation_items || []
         };
         setSelectedQuotation(formData);
         openForm();

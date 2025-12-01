@@ -176,7 +176,7 @@ export function Sidebar({ className }) {
                     <SheetHeader className="p-4 border-b border-indigo-800">
                         <div className="flex flex-col items-center gap-3 w-full">
                             {logoUrl ? (
-                                <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain" />
+                                <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
                             ) : (
                                 <Box className="h-12 w-12 text-indigo-300" />
                             )}
@@ -196,17 +196,25 @@ export function Sidebar({ className }) {
                         />
                     </ScrollArea>
                     <div className="p-4 border-t border-indigo-800 mt-auto">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="h-8 w-8 rounded-full bg-indigo-800 flex items-center justify-center text-white">
-                                <span className="font-medium text-sm">
-                                    {user?.name?.charAt(0) || 'U'}
-                                </span>
-                            </div>
+                        <Link to="/profile" className="flex items-center gap-2 mb-4 hover:bg-indigo-900/50 p-2 rounded-lg transition-colors cursor-pointer">
+                            {user?.avatar_url ? (
+                                <img
+                                    src={user.avatar_url}
+                                    alt={user.name}
+                                    className="h-8 w-8 rounded-full object-cover border border-indigo-600"
+                                />
+                            ) : (
+                                <div className="h-8 w-8 rounded-full bg-indigo-800 flex items-center justify-center text-white">
+                                    <span className="font-medium text-sm">
+                                        {user?.name?.charAt(0) || 'U'}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate text-white">{user?.name}</p>
                                 <p className="text-xs text-indigo-300 truncate">{user?.role?.name}</p>
                             </div>
-                        </div>
+                        </Link>
                         <Button
                             variant="ghost"
                             className="w-full justify-start text-indigo-200 hover:text-white hover:bg-indigo-900"
@@ -249,17 +257,25 @@ export function Sidebar({ className }) {
                 </ScrollArea>
 
                 <div className="p-4 border-t border-indigo-800">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="h-8 w-8 rounded-full bg-indigo-800 flex items-center justify-center text-white">
-                            <span className="font-medium text-sm">
-                                {user?.name?.charAt(0) || 'U'}
-                            </span>
-                        </div>
+                    <Link to="/profile" className="flex items-center gap-2 mb-4 hover:bg-indigo-900/50 p-2 rounded-lg transition-colors cursor-pointer">
+                        {user?.avatar_url ? (
+                            <img
+                                src={user.avatar_url}
+                                alt={user.name}
+                                className="h-8 w-8 rounded-full object-cover border border-indigo-600"
+                            />
+                        ) : (
+                            <div className="h-8 w-8 rounded-full bg-indigo-800 flex items-center justify-center text-white">
+                                <span className="font-medium text-sm">
+                                    {user?.name?.charAt(0) || 'U'}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate text-white">{user?.name}</p>
                             <p className="text-xs text-indigo-300 truncate">{user?.role?.name}</p>
                         </div>
-                    </div>
+                    </Link>
                     <Button
                         variant="ghost"
                         className="w-full justify-start text-indigo-200 hover:text-white hover:bg-indigo-900"

@@ -122,9 +122,14 @@ export function InternalTransferTable({
                 )}
 
                 {(row.status === 'IN_TRANSIT' || row.status === 'RECEIVED') && (
-                    <Button variant="ghost" size="icon" onClick={() => onPrintDO(row.transfer_number)} title="Print DO">
-                        <FileText className="h-4 w-4 text-gray-500" />
-                    </Button>
+                    <>
+                        <Button variant="ghost" size="icon" onClick={() => onCreatePickingList(row)} title="Print Picking List">
+                            <ClipboardCheck className="h-4 w-4 text-blue-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => onPrintDO(row.transfer_number)} title="Print DO">
+                            <FileText className="h-4 w-4 text-gray-500" />
+                        </Button>
+                    </>
                 )}
 
                 {(row.status === 'REQUESTED' || row.status === 'APPROVED') &&

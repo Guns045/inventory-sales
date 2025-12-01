@@ -45,7 +45,15 @@ class Notification extends Model
      */
     public static function createForRole(string $roleName, string $message, string $type = 'info', string $linkUrl = null, array $data = null)
     {
-        $users = User::role($roleName)->get();
+        // Find role first to get its guard
+        $role = \Spatie\Permission\Models\Role::where('name', $roleName)->first();
+
+        if (!$role) {
+            \Log::warning("Role {$roleName} not found for notification: {$message}");
+            return;
+        }
+
+        $users = User::role($roleName, $role->guard_name)->get();
 
         foreach ($users as $user) {
             self::createForUser($user->id, $message, $type, $linkUrl, $data);

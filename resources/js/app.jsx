@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { APIProvider } from '@/contexts/APIContext';
 import { CompanyProvider } from '@/contexts/CompanyContext';
@@ -14,6 +14,9 @@ import Layout from '@/components/Layout';
 // Lazy Load Pages
 const LoginPage = React.lazy(() => import('@/pages/Login'));
 const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
+const SalesDashboard = React.lazy(() => import('@/components/dashboard/SalesDashboard'));
+const WarehouseDashboard = React.lazy(() => import('@/components/dashboard/WarehouseDashboard'));
+const FinanceDashboard = React.lazy(() => import('@/components/dashboard/FinanceDashboard'));
 const Products = React.lazy(() => import('@/pages/Products'));
 const Categories = React.lazy(() => import('@/pages/Categories'));
 const Customers = React.lazy(() => import('@/pages/Customers'));
@@ -35,6 +38,7 @@ const ProductStock = React.lazy(() => import('@/pages/ProductStock'));
 const Reports = React.lazy(() => import('@/pages/Reports'));
 const Settings = React.lazy(() => import('@/pages/Settings'));
 const CompanySettings = React.lazy(() => import('@/pages/CompanySettings'));
+const ProfileSettings = React.lazy(() => import('@/pages/ProfileSettings'));
 const MasterDataProducts = React.lazy(() => import('@/pages/MasterDataProducts'));
 
 // Import CSS
@@ -64,7 +68,11 @@ function App() {
                                             {/* Protected routes */}
                                             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                                                 <Route index element={<Navigate to="/dashboard" replace />} />
+                                                <Route path="dashboard/sales" element={<SalesDashboard />} />
+                                                <Route path="dashboard/warehouse" element={<WarehouseDashboard />} />
+                                                <Route path="dashboard/finance" element={<FinanceDashboard />} />
                                                 <Route path="dashboard" element={<Dashboard />} />
+                                                <Route path="*" element={<div className="p-4">Route not found: {window.location.pathname}</div>} />
                                                 <Route path="products" element={<Products />} />
                                                 <Route path="categories" element={<Categories />} />
                                                 <Route path="customers" element={<Customers />} />
@@ -85,6 +93,7 @@ function App() {
                                                 <Route path="product-stock" element={<ProductStock />} />
                                                 <Route path="reports" element={<Reports />} />
                                                 <Route path="settings" element={<Settings />} />
+                                                <Route path="profile" element={<ProfileSettings />} />
                                                 <Route path="company-settings" element={<CompanySettings />} />
                                                 <Route path="master-data-products" element={<MasterDataProducts />} />
                                             </Route>

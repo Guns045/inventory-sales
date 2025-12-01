@@ -153,7 +153,7 @@ class ProductStockService
         $data = $stocks->getCollection()->map(function ($item) use ($allStocks) {
             $productStocks = $allStocks->get($item->product_id) ?? collect();
 
-            $item->stocks = $productStocks;
+            $item->stocks = $productStocks->values();
             $item->quantity = $productStocks->sum('quantity');
             $item->reserved_quantity = $productStocks->sum('reserved_quantity');
             $item->view_mode = 'all-warehouses';
@@ -300,5 +300,152 @@ class ProductStockService
             ->with(['user'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
+    }
+    /**
+     * Reserve stock for a product
+     *
+     * @param int $productId
+     * @param int $warehouseId
+     * @param int $quantity
+     * @param string $referenceType
+     * @param int $referenceId
+     * @return ProductStock
+     * @throws \Exception
+     */
+    public function reserveStock(int $productId, int $warehouseId, int $quantity, string $referenceType, int $referenceId): ProductStock
+    {
+        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $referenceType, $referenceId) {
+            $productStock = ProductStock::where('product_id', $productId)
+                ->where('warehouse_id', $warehouseId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$productStock) {
+                throw new \Exception("Stock record not found for product ID {$productId} in warehouse ID {$warehouseId}");
+            }
+
+            // Check available stock (quantity - reserved_quantity)
+            $availableQuantity = $productStock->quantity - $productStock->reserved_quantity;
+            if ($availableQuantity < $quantity) {
+                throw new \Exception("Insufficient available stock for product {$productStock->product->name}. Requested: {$quantity}, Available: {$availableQuantity}");
+            }
+
+            $productStock->reserved_quantity += $quantity;
+            $productStock->save();
+
+            // Log movement (optional for reservation, but good for tracking)
+            // We might not want to create a StockMovement for reservation as it doesn't change physical stock,
+            // but we can log it if needed. For now, let's just log to ActivityLog via the calling service if needed.
+
+            return $productStock;
+        });
+    }
+
+    /**
+     * Release reserved stock (e.g., when SO is cancelled)
+     *
+     * @param int $productId
+     * @param int $warehouseId
+     * @param int $quantity
+     * @return ProductStock
+     * @throws \Exception
+     */
+    public function releaseStock(int $productId, int $warehouseId, int $quantity): ProductStock
+    {
+        return DB::transaction(function () use ($productId, $warehouseId, $quantity) {
+            $productStock = ProductStock::where('product_id', $productId)
+                ->where('warehouse_id', $warehouseId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$productStock) {
+                throw new \Exception("Stock record not found for product ID {$productId} in warehouse ID {$warehouseId}");
+            }
+
+            if ($productStock->reserved_quantity < $quantity) {
+                // This might happen if data is inconsistent, but we should handle it gracefully or throw error
+                // For safety, we just set it to 0 if it goes negative, or throw exception.
+                // Let's throw exception to catch logic errors.
+                throw new \Exception("Cannot release more stock than reserved. Reserved: {$productStock->reserved_quantity}, Requested release: {$quantity}");
+            }
+
+            $productStock->reserved_quantity -= $quantity;
+            $productStock->save();
+
+            return $productStock;
+        });
+    }
+
+    /**
+     * Deduct stock (e.g., when DO is shipped)
+     * This reduces both physical quantity and reserved quantity
+     *
+     * @param int $productId
+     * @param int $warehouseId
+     * @param int $quantity
+     * @param string $referenceType
+     * @param int $referenceId
+     * @param string $notes
+     * @return ProductStock
+     * @throws \Exception
+     */
+    public function deductStock(int $productId, int $warehouseId, int $quantity, string $referenceType, int $referenceId, string $notes = ''): ProductStock
+    {
+        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $referenceType, $referenceId, $notes) {
+            $productStock = ProductStock::where('product_id', $productId)
+                ->where('warehouse_id', $warehouseId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$productStock) {
+                // Treat missing record as 0 quantity
+                throw new \Exception("Insufficient physical stock (Record not found). Quantity: 0, Requested: {$quantity}");
+            }
+
+            // We assume the stock was already reserved, so we deduct from both.
+            // If it wasn't reserved (e.g. direct invoice), we might need different logic.
+            // But for the standard workflow SO -> DO, it should be reserved.
+
+            // Check if we have enough reserved stock to deduct
+            if ($productStock->reserved_quantity < $quantity) {
+                // Fallback: If not enough reserved, check if we have enough physical stock at least
+                // This handles cases where reservation might have been skipped or data is out of sync
+                if ($productStock->quantity < $quantity) {
+                    throw new \Exception("Insufficient physical stock. Quantity: {$productStock->quantity}, Requested: {$quantity}");
+                }
+                // If we have physical stock but not reserved, we just deduct what we can from reserved
+                // and the rest from available (implicitly). 
+                // Actually, if reserved < quantity, it means we are shipping more than reserved.
+                // We should just deduct quantity from quantity, and deduct quantity from reserved (clamped to 0).
+                // But strictly speaking, for this workflow, we expect reserved >= quantity.
+
+                // Let's be strict for now to catch bugs, or lenient? 
+                // Given the user report "Reserved is 0", we might need to be careful.
+                // If we fix the workflow, reserved should be correct.
+                // Let's just deduct quantity from quantity, and quantity from reserved (min 0).
+            }
+
+            $previousQuantity = $productStock->quantity;
+
+            $productStock->quantity -= $quantity;
+            $productStock->reserved_quantity = max(0, $productStock->reserved_quantity - $quantity);
+            $productStock->save();
+
+            // Create Stock Movement
+            StockMovement::create([
+                'product_id' => $productId,
+                'warehouse_id' => $warehouseId,
+                'type' => 'OUT',
+                'quantity_change' => -$quantity,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'notes' => $notes,
+                'created_by' => Auth::id(),
+                'previous_quantity' => $previousQuantity,
+                'new_quantity' => $productStock->quantity
+            ]);
+
+            return $productStock;
+        });
     }
 }

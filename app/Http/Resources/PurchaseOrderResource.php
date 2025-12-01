@@ -27,6 +27,7 @@ class PurchaseOrderResource extends JsonResource
                 return $this->items->map(function ($item) {
                     return [
                         'id' => $item->id,
+                        'product_id' => $item->product_id,
                         'product' => $item->product,
                         'quantity_ordered' => $item->quantity_ordered,
                         'quantity_received' => $item->quantity_received,

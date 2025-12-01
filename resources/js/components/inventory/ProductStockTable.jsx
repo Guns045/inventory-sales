@@ -17,6 +17,8 @@ export function ProductStockTable({
     onAdjust,
     onViewHistory,
     userRole,
+    canUpdate = false,
+    canDelete = false,
     warehouses = [],
     viewMode = 'per-warehouse'
 }) {
@@ -135,20 +137,21 @@ export function ProductStockTable({
     );
 
     const renderActions = (row) => {
-        const isSuperAdmin = userRole === 'Super Admin';
-
-        if (!isSuperAdmin) return null;
+        // Hide actions for aggregate rows (pivot table)
+        if (viewMode === 'all-warehouses') return null;
 
         return (
             <div className="flex gap-1 justify-end">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onAdjust(row)}
-                    title="Adjust Stock"
-                >
-                    <Pencil className="h-4 w-4 text-blue-500" />
-                </Button>
+                {canUpdate && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onAdjust(row)}
+                        title="Adjust Stock"
+                    >
+                        <Pencil className="h-4 w-4 text-blue-500" />
+                    </Button>
+                )}
                 <Button
                     variant="ghost"
                     size="icon"
@@ -157,14 +160,16 @@ export function ProductStockTable({
                 >
                     <Eye className="h-4 w-4 text-gray-500" />
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDelete(row)}
-                    title="Delete Stock"
-                >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                {canDelete && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(row)}
+                        title="Delete Stock"
+                    >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                )}
             </div>
         );
     };
@@ -174,7 +179,7 @@ export function ProductStockTable({
             columns={columns}
             data={data}
             loading={loading}
-            actions={renderActions}
+            actions={viewMode === 'all-warehouses' ? null : renderActions}
             emptyMessage="No stock records found"
             emptyDescription="Try adjusting your search or filters"
         />

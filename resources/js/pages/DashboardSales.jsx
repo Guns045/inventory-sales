@@ -60,7 +60,7 @@ const DashboardSales = () => {
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [orderDetailItems, setOrderDetailItems] = useState([]);
 
-    
+
   useEffect(() => {
     fetchSalesData();
     // Set up real-time updates every 30 seconds
@@ -370,9 +370,9 @@ const DashboardSales = () => {
     setOrderDetailItems([]);
   };
 
-  
+
   // Allow Super Admin, Admin and Sales Team roles to access this dashboard
-  if (!['Super Admin', 'Admin', 'Sales Team'].includes(user?.role?.name)) {
+  if (!['Super Admin', 'Admin', 'Sales Team', 'Sales'].includes(user?.role?.name)) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <Alert variant="danger">
@@ -582,9 +582,9 @@ const DashboardSales = () => {
                           <td>
                             <Badge bg={
                               order.status === 'COMPLETED' ? 'success' :
-                              order.status === 'SHIPPED' ? 'info' :
-                              order.status === 'READY_TO_SHIP' ? 'warning' :
-                              order.status === 'PROCESSING' ? 'primary' : 'secondary'
+                                order.status === 'SHIPPED' ? 'info' :
+                                  order.status === 'READY_TO_SHIP' ? 'warning' :
+                                    order.status === 'PROCESSING' ? 'primary' : 'secondary'
                             }>
                               {order.status?.replace('_', ' ')?.toUpperCase() || order.status}
                             </Badge>
@@ -756,7 +756,7 @@ const DashboardSales = () => {
                     />
                   </Col>
                   <Col md={2}>
-                    <Form.Label>&nbsp;</Form.Label><br/>
+                    <Form.Label>&nbsp;</Form.Label><br />
                     <Button type="button" variant="primary" onClick={addItem}>
                       Add Item
                     </Button>

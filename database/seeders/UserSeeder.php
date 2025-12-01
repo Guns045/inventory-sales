@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\User;
-use App\Models\Role;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
@@ -16,77 +16,80 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Get roles from RoleSeeder
-        $adminRole = Role::where('name', 'Super Admin')->first();
-        $salesRole = Role::where('name', 'Sales Team')->first();
-        $gudangRole = Role::where('name', 'Warehouse Staff')->first();
-        $financeRole = Role::where('name', 'Finance Team')->first();
+        $superadminRole = Role::where('name', 'Super Admin')->first();
+        $adminRole = Role::where('name', 'Admin')->first();
+        $salesRole = Role::where('name', 'Sales')->first();
+        $warehouseRole = Role::where('name', 'Warehouse')->first();
+        $financeRole = Role::where('name', 'Finance')->first();
 
         // Fallback to create simple roles if not found
+        if (!$superadminRole) {
+            $superadminRole = Role::firstOrCreate(['name' => 'Super Admin']);
+        }
         if (!$adminRole) {
-            $adminRole = Role::firstOrCreate(
-                ['name' => 'Admin'],
-                ['name' => 'Admin', 'description' => 'Administrator with full access']
-            );
+            $adminRole = Role::firstOrCreate(['name' => 'Admin']);
         }
         if (!$salesRole) {
-            $salesRole = Role::firstOrCreate(
-                ['name' => 'Sales'],
-                ['name' => 'Sales', 'description' => 'Sales personnel']
-            );
+            $salesRole = Role::firstOrCreate(['name' => 'Sales']);
         }
-        if (!$gudangRole) {
-            $gudangRole = Role::firstOrCreate(
-                ['name' => 'Gudang'],
-                ['name' => 'Gudang', 'description' => 'Warehouse staff']
-            );
+        if (!$warehouseRole) {
+            $warehouseRole = Role::firstOrCreate(['name' => 'Warehouse']);
         }
         if (!$financeRole) {
-            $financeRole = Role::firstOrCreate(
-                ['name' => 'Finance'],
-                ['name' => 'Finance', 'description' => 'Finance personnel']
-            );
+            $financeRole = Role::firstOrCreate(['name' => 'Finance']);
         }
 
-        // Create admin user
-        User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+        // Create superadmin user
+        $superadmin = User::firstOrCreate(
+            ['email' => 'superadmin@example.com'],
             [
                 'name' => 'Super Admin',
-                'email' => 'admin@example.com',
+                'email' => 'superadmin@example.com',
                 'password' => Hash::make('password'),
-                'role_id' => $adminRole->id
             ]
         );
-        
+        $superadmin->assignRole($superadminRole);
+
+        // Create admin user
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => 'Admin',
+                'email' => 'admin@example.com',
+                'password' => Hash::make('password'),
+            ]
+        );
+        $admin->assignRole($adminRole);
+
         // Create sample users for other roles
-        User::firstOrCreate(
+        $salesUser = User::firstOrCreate(
             ['email' => 'sales@example.com'],
             [
                 'name' => 'Sales User',
                 'email' => 'sales@example.com',
                 'password' => Hash::make('password'),
-                'role_id' => $salesRole->id
             ]
         );
-        
-        User::firstOrCreate(
-            ['email' => 'gudang@example.com'],
+        $salesUser->assignRole($salesRole);
+
+        $warehouseUser = User::firstOrCreate(
+            ['email' => 'warehouse@example.com'],
             [
-                'name' => 'Gudang User',
-                'email' => 'gudang@example.com',
+                'name' => 'Warehouse User',
+                'email' => 'warehouse@example.com',
                 'password' => Hash::make('password'),
-                'role_id' => $gudangRole->id
             ]
         );
-        
-        User::firstOrCreate(
+        $warehouseUser->assignRole($warehouseRole);
+
+        $financeUser = User::firstOrCreate(
             ['email' => 'finance@example.com'],
             [
                 'name' => 'Finance User',
                 'email' => 'finance@example.com',
                 'password' => Hash::make('password'),
-                'role_id' => $financeRole->id
             ]
         );
+        $financeUser->assignRole($financeRole);
     }
 }

@@ -33,6 +33,34 @@ class PaymentController extends Controller
             $query->where('invoice_id', $request->invoice_id);
         }
 
+        // Filter by payment method
+        if ($request->has('method') && !empty($request->method) && $request->method !== 'all') {
+            $query->where('payment_method', $request->method);
+        }
+
+        // Filter by date range
+        if ($request->has('date_from') && !empty($request->date_from)) {
+            $query->whereDate('payment_date', '>=', $request->date_from);
+        }
+        if ($request->has('date_to') && !empty($request->date_to)) {
+            $query->whereDate('payment_date', '<=', $request->date_to);
+        }
+
+        // Search functionality
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_number', 'like', "%{$search}%")
+                    ->orWhereHas('invoice', function ($iq) use ($search) {
+                        $iq->where('invoice_number', 'like', "%{$search}%")
+                            ->orWhereHas('customer', function ($cq) use ($search) {
+                                $cq->where('company_name', 'like', "%{$search}%")
+                                    ->orWhere('name', 'like', "%{$search}%");
+                            });
+                    });
+            });
+        }
+
         $payments = $query->orderBy('payment_date', 'desc')->paginate(10);
         return PaymentResource::collection($payments);
     }

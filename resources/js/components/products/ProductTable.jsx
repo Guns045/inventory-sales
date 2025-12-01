@@ -25,7 +25,7 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             header: "Part Number",
             accessorKey: "sku",
             cell: (row) => (
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                <code className="text-sm font-mono bg-muted px-1 py-0.5 rounded">
                     {row.sku}
                 </code>
             )
@@ -37,7 +37,7 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
                 <div>
                     <div className="font-medium">{row.name}</div>
                     {row.description && (
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-muted-foreground">
                             {row.description}
                         </div>
                     )}
@@ -48,9 +48,9 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             header: "Total Stock",
             accessorKey: "total_stock",
             cell: (row) => (
-                <div className="text-center font-semibold">
+                <span className="font-bold text-blue-600">
                     {row.total_stock}
-                </div>
+                </span>
             )
         },
         {
@@ -59,9 +59,9 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             cell: (row) => {
                 const isLowStock = row.current_stock <= row.min_stock_level
                 return (
-                    <div className={`text-center font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className={`font-bold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
                         {row.current_stock}
-                    </div>
+                    </span>
                 )
             }
         },
@@ -69,30 +69,30 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
             header: "Reserved",
             accessorKey: "reserved_stock",
             cell: (row) => (
-                <div className="text-center text-yellow-600 font-medium">
+                <span className="text-orange-500">
                     {row.reserved_stock}
-                </div>
+                </span>
             )
         },
         {
             header: "Category",
             accessorKey: "category",
             cell: (row) => (
-                <Badge variant="outline">{row.category}</Badge>
+                <Badge variant="outline">{row.category?.name || '-'}</Badge>
             )
         },
         {
             header: "Supplier",
             accessorKey: "supplier",
             cell: (row) => (
-                <span className="text-sm text-gray-600">{row.supplier}</span>
+                <span className="text-sm text-muted-foreground">{row.supplier?.name || '-'}</span>
             )
         },
         {
             header: "Buy Price",
             accessorKey: "buy_price",
             cell: (row) => (
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-muted-foreground">
                     {formatCurrency(row.buy_price)}
                 </span>
             )

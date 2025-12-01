@@ -9,9 +9,9 @@ return [
     ],
     [
         'title' => 'Sales',
-        'path' => '/sales', // Changed from /dashboard/sales (though this is just a parent menu)
+        'path' => '/sales',
         'icon' => 'bi-cart3',
-        'permission' => 'quotations.read',
+        'permission' => null,
         'children' => [
             [
                 'title' => 'Customer',
@@ -29,7 +29,7 @@ return [
                 'title' => 'Sales Order',
                 'path' => '/sales-orders',
                 'icon' => 'bi-cart-check',
-                'permission' => 'sales_orders.read'
+                'permission' => 'sales-orders.read'
             ],
         ]
     ],
@@ -37,7 +37,7 @@ return [
         'title' => 'Purchased',
         'path' => '/purchased',
         'icon' => 'bi-bag',
-        'permission' => 'purchase-orders.read',
+        'permission' => null,
         'children' => [
             [
                 'title' => 'Purchase Order',
@@ -57,7 +57,7 @@ return [
         'title' => 'Inventory',
         'path' => '/inventory',
         'icon' => 'bi-boxes',
-        'permission' => 'products.read',
+        'permission' => null,
         'children' => [
             [
                 'title' => 'Product',
@@ -67,9 +67,9 @@ return [
             ],
             [
                 'title' => 'On Hands Stock',
-                'path' => '/product-stock', // app.jsx has /product-stock
+                'path' => '/product-stock',
                 'icon' => 'bi-archive',
-                'permission' => 'stock.read'
+                'permission' => 'product-stock.read'
             ],
             [
                 'title' => 'Warehouse',
@@ -89,11 +89,11 @@ return [
         'title' => 'Warehouse Operation',
         'path' => '/warehouse-ops',
         'icon' => 'bi-gear',
-        'permission' => 'delivery_orders.read',
+        'permission' => null,
         'children' => [
             [
                 'title' => 'Warehouse Transfer',
-                'path' => '/internal-transfers', // app.jsx has /internal-transfers
+                'path' => '/internal-transfers',
                 'icon' => 'bi-arrow-left-right',
                 'permission' => 'warehouse-transfers.read'
             ],
@@ -101,7 +101,7 @@ return [
                 'title' => 'Delivery Order',
                 'path' => '/delivery-orders',
                 'icon' => 'bi-truck',
-                'permission' => 'delivery_orders.read'
+                'permission' => 'delivery-orders.read'
             ]
         ]
     ],
@@ -109,7 +109,7 @@ return [
         'title' => 'Finance',
         'path' => '/finance',
         'icon' => 'bi-credit-card',
-        'permission' => 'invoices.read',
+        'permission' => null,
         'children' => [
             [
                 'title' => 'Invoice',
@@ -135,7 +135,7 @@ return [
         'title' => 'System Management',
         'path' => '/system',
         'icon' => 'bi-gear',
-        'permission' => 'users.read',
+        'permission' => null,
         'children' => [
             [
                 'title' => 'User Management',

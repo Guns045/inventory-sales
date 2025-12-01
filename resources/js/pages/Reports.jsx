@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,50 +8,148 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatsCard } from "@/components/common/StatsCard";
 import { DataTable } from "@/components/common/DataTable";
-import { Download, Calendar, TrendingUp, Package, Users, DollarSign, BarChart3 } from "lucide-react";
+import { Download, Calendar, TrendingUp, Package, Users, DollarSign, BarChart3, AlertCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useAPI } from '@/contexts/APIContext';
 
 const Reports = () => {
+  const { api } = useAPI();
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [loading, setLoading] = useState(true);
 
-  // Mock Data for Charts
-  const salesData = [
-    { name: 'Jan', sales: 4000, profit: 2400 },
-    { name: 'Feb', sales: 3000, profit: 1398 },
-    { name: 'Mar', sales: 2000, profit: 9800 },
-    { name: 'Apr', sales: 2780, profit: 3908 },
-    { name: 'May', sales: 1890, profit: 4800 },
-    { name: 'Jun', sales: 2390, profit: 3800 },
-  ];
+  // State for reports
+  const [salesReport, setSalesReport] = useState({
+    summary: { total_revenue: 0, total_orders: 0, avg_order_value: 0 },
+    chartData: [],
+    recentSales: []
+  });
 
-  const stockData = [
-    { name: 'Electronics', stock: 120 },
-    { name: 'Clothing', stock: 200 },
-    { name: 'Home', stock: 150 },
-    { name: 'Garden', stock: 80 },
-    { name: 'Toys', stock: 100 },
-  ];
+  const [stockReport, setStockReport] = useState({
+    summary: { total_items: 0, low_stock: 0, stock_value: 0 },
+    chartData: [],
+    lowStockItems: []
+  });
 
-  // Mock Data for Tables
-  const recentSales = [
-    { id: 1, date: '2024-03-01', customer: 'PT. Maju Jaya', amount: 15000000, status: 'Completed' },
-    { id: 2, date: '2024-03-02', customer: 'CV. Berkah', amount: 8500000, status: 'Pending' },
-    { id: 3, date: '2024-03-03', customer: 'Toko Abadi', amount: 3200000, status: 'Completed' },
-  ];
+  const [financeReport, setFinanceReport] = useState({
+    summary: { total_revenue: 0, total_payments: 0, outstanding: 0 },
+    chartData: []
+  });
 
-  const lowStockItems = [
-    { id: 1, code: 'EL-001', name: 'Laptop Gaming', stock: 2, min: 5 },
-    { id: 2, code: 'CL-023', name: 'T-Shirt XL', stock: 10, min: 20 },
-    { id: 3, code: 'HM-104', name: 'Coffee Maker', stock: 0, min: 3 },
-  ];
+  const [partnersReport, setPartnersReport] = useState({
+    topCustomers: [],
+    topSuppliers: []
+  });
+
+  useEffect(() => {
+    fetchAllReports();
+  }, [dateRange]);
+
+  const fetchAllReports = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (dateRange.from) params.append('date_from', dateRange.from);
+      if (dateRange.to) params.append('date_to', dateRange.to);
+      const queryString = params.toString();
+
+      const [salesRes, stockRes, financeRes, customerRes] = await Promise.all([
+        api.get(`/reports/sales-performance?${queryString}`),
+        api.get(`/reports/inventory-turnover?${queryString}`),
+        api.get(`/reports/financial-performance?${queryString}`),
+        api.get(`/reports/customer-analysis?${queryString}`)
+      ]);
+
+      // Process Sales Data
+      const salesData = salesRes.data;
+      const salesChart = Object.entries(salesData.sales_by_day || {}).map(([date, data]) => ({
+        name: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        sales: data.revenue,
+        profit: data.profit
+      }));
+
+      const recentOrdersRes = await api.get('/sales-orders?per_page=5&sort=-created_at');
+
+      setSalesReport({
+        summary: salesData.summary,
+        chartData: salesChart,
+        recentSales: recentOrdersRes.data.data || []
+      });
+
+      // Process Stock Data
+      const stockData = stockRes.data;
+      const stockByCategory = {};
+      if (stockData.products) {
+        stockData.products.forEach(p => {
+          const cat = p.category || 'Uncategorized';
+          stockByCategory[cat] = (stockByCategory[cat] || 0) + p.current_stock;
+        });
+      }
+      const stockChart = Object.entries(stockByCategory).map(([name, stock]) => ({ name, stock }));
+
+      setStockReport({
+        summary: {
+          total_items: stockData.summary.total_products,
+          low_stock: (stockData.summary.out_of_stock_count || 0) + (stockData.summary.low_turnover_count || 0),
+          stock_value: stockData.summary.total_current_value
+        },
+        chartData: stockChart,
+        lowStockItems: (stockData.out_of_stock_products || []).concat(stockData.low_turnover_products || []).slice(0, 10)
+      });
+
+      // Process Finance Data
+      const financeData = financeRes.data;
+      const financeChart = (financeData.daily_revenue || []).map(d => ({
+        name: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        income: d.revenue,
+        expenses: 0
+      }));
+
+      setFinanceReport({
+        summary: {
+          total_revenue: financeData.summary.total_revenue,
+          total_payments: financeData.summary.total_payments,
+          outstanding: financeData.summary.outstanding_receivables
+        },
+        chartData: financeChart
+      });
+
+      // Process Partners Data
+      const customerData = customerRes.data;
+      setPartnersReport({
+        topCustomers: customerData.top_customers || [],
+        topSuppliers: []
+      });
+
+    } catch (error) {
+      console.error("Failed to fetch reports:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
+  const formatLargeCurrency = (amount) => {
+    if (!amount) return 'Rp 0';
+    if (amount >= 1000000000) return `Rp ${(amount / 1000000000).toFixed(1)}B`;
+    if (amount >= 1000000) return `Rp ${(amount / 1000000).toFixed(1)}M`;
+    return `Rp ${(amount / 1000).toFixed(1)}K`;
+  };
 
   const salesColumns = [
-    { header: "Date", accessorKey: "date" },
-    { header: "Customer", accessorKey: "customer" },
+    { header: "Date", accessorKey: "created_at", cell: (row) => new Date(row.created_at).toLocaleDateString() },
+    { header: "Customer", accessorKey: "customer.company_name", cell: (row) => row.customer?.company_name || row.customer?.name },
     {
       header: "Amount",
-      accessorKey: "amount",
-      cell: (row) => `Rp ${row.amount.toLocaleString('id-ID')}`
+      accessorKey: "total_amount",
+      cell: (row) => formatCurrency(row.total_amount)
     },
     { header: "Status", accessorKey: "status" }
   ];
@@ -61,10 +159,10 @@ const Reports = () => {
     { header: "Product Name", accessorKey: "name" },
     {
       header: "Current Stock",
-      accessorKey: "stock",
-      cell: (row) => <span className="text-red-600 font-bold">{row.stock}</span>
+      accessorKey: "current_stock",
+      cell: (row) => <span className="text-red-600 font-bold">{row.current_stock}</span>
     },
-    { header: "Min Stock", accessorKey: "min" }
+    { header: "Status", accessorKey: "status" }
   ];
 
   return (
@@ -74,12 +172,22 @@ const Reports = () => {
         description="Comprehensive analytics and reporting"
       >
         <div className="flex items-center gap-2">
-          <Input type="date" className="w-[150px]" />
+          <Input
+            type="date"
+            className="w-[150px]"
+            value={dateRange.from}
+            onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+          />
           <span className="text-muted-foreground">-</span>
-          <Input type="date" className="w-[150px]" />
-          <Button variant="outline">
+          <Input
+            type="date"
+            className="w-[150px]"
+            value={dateRange.to}
+            onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+          />
+          <Button variant="outline" onClick={fetchAllReports}>
             <Download className="mr-2 h-4 w-4" />
-            Export
+            Refresh
           </Button>
         </div>
       </PageHeader>
@@ -95,24 +203,24 @@ const Reports = () => {
         {/* Sales Report Tab */}
         <TabsContent value="sales" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatsCard title="Total Sales" value="Rp 1.2B" icon={<TrendingUp className="h-4 w-4" />} variant="primary" />
-            <StatsCard title="Orders" value="1,234" icon={<Package className="h-4 w-4" />} variant="info" />
-            <StatsCard title="Avg. Order Value" value="Rp 950K" icon={<DollarSign className="h-4 w-4" />} variant="success" />
+            <StatsCard title="Total Sales" value={formatLargeCurrency(salesReport.summary.total_revenue)} icon={<TrendingUp className="h-4 w-4" />} variant="primary" />
+            <StatsCard title="Orders" value={salesReport.summary.total_orders} icon={<Package className="h-4 w-4" />} variant="info" />
+            <StatsCard title="Avg. Order Value" value={formatLargeCurrency(salesReport.summary.avg_order_value)} icon={<DollarSign className="h-4 w-4" />} variant="success" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Sales Trend</CardTitle>
-                <CardDescription>Monthly sales performance</CardDescription>
+                <CardDescription>Daily sales performance</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesData}>
+                  <BarChart data={salesReport.chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
                     <Legend />
                     <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
                     <Bar dataKey="profit" fill="#10b981" name="Profit" />
@@ -126,7 +234,7 @@ const Reports = () => {
                 <CardDescription>Latest completed orders</CardDescription>
               </CardHeader>
               <CardContent>
-                <DataTable columns={salesColumns} data={recentSales} />
+                <DataTable columns={salesColumns} data={salesReport.recentSales} loading={loading} />
               </CardContent>
             </Card>
           </div>
@@ -135,9 +243,9 @@ const Reports = () => {
         {/* Stock Report Tab */}
         <TabsContent value="stock" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatsCard title="Total Items" value="452" icon={<Package className="h-4 w-4" />} variant="primary" />
-            <StatsCard title="Low Stock" value="12" icon={<BarChart3 className="h-4 w-4" />} variant="destructive" />
-            <StatsCard title="Stock Value" value="Rp 450M" icon={<DollarSign className="h-4 w-4" />} variant="success" />
+            <StatsCard title="Total Items" value={stockReport.summary.total_items} icon={<Package className="h-4 w-4" />} variant="primary" />
+            <StatsCard title="Low Stock / Issues" value={stockReport.summary.low_stock} icon={<BarChart3 className="h-4 w-4" />} variant="destructive" />
+            <StatsCard title="Stock Value" value={formatLargeCurrency(stockReport.summary.stock_value)} icon={<DollarSign className="h-4 w-4" />} variant="success" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -148,7 +256,7 @@ const Reports = () => {
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stockData} layout="vertical">
+                  <BarChart data={stockReport.chartData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" width={100} />
@@ -161,11 +269,11 @@ const Reports = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Low Stock Alert</CardTitle>
-                <CardDescription>Items below minimum threshold</CardDescription>
+                <CardTitle>Low Stock / Slow Moving</CardTitle>
+                <CardDescription>Items requiring attention</CardDescription>
               </CardHeader>
               <CardContent>
-                <DataTable columns={stockColumns} data={lowStockItems} />
+                <DataTable columns={stockColumns} data={stockReport.lowStockItems} loading={loading} />
               </CardContent>
             </Card>
           </div>
@@ -173,6 +281,11 @@ const Reports = () => {
 
         {/* Finance Report Tab */}
         <TabsContent value="finance" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatsCard title="Total Revenue" value={formatLargeCurrency(financeReport.summary.total_revenue)} icon={<TrendingUp className="h-4 w-4" />} variant="primary" />
+            <StatsCard title="Total Payments" value={formatLargeCurrency(financeReport.summary.total_payments)} icon={<DollarSign className="h-4 w-4" />} variant="success" />
+            <StatsCard title="Outstanding" value={formatLargeCurrency(financeReport.summary.outstanding)} icon={<AlertCircle className="h-4 w-4" />} variant="destructive" />
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Financial Overview</CardTitle>
@@ -180,14 +293,13 @@ const Reports = () => {
             </CardHeader>
             <CardContent className="h-[400px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={salesData}>
+                <LineChart data={financeReport.chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
                   <Legend />
-                  <Line type="monotone" dataKey="sales" stroke="#3b82f6" name="Income" strokeWidth={2} />
-                  <Line type="monotone" dataKey="profit" stroke="#ef4444" name="Expenses" strokeWidth={2} />
+                  <Line type="monotone" dataKey="income" stroke="#3b82f6" name="Income" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -204,20 +316,21 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
+                  {partnersReport.topCustomers.map((customer, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                          {i}
+                          {i + 1}
                         </div>
                         <div>
-                          <div className="font-medium">Customer {String.fromCharCode(64 + i)}</div>
-                          <div className="text-xs text-muted-foreground">50 Orders</div>
+                          <div className="font-medium">{customer.name}</div>
+                          <div className="text-xs text-muted-foreground">{customer.total_orders} Orders</div>
                         </div>
                       </div>
-                      <div className="font-bold">Rp {(100 - i * 10)}M</div>
+                      <div className="font-bold">{formatLargeCurrency(customer.total_revenue)}</div>
                     </div>
                   ))}
+                  {partnersReport.topCustomers.length === 0 && <div className="text-center text-muted-foreground">No data available</div>}
                 </div>
               </CardContent>
             </Card>
@@ -227,21 +340,8 @@ const Reports = () => {
                 <CardDescription>By purchase value</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold">
-                          {i}
-                        </div>
-                        <div>
-                          <div className="font-medium">Supplier {String.fromCharCode(87 + i)}</div>
-                          <div className="text-xs text-muted-foreground">Active since 2023</div>
-                        </div>
-                      </div>
-                      <div className="font-bold">Rp {(80 - i * 8)}M</div>
-                    </div>
-                  ))}
+                <div className="text-center text-muted-foreground py-8">
+                  Supplier data not yet available
                 </div>
               </CardContent>
             </Card>

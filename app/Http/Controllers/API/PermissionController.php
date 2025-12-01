@@ -16,74 +16,140 @@ class PermissionController extends Controller
     {
         $permissionModules = [
             'User Management' => [
+                'users.read',
+                'users.create',
+                'users.update',
+                'users.delete',
+                'roles.read',
+                'roles.create',
+                'roles.update',
+                'roles.delete',
+                'manage_roles', // Legacy
                 'view_users',
                 'create_users',
                 'edit_users',
-                'delete_users'
+                'delete_users' // Legacy
+            ],
+            'Dashboard' => [
+                'dashboard.read',
+                'dashboard.sales',
+                'dashboard.warehouse',
+                'dashboard.finance'
             ],
             'Product Management' => [
+                'products.read',
+                'products.create',
+                'products.update',
+                'products.delete',
+                'categories.read',
+                'categories.create',
+                'categories.update',
+                'categories.delete',
                 'view_products',
                 'create_products',
                 'edit_products',
-                'delete_products'
+                'delete_products' // Legacy
             ],
-            'Warehouse Management' => [
+            'Inventory Management' => [
+                'product-stock.read',
+                'product-stock.create',
+                'product-stock.update',
+                'product-stock.delete',
+                'warehouses.read',
+                'warehouses.create',
+                'warehouses.update',
+                'warehouses.delete',
+                'warehouse-transfers.read',
+                'warehouse-transfers.create',
+                'warehouse-transfers.update',
+                'warehouse-transfers.delete',
+                'view_stock',
+                'adjust_stock',
+                'view_stock_movements', // Legacy
                 'view_warehouses',
                 'create_warehouses',
-                'edit_warehouses'
+                'edit_warehouses' // Legacy
             ],
-            'Quotations & Sales' => [
+            'Sales' => [
+                'customers.read',
+                'customers.create',
+                'customers.update',
+                'customers.delete',
+                'quotations.read',
+                'quotations.create',
+                'quotations.update',
+                'quotations.delete',
+                'quotations.submit',
+                'quotations.convert',
+                'quotations.approve',
+                'quotations.reject',
+                'sales-orders.read',
+                'sales-orders.create',
+                'sales-orders.update',
+                'sales-orders.delete',
                 'view_quotations',
                 'create_quotations',
                 'edit_quotations',
-                'approve_quotations',
+                'approve_quotations', // Legacy
                 'view_sales_orders',
                 'create_sales_orders',
-                'edit_sales_orders'
+                'edit_sales_orders' // Legacy
             ],
-            'Purchase Orders' => [
+            'Purchasing' => [
+                'suppliers.read',
+                'suppliers.create',
+                'suppliers.update',
+                'suppliers.delete',
+                'purchase-orders.read',
+                'purchase-orders.create',
+                'purchase-orders.update',
+                'purchase-orders.delete',
+                'goods-receipts.read',
+                'goods-receipts.create',
+                'goods-receipts.update',
+                'goods-receipts.delete',
                 'view_purchase_orders',
                 'create_purchase_orders',
-                'edit_purchase_orders'
-            ],
-            'Inventory & Stock' => [
-                'view_stock',
-                'adjust_stock',
-                'view_stock_movements'
-            ],
-            'Goods Receipt' => [
+                'edit_purchase_orders', // Legacy
                 'view_goods_receipts',
                 'create_goods_receipts',
-                'edit_goods_receipts'
+                'edit_goods_receipts' // Legacy
             ],
-            'Invoices & Payments' => [
+            'Fulfillment' => [
+                'picking-lists.read',
+                'picking-lists.create',
+                'picking-lists.update',
+                'picking-lists.delete',
+                'picking-lists.complete',
+                'picking-lists.print',
+                'delivery-orders.read',
+                'delivery-orders.create',
+                'delivery-orders.update',
+                'delivery-orders.delete'
+            ],
+            'Finance' => [
+                'invoices.read',
+                'invoices.create',
+                'invoices.update',
+                'invoices.delete',
+                'payments.read',
+                'payments.create',
+                'payments.update',
+                'payments.delete',
                 'view_invoices',
                 'create_invoices',
-                'edit_invoices',
+                'edit_invoices', // Legacy
                 'view_payments',
                 'create_payments',
-                'edit_payments'
+                'edit_payments' // Legacy
             ],
-            'Document Management' => [
-                'print_quotation',        // Print PQ
-                'print_picking_list',     // Print PL
-                'print_delivery_order',   // Print DO
-                'print_purchase_order',   // Print PO
-                'print_invoice'          // Print PI
-            ],
-            'Internal Transfers' => [
-                'view_transfers',
-                'create_transfers',
-                'approve_transfers'
-            ],
-            'Reports' => [
+            'Reports & Settings' => [
+                'reports.read',
+                'settings.read', // Added to match config/menu.php
                 'view_reports',
-                'export_reports'
-            ],
-            'System Settings' => [
+                'export_reports', // Legacy
                 'view_company_settings',
-                'edit_company_settings',
-                'manage_roles'
+                'edit_company_settings' // Legacy
             ]
         ];
 

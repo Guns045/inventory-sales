@@ -26,6 +26,7 @@ class User extends Authenticatable
         'warehouse_id',
         'can_access_multiple_warehouses',
         'is_active',
+        'avatar',
     ];
 
     /**
@@ -43,7 +44,7 @@ class User extends Authenticatable
      *
      * @var array
      */
-    protected $appends = ['role', 'role_id'];
+    protected $appends = ['role', 'role_id', 'avatar_url'];
 
     /**
      * Get the attributes that should be cast.
@@ -56,6 +57,11 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function getAvatarUrlAttribute()
+    {
+        return $this->avatar ? asset('storage/' . $this->avatar) : null;
     }
 
     // Relationship to Spatie Role (optional, if we want to keep accessing single role easily)
@@ -129,9 +135,35 @@ class User extends Authenticatable
     // Permission methods using Spatie
     public function hasPermission(string $resource, string $action): bool
     {
-        // Map resource.action to permission name
+        // Super Admin has all permissions
+        if ($this->hasRole('Super Admin')) {
+            return true;
+        }
+
+        // Try direct match first (noun.verb)
         $permission = "{$resource}.{$action}";
-        return $this->hasPermissionTo($permission);
+        try {
+            if ($this->hasPermissionTo($permission)) {
+                return true;
+            }
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
+            // Continue to try legacy format
+        }
+
+        // Map action for legacy format (verb_noun)
+        $legacyAction = $action;
+        if ($action === 'read')
+            $legacyAction = 'view';
+        if ($action === 'update')
+            $legacyAction = 'edit';
+
+        $legacyPermission = "{$legacyAction}_{$resource}";
+
+        try {
+            return $this->hasPermissionTo($legacyPermission);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
+            return false;
+        }
     }
 
     public function canPerformAction(string $action, string $resource, $context = null): bool
@@ -146,12 +178,12 @@ class User extends Authenticatable
 
     public function canAccessAllWarehouses(): bool
     {
-        return $this->can_access_multiple_warehouses || $this->hasRole('Super Admin');
+        return $this->can_access_multiple_warehouses || $this->hasRole('Super Admin') || $this->hasRole('Admin');
     }
 
     public function canApproveTransfers(): bool
     {
-        return $this->hasPermissionTo('transfers.approve');
+        return $this->hasPermission('transfers', 'approve');
     }
 
     public function canManageWarehouse($warehouseId): bool

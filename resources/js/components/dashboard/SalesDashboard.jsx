@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Spinner, Alert, ListGroup, Badge, ProgressBar } from 'react-bootstrap';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from 'react-router-dom';
 import { useAPI } from '../../contexts/APIContext';
+import {
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Bell,
+  Plus,
+  ShoppingCart,
+  Users
+} from "lucide-react";
 
 const SalesDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -10,13 +23,16 @@ const SalesDashboard = () => {
   const { api } = useAPI();
 
   useEffect(() => {
+    console.log('SalesDashboard mounted');
     fetchSalesDashboard();
   }, []);
 
   const fetchSalesDashboard = async () => {
+    setLoading(true);
     try {
       const response = await api.get('/dashboard/sales');
       setDashboardData(response.data);
+      setError(null);
     } catch (error) {
       console.error('Error fetching sales dashboard:', error);
       setError('Failed to load sales dashboard data');
@@ -25,12 +41,12 @@ const SalesDashboard = () => {
     }
   };
 
-  const getStatusBadgeColor = (status) => {
+  const getStatusBadgeVariant = (status) => {
     switch (status) {
       case 'DRAFT': return 'secondary';
       case 'SUBMITTED': return 'warning';
       case 'APPROVED': return 'success';
-      case 'REJECTED': return 'danger';
+      case 'REJECTED': return 'destructive';
       default: return 'secondary';
     }
   };
@@ -46,20 +62,18 @@ const SalesDashboard = () => {
 
   if (loading) {
     return (
-      <div className="loading">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="danger">
-        <Alert.Heading>Error</Alert.Heading>
+      <div className="p-4 text-red-500 bg-red-50 rounded-md">
+        <h3 className="font-bold">Error</h3>
         <p>{error}</p>
-      </Alert>
+      </div>
     );
   }
 
@@ -67,270 +81,165 @@ const SalesDashboard = () => {
     return <div>No data available</div>;
   }
 
-  const { quotation_stats, recent_quotations, sales_target, approval_notifications } = dashboardData;
+  const { quotation_stats, recent_quotations, approval_notifications } = dashboardData;
 
   return (
-    <div>
+    <div className="flex-1 space-y-4 p-8 pt-6">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="flex items-center justify-between space-y-2">
         <div>
-          <h2 className="mb-1">Sales Dashboard</h2>
-          <p className="text-muted mb-0">Ringkasan Penawaran, Target Penjualan, dan Notifikasi</p>
+          <h2 className="text-3xl font-bold tracking-tight">Sales Dashboard</h2>
+          <p className="text-muted-foreground">Quotations Summary and Notifications</p>
         </div>
-        <Button variant="outline-primary" onClick={fetchSalesDashboard}>
-          <i className="bi bi-arrow-clockwise me-2"></i>
+        <Button variant="outline" onClick={fetchSalesDashboard}>
+          <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <Row className="mb-4">
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon draft mx-auto mb-3">
-                <i className="bi bi-file-earmark-text fs-3"></i>
-              </div>
-              <h3 className="mb-1">{quotation_stats.draft}</h3>
-              <p className="text-muted mb-0">Draft</p>
-            </Card.Body>
-          </Card>
-        </Col>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Draft</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{quotation_stats.draft}</div>
+            <p className="text-xs text-muted-foreground">Draft Quotations</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Submitted</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{quotation_stats.submitted}</div>
+            <p className="text-xs text-muted-foreground">Pending Approval</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{quotation_stats.approved}</div>
+            <p className="text-xs text-muted-foreground">Approved</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{quotation_stats.rejected}</div>
+            <p className="text-xs text-muted-foreground">Rejected</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon submitted mx-auto mb-3">
-                <i className="bi bi-clock-history fs-3"></i>
-              </div>
-              <h3 className="mb-1">{quotation_stats.submitted}</h3>
-              <p className="text-muted mb-0">Submitted</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon approved mx-auto mb-3">
-                <i className="bi bi-check-circle fs-3"></i>
-              </div>
-              <h3 className="mb-1">{quotation_stats.approved}</h3>
-              <p className="text-muted mb-0">Approved</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon rejected mx-auto mb-3">
-                <i className="bi bi-x-circle fs-3"></i>
-              </div>
-              <h3 className="mb-1">{quotation_stats.rejected}</h3>
-              <p className="text-muted mb-0">Rejected</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Sales Target and Recent Quotations */}
-      <Row className="mb-4">
-        {/* Sales Target */}
-        <Col lg={4} className="mb-4">
-          <Card className="h-100">
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-graph-up me-2"></i>
-                Target Penjualan Bulanan
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              <div className="text-center mb-3">
-                <h4 className="text-primary mb-1">{formatCurrency(sales_target.current_achievement)}</h4>
-                <p className="text-muted mb-2">dari {formatCurrency(sales_target.monthly_target)}</p>
-                <ProgressBar
-                  now={Math.min(sales_target.percentage, 100)}
-                  label={`${Math.round(sales_target.percentage)}%`}
-                  variant={sales_target.percentage >= 100 ? 'success' : 'primary'}
-                  className="mb-3"
-                />
-                <small className="text-muted">
-                  {sales_target.percentage >= 100
-                    ? '🎉 Target tercapai!'
-                    : `${Math.round(sales_target.percentage)}% dari target bulanan`
-                  }
-                </small>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         {/* Recent Quotations */}
-        <Col lg={8} className="mb-4">
-          <Card className="h-100">
-            <Card.Header className="bg-white border-bottom d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">
-                <i className="bi bi-clock-history me-2"></i>
-                Penawaran Terbaru
-              </h5>
-              <Link to="/quotations" className="btn btn-sm btn-outline-primary">
-                Lihat Semua
-              </Link>
-            </Card.Header>
-            <Card.Body>
-              <ListGroup variant="flush">
-                {recent_quotations.length > 0 ? (
-                  recent_quotations.map((quotation) => (
-                    <ListGroup.Item key={quotation.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-1">
-                            <h6 className="mb-0 me-2">{quotation.quotation_number}</h6>
-                            <Badge bg={getStatusBadgeColor(quotation.status)}>
-                              {quotation.status}
-                            </Badge>
-                          </div>
-                          <p className="text-muted mb-1">
-                            <i className="bi bi-building me-1"></i>
-                            {quotation.customer?.company_name || 'Unknown Customer'}
-                          </p>
-                          <p className="mb-1 fw-semibold">{formatCurrency(quotation.total_amount)}</p>
-                          <small className="text-muted">
-                            <i className="bi bi-calendar me-1"></i>
-                            {new Date(quotation.created_at).toLocaleDateString('id-ID')}
-                          </small>
-                        </div>
-                        <Link to={`/quotations/${quotation.id}`} className="btn btn-sm btn-outline-secondary">
-                          <i className="bi bi-eye"></i>
-                        </Link>
+        <Card className="col-span-4">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Recent Quotations</CardTitle>
+              <CardDescription>List of recently created quotations</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/quotations">View All</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-8">
+              {recent_quotations.length > 0 ? (
+                recent_quotations.map((quotation) => (
+                  <div key={quotation.id} className="flex items-center">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium leading-none">{quotation.quotation_number}</p>
+                        <Badge variant={getStatusBadgeVariant(quotation.status)}>{quotation.status}</Badge>
                       </div>
-                    </ListGroup.Item>
-                  ))
-                ) : (
-                  <div className="text-center text-muted py-3">
-                    <i className="bi bi-inbox fs-3"></i>
-                    <p className="mb-0">Belum ada penawaran</p>
+                      <p className="text-sm text-muted-foreground">
+                        {quotation.customer?.company_name || 'Unknown Customer'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="font-medium">{formatCurrency(quotation.total_amount)}</div>
+                        <p className="text-xs text-muted-foreground">{new Date(quotation.created_at).toLocaleDateString('id-ID')}</p>
+                      </div>
+                      <Button variant="outline" size="icon" asChild>
+                        <Link to={`/quotations/${quotation.id}`}>
+                          <FileText className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </ListGroup>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Approval Notifications */}
-      <Row>
-        <Col lg={12} className="mb-4">
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-bell me-2"></i>
-                Notifikasi Persetujuan
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              {approval_notifications.length > 0 ? (
-                <ListGroup variant="flush">
-                  {approval_notifications.map((notification) => (
-                    <ListGroup.Item key={notification.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-1">
-                            <Badge bg={notification.status === 'APPROVED' ? 'success' : 'danger'} className="me-2">
-                              {notification.status}
-                            </Badge>
-                            <h6 className="mb-0">
-                              {notification.approvable?.quotation_number || 'Unknown Quotation'}
-                            </h6>
-                          </div>
-                          <p className="text-muted mb-1">
-                            {notification.status === 'APPROVED'
-                              ? `Disetujui oleh ${notification.approver?.name || 'Manager'}`
-                              : `Ditolak oleh ${notification.approver?.name || 'Manager'}`
-                            }
-                          </p>
-                          {notification.notes && (
-                            <p className="mb-1">
-                              <small><strong>Catatan:</strong> {notification.notes}</small>
-                            </p>
-                          )}
-                          <small className="text-muted">
-                            <i className="bi bi-calendar me-1"></i>
-                            {new Date(notification.updated_at).toLocaleString('id-ID')}
-                          </small>
-                        </div>
-                        <Link to={`/quotations/${notification.approvable_id}`} className="btn btn-sm btn-outline-secondary">
-                          <i className="bi bi-eye"></i>
-                        </Link>
-                      </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+                ))
               ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="bi bi-bell-slash fs-3"></i>
-                  <p className="mb-0">Tidak ada notifikasi persetujuan</p>
+                <div className="text-center text-muted-foreground py-4">
+                  No quotations found
                 </div>
               )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Quick Actions */}
-      <Row>
-        <Col>
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-lightning me-2"></i>
-                Aksi Cepat
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              <Row className="g-3">
-                <Col md={6} lg={3}>
-                  <Link to="/quotations?action=create" className="text-decoration-none">
-                    <div className="quick-action-card h-100">
-                      <i className="bi bi-file-plus fs-3 text-primary"></i>
-                      <h6 className="mb-2">Buat Penawaran</h6>
-                      <p className="text-muted small mb-0">Buat penawaran baru untuk pelanggan</p>
+        {/* Approval Notifications */}
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Approval Notifications</CardTitle>
+            <CardDescription>Latest approval status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-8">
+              {approval_notifications.length > 0 ? (
+                approval_notifications.map((notification) => (
+                  <div key={notification.id} className="flex items-start space-x-4">
+                    <div className={`mt-1 rounded-full p-1 ${notification.status === 'APPROVED' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                      {notification.status === 'APPROVED' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                     </div>
-                  </Link>
-                </Col>
-                <Col md={6} lg={3}>
-                  <Link to="/quotations?status=submitted" className="text-decoration-none">
-                    <div className="quick-action-card h-100">
-                      <i className="bi bi-clock-history fs-3 text-warning"></i>
-                      <h6 className="mb-2">Pending Approvals</h6>
-                      <p className="text-muted small mb-0">Lihat penawaran yang menunggu persetujuan</p>
+                    <div className="space-y-1 flex-1">
+                      <p className="text-sm font-medium leading-none">
+                        {notification.approvable?.quotation_number || 'Unknown Quotation'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {notification.status === 'APPROVED'
+                          ? `Approved by ${notification.approver?.name || 'Manager'}`
+                          : `Rejected by ${notification.approver?.name || 'Manager'}`
+                        }
+                      </p>
+                      {notification.notes && (
+                        <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                          Note: {notification.notes}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(notification.updated_at).toLocaleString('id-ID')}
+                      </p>
                     </div>
-                  </Link>
-                </Col>
-                <Col md={6} lg={3}>
-                  <Link to="/sales-orders" className="text-decoration-none">
-                    <div className="quick-action-card h-100">
-                      <i className="bi bi-cart fs-3 text-info"></i>
-                      <h6 className="mb-2">Sales Orders</h6>
-                      <p className="text-muted small mb-0">Kelola pesanan penjualan</p>
-                    </div>
-                  </Link>
-                </Col>
-                <Col md={6} lg={3}>
-                  <Link to="/customers" className="text-decoration-none">
-                    <div className="quick-action-card h-100">
-                      <i className="bi bi-people fs-3 text-success"></i>
-                      <h6 className="mb-2">Pelanggan</h6>
-                      <p className="text-muted small mb-0">Kelola data pelanggan</p>
-                    </div>
-                  </Link>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link to={`/quotations/${notification.approvable_id}`}>
+                        <FileText className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-4">
+                  No notifications
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+
     </div>
   );
 };

@@ -49,13 +49,13 @@ class ReportController extends Controller
             }
 
             if ($productFilter) {
-                $salesQuery->whereHas('items', function($q) use ($productFilter) {
+                $salesQuery->whereHas('items', function ($q) use ($productFilter) {
                     $q->where('product_id', $productFilter);
                 });
             }
 
             if ($categoryFilter) {
-                $salesQuery->whereHas('items.product', function($q) use ($categoryFilter) {
+                $salesQuery->whereHas('items.product', function ($q) use ($categoryFilter) {
                     $q->where('category_id', $categoryFilter);
                 });
             }
@@ -87,7 +87,7 @@ class ReportController extends Controller
 
                 // Sales by customer
                 $customerId = $order->customer_id;
-                $customerName = $order->customer->getCustomerName();
+                $customerName = $order->customer->company_name;
                 if (!isset($salesByCustomer[$customerId])) {
                     $salesByCustomer[$customerId] = [
                         'name' => $customerName,
@@ -103,7 +103,7 @@ class ReportController extends Controller
                     $product = $item->product;
                     $quantity = $item->quantity;
                     $revenue = $item->quantity * $item->unit_price;
-                    $cost = $quantity * ($product->cost_price ?? 0);
+                    $cost = $quantity * ($product->buy_price ?? 0);
                     $profit = $revenue - $cost;
 
                     $orderProfit += $profit;
@@ -113,7 +113,7 @@ class ReportController extends Controller
                     if (!isset($salesByProduct[$product->id])) {
                         $salesByProduct[$product->id] = [
                             'name' => $product->name,
-                            'code' => $product->product_code,
+                            'code' => $product->sku,
                             'quantity' => 0,
                             'revenue' => 0,
                             'profit' => 0
@@ -133,11 +133,11 @@ class ReportController extends Controller
             }
 
             // Sort and get top performers
-            uasort($salesByProduct, function($a, $b) {
+            uasort($salesByProduct, function ($a, $b) {
                 return $b['revenue'] <=> $a['revenue'];
             });
 
-            uasort($salesByCustomer, function($a, $b) {
+            uasort($salesByCustomer, function ($a, $b) {
                 return $b['revenue'] <=> $a['revenue'];
             });
 
@@ -191,7 +191,7 @@ class ReportController extends Controller
             $startDate = now()->subMonths($period);
 
             // Get all products with their stock and sales data
-            $productsQuery = Product::with(['category', 'stock'])
+            $productsQuery = Product::with(['category', 'productStock'])
                 ->where('is_active', true);
 
             if ($categoryFilter) {
@@ -208,8 +208,8 @@ class ReportController extends Controller
 
             foreach ($products as $product) {
                 // Current stock
-                $currentStock = $product->stock->sum('quantity') ?? 0;
-                $unitCost = $product->cost_price ?? 0;
+                $currentStock = $product->productStock->sum('quantity') ?? 0;
+                $unitCost = $product->buy_price ?? 0;
                 $currentValue = $currentStock * $unitCost;
 
                 // Get sales data for the period
@@ -236,7 +236,7 @@ class ReportController extends Controller
                 $productData = [
                     'id' => $product->id,
                     'name' => $product->name,
-                    'code' => $product->product_code,
+                    'code' => $product->sku,
                     'category' => $product->category->name ?? 'Uncategorized',
                     'current_stock' => $currentStock,
                     'unit_cost' => $unitCost,
@@ -268,7 +268,7 @@ class ReportController extends Controller
             $totalHoldingCost = $totalCurrentValue * 0.25 * ($period / 12);
 
             // Sort by turnover ratio
-            usort($inventoryData, function($a, $b) {
+            usort($inventoryData, function ($a, $b) {
                 return $b['turnover_ratio'] <=> $a['turnover_ratio'];
             });
 
@@ -320,28 +320,33 @@ class ReportController extends Controller
             // Payment data
             $paymentData = Payment::whereBetween('payment_date', [$dateFrom, $dateTo])
                 ->where('status', 'completed')
-                ->selectRaw('DATE(payment_date) as date, SUM(amount) as payments, COUNT(*) as payment_count')
+                ->selectRaw('DATE(payment_date) as date, SUM(amount_paid) as payments, COUNT(*) as payment_count')
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get();
 
             // Invoice data
             $invoiceData = Invoice::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->selectRaw('DATE(created_at) as date, SUM(total_amount) as invoiced_amount, SUM(paid_amount) as paid_amount, COUNT(*) as invoice_count')
+                ->selectRaw('DATE(created_at) as date, SUM(total_amount) as invoiced_amount, COUNT(*) as invoice_count')
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get();
 
             // Outstanding receivables
-            $outstandingReceivables = Invoice::where('status', '!=', 'paid')
+            // Outstanding receivables (Total amount of unpaid invoices - total payments for those invoices)
+            $outstandingReceivables = Invoice::whereIn('status', ['UNPAID', 'PARTIAL', 'OVERDUE'])
                 ->where('due_date', '<', now())
-                ->sum(DB::raw('total_amount - paid_amount'));
+                ->withSum('payments', 'amount_paid')
+                ->get()
+                ->sum(function ($invoice) {
+                    return $invoice->total_amount - ($invoice->payments_sum_amount_paid ?? 0);
+                });
 
             // Cash flow summary
             $totalRevenue = $revenueData->sum('revenue');
             $totalPayments = $paymentData->sum('payments');
             $totalInvoiced = $invoiceData->sum('invoiced_amount');
-            $totalPaidInvoices = $invoiceData->sum('paid_amount');
+            $totalPaidInvoices = $totalPayments; // Use total payments as proxy for paid amount
 
             return response()->json([
                 'summary' => [
@@ -383,14 +388,16 @@ class ReportController extends Controller
             $dateTo = Carbon::parse($dateTo);
 
             // Customer sales data
-            $customerData = Customer::with(['salesOrders' => function($query) use ($dateFrom, $dateTo) {
-                $query->whereBetween('created_at', [$dateFrom, $dateTo])
-                      ->whereIn('status', ['PROCESSING', 'COMPLETED']);
-            }])
-            ->whereHas('salesOrders', function($query) use ($dateFrom, $dateTo) {
-                $query->whereBetween('created_at', [$dateFrom, $dateTo]);
-            })
-            ->get();
+            $customerData = Customer::with([
+                'salesOrders' => function ($query) use ($dateFrom, $dateTo) {
+                    $query->whereBetween('created_at', [$dateFrom, $dateTo])
+                        ->whereIn('status', ['PROCESSING', 'COMPLETED']);
+                }
+            ])
+                ->whereHas('salesOrders', function ($query) use ($dateFrom, $dateTo) {
+                    $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+                })
+                ->get();
 
             $analysisData = [];
             $totalCustomers = $customerData->count();
@@ -407,7 +414,7 @@ class ReportController extends Controller
 
                 $customerAnalysis = [
                     'id' => $customer->id,
-                    'name' => $customer->getCustomerName(),
+                    'name' => $customer->company_name,
                     'email' => $customer->email,
                     'phone' => $customer->phone,
                     'company' => $customer->company_name,
@@ -424,7 +431,7 @@ class ReportController extends Controller
             }
 
             // Sort by revenue
-            usort($analysisData, function($a, $b) {
+            usort($analysisData, function ($a, $b) {
                 return $b['total_revenue'] <=> $a['total_revenue'];
             });
 

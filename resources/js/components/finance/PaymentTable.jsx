@@ -30,17 +30,17 @@ export function PaymentTable({
     const columns = [
         {
             header: "Invoice Number",
-            accessorKey: "invoice_number",
+            accessorKey: "invoice.invoice_number",
             cell: (row) => (
-                <div className="font-medium">{row.invoice_number}</div>
+                <div className="font-medium">{row.invoice?.invoice_number || '-'}</div>
             )
         },
         {
             header: "Customer",
-            accessorKey: "customer_name",
+            accessorKey: "invoice.customer.company_name",
             cell: (row) => (
                 <div>
-                    {row.customer?.company_name || row.customer?.name || '-'}
+                    {row.invoice?.customer?.company_name || row.invoice?.customer?.name || '-'}
                 </div>
             )
         },

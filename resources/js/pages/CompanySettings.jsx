@@ -22,7 +22,6 @@ const CompanySettingsPage = () => {
     company_phone: '',
     company_email: '',
     company_website: '',
-    tax_id: '',
     tax_id: ''
   });
 
@@ -39,7 +38,6 @@ const CompanySettingsPage = () => {
         company_phone: companySettings.company_phone || '',
         company_email: companySettings.company_email || '',
         company_website: companySettings.company_website || '',
-        tax_id: companySettings.tax_id || '',
         tax_id: companySettings.tax_id || ''
       });
     }
@@ -91,7 +89,6 @@ const CompanySettingsPage = () => {
       data.append('company_phone', formData.company_phone || '');
       data.append('company_email', formData.company_email || '');
       data.append('company_website', formData.company_website || '');
-      data.append('tax_id', formData.tax_id || '');
       data.append('tax_id', formData.tax_id || '');
 
       const fileToUpload = logoFile || logoFileRef.current;

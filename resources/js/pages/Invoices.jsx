@@ -39,6 +39,7 @@ const Invoices = () => {
   const [paymentData, setPaymentData] = useState({
     amount: '',
     payment_date: '',
+    payment_method: 'Bank Transfer',
     notes: ''
   });
   const [paymentHistory, setPaymentHistory] = useState([]);
@@ -85,7 +86,7 @@ const Invoices = () => {
     try {
       setCreateLoading(true);
       const salesOrderRes = await api.get(`/sales-orders/${salesOrderId}`);
-      const salesOrder = salesOrderRes.data;
+      const salesOrder = salesOrderRes.data.data || salesOrderRes.data;
 
       if (!window.confirm(`Create invoice for SO: ${salesOrder.sales_order_number}?`)) {
         return;
@@ -140,6 +141,7 @@ const Invoices = () => {
     setPaymentData({
       amount: invoice.total_amount - (invoice.paid_amount || 0),
       payment_date: new Date().toISOString().split('T')[0],
+      payment_method: 'Bank Transfer',
       notes: ''
     });
     setShowPaymentModal(true);
@@ -159,7 +161,7 @@ const Invoices = () => {
         invoice_id: selectedInvoice.id,
         payment_date: paymentData.payment_date,
         amount_paid: paymentAmount,
-        payment_method: 'Transfer Bank',
+        payment_method: paymentData.payment_method,
         reference_number: paymentData.notes
       });
 
@@ -390,6 +392,24 @@ const Invoices = () => {
                 value={paymentData.payment_date}
                 onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Select
+                value={paymentData.payment_method}
+                onValueChange={(v) => setPaymentData({ ...paymentData, payment_method: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Check">Check</SelectItem>
+                  <SelectItem value="Credit Card">Credit Card</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>

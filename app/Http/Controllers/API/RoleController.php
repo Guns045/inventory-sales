@@ -111,6 +111,7 @@ class RoleController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $roleName,
+                'avatar_url' => $user->avatar_url,
             ],
             'permissions' => $data['permissions'],
             'menu_items' => $data['menu_items']

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Trash2, Plus } from "lucide-react"
+import { ProductCombobox } from "@/components/common/ProductCombobox"
 
 /**
  * LineItemsTable component for managing transaction line items
@@ -64,21 +65,20 @@ export function LineItemsTable({
                             <TableRow key={index}>
                                 <TableCell>
                                     {editable ? (
-                                        <Select
-                                            value={item.product_id?.toString()}
-                                            onValueChange={(value) => onUpdate(index, { ...item, product_id: parseInt(value) })}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select product" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {products.map((product) => (
-                                                    <SelectItem key={product.id} value={product.id.toString()}>
-                                                        {product.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ProductCombobox
+                                            products={products}
+                                            value={item.product_id}
+                                            onChange={(value) => {
+                                                const selectedProduct = products.find(p => p.id.toString() === value.toString());
+                                                onUpdate(index, {
+                                                    ...item,
+                                                    product_id: parseInt(value),
+                                                    unit_price: selectedProduct ? parseFloat(selectedProduct.sell_price || 0) : (item.unit_price || 0),
+                                                    // Optional: auto-fill other fields if product has them
+                                                    // tax_rate: selectedProduct?.tax_rate || 0 
+                                                });
+                                            }}
+                                        />
                                     ) : (
                                         <span className="font-medium">{item.product?.name || 'N/A'}</span>
                                     )}
@@ -146,6 +146,7 @@ export function LineItemsTable({
                                 {editable && (
                                     <TableCell>
                                         <Button
+                                            type="button"
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => onRemove(index)}
@@ -162,6 +163,7 @@ export function LineItemsTable({
 
             {editable && (
                 <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={onAdd}

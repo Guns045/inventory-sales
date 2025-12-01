@@ -47,7 +47,7 @@ export function SalesOrderTable({
                 actions.canDelete = true;
             }
             if (order.status === 'PROCESSING') {
-                actions.canShip = true;
+                // actions.canShip = true; // Removed: Processing orders are handled in Delivery Order page
             }
             // Super Admin can delete anytime? Original code said "disabled={order.status !== 'PENDING'}" for delete
             // So sticking to PENDING only for delete for now.

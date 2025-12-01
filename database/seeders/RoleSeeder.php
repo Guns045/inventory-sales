@@ -17,30 +17,45 @@ class RoleSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
+        // Truncate permission tables to avoid guard mismatch issues
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        \DB::table('role_has_permissions')->truncate();
+        \DB::table('model_has_roles')->truncate();
+        \DB::table('model_has_permissions')->truncate();
+        \DB::table('roles')->truncate();
+        \DB::table('permissions')->truncate();
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         // Load menu config to get all permissions
         $menuConfig = Config::get('menu');
         $allPermissions = $this->extractPermissions($menuConfig);
 
         // Create permissions
         foreach ($allPermissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'sanctum']);
         }
+
+        // Explicitly create dashboard permissions if not exists
+        Permission::firstOrCreate(['name' => 'dashboard.sales', 'guard_name' => 'sanctum']);
+        Permission::firstOrCreate(['name' => 'dashboard.warehouse', 'guard_name' => 'sanctum']);
+        Permission::firstOrCreate(['name' => 'dashboard.finance', 'guard_name' => 'sanctum']);
 
         // Create Roles and Assign Permissions
 
         // 1. Super Admin
-        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin']);
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'sanctum']);
         $superAdmin->givePermissionTo(Permission::all());
 
         // 2. Admin (Access to most, but maybe restricted from some system settings if needed)
         // For now, giving full access similar to Super Admin but conceptually different
-        $admin = Role::firstOrCreate(['name' => 'Admin']);
+        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'sanctum']);
         $admin->givePermissionTo(Permission::all());
 
         // 3. Sales
-        $sales = Role::firstOrCreate(['name' => 'Sales']);
+        $sales = Role::firstOrCreate(['name' => 'Sales', 'guard_name' => 'sanctum']);
         $salesPermissions = [
             'dashboard.read',
+            'dashboard.sales', // Add specific dashboard permission
             'customers.read',
             'customers.create',
             'customers.update',
@@ -49,18 +64,19 @@ class RoleSeeder extends Seeder
             'quotations.update',
             'quotations.submit',
             'quotations.convert',
-            'sales_orders.read',
+            'sales-orders.read',
             'products.read',
-            'stock.read',
+            'product-stock.read',
             'invoices.read',
             'payments.read'
         ];
         $this->syncPermissionsToRole($sales, $salesPermissions);
 
         // 4. Warehouse
-        $warehouse = Role::firstOrCreate(['name' => 'Warehouse']);
+        $warehouse = Role::firstOrCreate(['name' => 'Warehouse', 'guard_name' => 'sanctum']);
         $warehousePermissions = [
             'dashboard.read',
+            'dashboard.warehouse',
             'products.read',
             'products.create',
             'products.update',
@@ -70,23 +86,42 @@ class RoleSeeder extends Seeder
             'purchase-orders.read',
             'purchase-orders.create',
             'purchase-orders.update',
-            'goods_receipts.read',
-            'goods_receipts.create',
-            'goods_receipts.update',
+            'goods-receipts.read',
+            'goods-receipts.create',
+            'goods-receipts.update',
             'picking-lists.read',
             'picking-lists.create',
             'picking-lists.update',
             'picking-lists.complete',
-            'delivery_orders.read',
-            'delivery_orders.create',
-            'delivery_orders.update',
+            'delivery-orders.read',
+            'delivery-orders.create',
+            'delivery-orders.update',
             'warehouse-transfers.read',
             'warehouse-transfers.create',
             'warehouse-transfers.update',
-            'stock.read',
+            'product-stock.read',
             'warehouses.read'
         ];
         $this->syncPermissionsToRole($warehouse, $warehousePermissions);
+
+        // 5. Finance
+        $finance = Role::firstOrCreate(['name' => 'Finance', 'guard_name' => 'sanctum']);
+        $financePermissions = [
+            'dashboard.read',
+            'dashboard.finance',
+            'customers.read',
+            'customers.update',
+            'sales-orders.read',
+            'purchase-orders.read',
+            'invoices.read',
+            'invoices.create',
+            'invoices.update',
+            'payments.read',
+            'payments.create',
+            'payments.update',
+            'reports.read'
+        ];
+        $this->syncPermissionsToRole($finance, $financePermissions);
     }
 
     private function extractPermissions(array $menuItems): array
@@ -103,11 +138,12 @@ class RoleSeeder extends Seeder
 
         // Add CRUD variations for common resources if not explicitly in menu
         // This is a simplification; in a real app, we might define these more explicitly
-        $resources = ['users', 'roles', 'products', 'customers', 'suppliers', 'quotations', 'sales_orders', 'purchase_orders', 'goods_receipts', 'delivery_orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists'];
+        $resources = ['users', 'roles', 'products', 'product-stock', 'customers', 'suppliers', 'quotations', 'sales-orders', 'purchase-orders', 'goods-receipts', 'delivery-orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists'];
         foreach ($resources as $resource) {
             $permissions[] = "{$resource}.create";
             $permissions[] = "{$resource}.update";
             $permissions[] = "{$resource}.delete";
+            $permissions[] = "{$resource}.read"; // Ensure read permission is created
             // Add specific actions
             if ($resource === 'quotations') {
                 $permissions[] = 'quotations.submit';

@@ -60,7 +60,8 @@ const GoodsReceipts = () => {
   const fetchPurchaseOrders = async () => {
     try {
       const response = await api.get('/purchase-orders/ready-for-goods-receipt');
-      setPurchaseOrders(Array.isArray(response.data) ? response.data : []);
+      const data = response.data.data || response.data;
+      setPurchaseOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
@@ -84,16 +85,20 @@ const GoodsReceipts = () => {
     }));
 
     if (selectedPO) {
-      const poItems = selectedPO.items.map(item => ({
-        purchase_order_item_id: item.id,
-        product_id: item.product_id,
-        product_name: item.product?.name || 'Unknown',
-        quantity_ordered: item.quantity_ordered || item.quantity,
-        quantity_received: item.quantity_ordered || item.quantity,
-        unit_price: item.unit_price,
-        condition: 'GOOD',
-        batch_number: ''
-      }));
+      const poItems = selectedPO.items.map(item => {
+        const remaining = (item.quantity_ordered || item.quantity) - (item.quantity_received || 0);
+        return {
+          purchase_order_item_id: item.id,
+          product_id: item.product_id,
+          product_name: item.product?.name || 'Unknown',
+          quantity_ordered: item.quantity_ordered || item.quantity,
+          quantity_already_received: item.quantity_received || 0,
+          quantity_received: remaining > 0 ? remaining : 0,
+          unit_price: item.unit_price,
+          condition: 'GOOD',
+          batch_number: ''
+        };
+      });
       setItems(poItems);
     } else {
       setItems([]);
@@ -179,8 +184,8 @@ const GoodsReceipts = () => {
   };
 
   // Permissions
-  const canReceive = (receipt) => hasPermission('edit_goods_receipts') && receipt.status === 'PENDING';
-  const canDeleteReceipt = (receipt) => hasPermission('edit_goods_receipts') && receipt.status === 'PENDING';
+  const canReceive = (receipt) => hasPermission('goods-receipts.update') && receipt.status === 'PENDING';
+  const canDeleteReceipt = (receipt) => hasPermission('goods-receipts.update') && receipt.status === 'PENDING';
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -194,7 +199,7 @@ const GoodsReceipts = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          {hasPermission('create_goods_receipts') && (
+          {hasPermission('goods-receipts.create') && (
             <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Receipt
@@ -276,8 +281,9 @@ const GoodsReceipts = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="w-[100px]">Ordered</TableHead>
-                      <TableHead className="w-[100px]">Received</TableHead>
+                      <TableHead className="w-[80px]">Ordered</TableHead>
+                      <TableHead className="w-[80px]">Prev. Rcv</TableHead>
+                      <TableHead className="w-[100px]">Received Now</TableHead>
                       <TableHead className="w-[120px]">Condition</TableHead>
                       <TableHead className="w-[120px]">Batch #</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -288,6 +294,7 @@ const GoodsReceipts = () => {
                       <TableRow key={index}>
                         <TableCell>{item.product_name}</TableCell>
                         <TableCell>{item.quantity_ordered}</TableCell>
+                        <TableCell>{item.quantity_already_received}</TableCell>
                         <TableCell>
                           <Input
                             type="number"

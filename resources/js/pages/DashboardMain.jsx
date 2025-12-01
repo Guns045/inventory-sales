@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Overview } from "@/components/dashboard/Overview";
 import { RecentSales } from "@/components/dashboard/RecentSales";
 import CriticalStockTable from "@/components/dashboard/CriticalStockTable";
@@ -12,18 +12,19 @@ export default function DashboardMain() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await api.get('/dashboard/admin');
-        setData(response.data);
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      const response = await api.get('/dashboard/admin');
+      setData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      // If error is 403, it might be role issue, handled by backend error response now
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -31,6 +32,17 @@ export default function DashboardMain() {
   const summary = data?.summary || {};
   const criticalStocks = data?.critical_stocks || [];
   const pendingApprovals = data?.pending_quotations || [];
+
+  if (data?.error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Dashboard Error: </strong>
+          <span className="block sm:inline">{data.error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -88,7 +100,10 @@ export default function DashboardMain() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
+            <CardTitle>Monthly Sales Revenue</CardTitle>
+            <CardDescription>
+              Revenue performance over the last 12 months
+            </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <Overview data={data?.monthly_sales || []} />
@@ -102,7 +117,7 @@ export default function DashboardMain() {
             </div>
           </CardHeader>
           <CardContent>
-            <RecentSales />
+            <RecentSales data={data?.recent_sales || []} />
           </CardContent>
         </Card>
       </div>
@@ -113,7 +128,7 @@ export default function DashboardMain() {
           <CriticalStockTable items={criticalStocks} />
         </div>
         <div className="col-span-1">
-          <ApprovalTable items={pendingApprovals} />
+          <ApprovalTable items={pendingApprovals} onRefresh={fetchData} />
         </div>
       </div>
     </div>

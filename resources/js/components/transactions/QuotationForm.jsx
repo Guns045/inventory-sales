@@ -35,6 +35,13 @@ export function QuotationForm({
         }
     });
 
+    // Register custom form fields
+    useEffect(() => {
+        register('customer_id');
+        register('warehouse_id');
+        register('status');
+    }, [register]);
+
     const {
         items,
         addItem,
@@ -80,8 +87,10 @@ export function QuotationForm({
         await onSubmit(payload);
     };
 
-    // Watch status to conditionally show rejection info if needed (though usually handled by parent or separate component)
+    // Watch values for controlled inputs
     const status = watch('status');
+    const customerId = watch('customer_id');
+    const warehouseId = watch('warehouse_id');
 
     return (
         <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
@@ -94,8 +103,8 @@ export function QuotationForm({
                         <div className="space-y-2">
                             <Label htmlFor="customer_id">Customer</Label>
                             <Select
-                                onValueChange={(value) => setValue('customer_id', value)}
-                                defaultValue={initialData?.customer_id?.toString()}
+                                value={customerId}
+                                onValueChange={(value) => setValue('customer_id', value, { shouldValidate: true })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Customer" />
@@ -114,8 +123,8 @@ export function QuotationForm({
                         <div className="space-y-2">
                             <Label htmlFor="warehouse_id">Warehouse</Label>
                             <Select
-                                onValueChange={(value) => setValue('warehouse_id', value)}
-                                defaultValue={initialData?.warehouse_id?.toString()}
+                                value={warehouseId}
+                                onValueChange={(value) => setValue('warehouse_id', value, { shouldValidate: true })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Warehouse" />
@@ -134,8 +143,8 @@ export function QuotationForm({
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>
                             <Select
-                                onValueChange={(value) => setValue('status', value)}
-                                defaultValue={initialData?.status || 'DRAFT'}
+                                value={status}
+                                onValueChange={(value) => setValue('status', value, { shouldValidate: true })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Status" />

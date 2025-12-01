@@ -28,8 +28,8 @@ class PickingListService
         return DB::transaction(function () use ($salesOrderId, $user, $notes) {
             $salesOrder = SalesOrder::with(['items.product'])->findOrFail($salesOrderId);
 
-            if ($salesOrder->status !== 'PENDING') {
-                throw new \Exception('Sales Order is not in PENDING status.');
+            if (!in_array($salesOrder->status, ['PENDING', 'PROCESSING'])) {
+                throw new \Exception('Sales Order is not in PENDING or PROCESSING status.');
             }
 
             $existingPickingList = PickingList::where('sales_order_id', $salesOrder->id)
@@ -40,8 +40,8 @@ class PickingListService
                 throw new \Exception('Picking List already exists for this Sales Order.');
             }
 
-            // Determine warehouse ID based on user or default
-            $warehouseId = $this->getUserWarehouseIdForPicking($user);
+            // Use Sales Order warehouse ID to ensure consistency
+            $warehouseId = $salesOrder->warehouse_id;
 
             $pickingList = PickingList::create([
                 'picking_list_number' => $this->generatePickingListNumber($warehouseId),
@@ -59,7 +59,7 @@ class PickingListService
                     'picking_list_id' => $pickingList->id,
                     'product_id' => $item->product_id,
                     'warehouse_id' => $productStock?->warehouse_id,
-                    'location_code' => $productStock?->location_code ?? $item->product->location_code ?? null,
+                    'location_code' => $productStock?->bin_location ?? $item->product->location_code ?? null,
                     'quantity_required' => $item->quantity,
                     'quantity_picked' => 0,
                     'status' => 'PENDING',
@@ -182,6 +182,103 @@ class PickingListService
 
             $pickingList->delete();
         });
+    }
+
+    /**
+     * Generate PDF for Picking List.
+     *
+     * @param PickingList $pickingList
+     * @return \Barryvdh\DomPDF\PDF
+     */
+    public function generatePDF(PickingList $pickingList)
+    {
+        $pickingList->load(['salesOrder.customer', 'items.product', 'user', 'warehouse']);
+
+        // AUTO-FIX: Refresh item locations from ProductStock
+        // This ensures that if ProductStock locations change (or were initially wrong), the PL is updated.
+        // Only do this if status is not COMPLETED/CANCELLED to preserve history for finished orders.
+        if (!in_array($pickingList->status, ['COMPLETED', 'CANCELLED'])) {
+            foreach ($pickingList->items as $item) {
+                $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)
+                    ->where('warehouse_id', $pickingList->salesOrder->warehouse_id) // Match SO warehouse
+                    ->first();
+
+                if ($productStock && $productStock->bin_location) {
+                    $item->update(['location_code' => $productStock->bin_location]);
+                }
+            }
+
+            // AUTO-FIX: Correct Picking List Number if Warehouse Code mismatches
+            // e.g. PL-004/MKS/11-2025 but SO is JKT -> PL-004/JKT/11-2025
+            $soWarehouse = $pickingList->salesOrder->warehouse;
+            if ($soWarehouse) {
+                $warehouseCode = $soWarehouse->code ?? ($soWarehouse->id == 1 ? 'JKT' : 'MKS'); // Fallback if code missing
+
+                $parts = explode('/', $pickingList->picking_list_number);
+                if (count($parts) >= 3) {
+                    $currentCode = $parts[1];
+                    if ($currentCode !== $warehouseCode) {
+                        $parts[1] = $warehouseCode;
+                        $newNumber = implode('/', $parts);
+
+                        // Check uniqueness before updating
+                        if (!\App\Models\PickingList::where('picking_list_number', $newNumber)->exists()) {
+                            $pickingList->update(['picking_list_number' => $newNumber]);
+                        }
+                    }
+                }
+            }
+
+            // Reload relationships after updates
+            $pickingList->refresh();
+            $pickingList->load(['salesOrder.customer', 'items.product', 'user', 'warehouse']);
+        }
+
+        $companyData = \App\Transformers\PickingListTransformer::getCompanyData();
+        $pickingListData = \App\Transformers\PickingListTransformer::transform($pickingList);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.picking-list', [
+            'company' => $companyData,
+            'pl' => $pickingListData
+        ]);
+
+        return $pdf;
+    }
+
+    /**
+     * Generate PDF for Warehouse Transfer.
+     *
+     * @param \App\Models\WarehouseTransfer $transfer
+     * @return array
+     */
+    public function generatePDFFromTransfer(\App\Models\WarehouseTransfer $transfer)
+    {
+        // Try to find existing Picking List for this transfer
+        $pickingList = PickingList::where('notes', 'LIKE', "%{$transfer->transfer_number}%")->first();
+
+        // If we found the real PL, pass its number to avoid generating a new one
+        $existingNumber = $pickingList ? $pickingList->picking_list_number : null;
+
+        $data = \App\Transformers\PickingListTransformer::transformFromWarehouseTransfer($transfer, $existingNumber);
+
+        // If we found the real PL, override other fields if needed
+        if ($pickingList) {
+            $data['status'] = $pickingList->status;
+            $data['picker'] = $pickingList->user->name ?? $data['picker'];
+        }
+
+        $companyData = \App\Transformers\PickingListTransformer::getCompanyData();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.picking-list', [
+            'company' => $companyData,
+            'pl' => $data
+        ]);
+
+        return [
+            'pdf_content' => base64_encode($pdf->output()),
+            'filename' => 'PickingList-' . $data['PL'] . '.pdf',
+            'picking_list_number' => $data['PL']
+        ];
     }
 
     /**

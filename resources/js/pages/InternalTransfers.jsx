@@ -10,6 +10,7 @@ import { Plus, Search, RefreshCw } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ProductCombobox } from "@/components/common/ProductCombobox";
 
 const InternalTransfers = () => {
   const { api } = useAPI();
@@ -186,29 +187,62 @@ const InternalTransfers = () => {
       const response = await api.post('/picking-lists/from-transfer', {
         warehouse_transfer_id: transfer.id
       });
-      showSuccess(`Picking List ${response.data.picking_list_number} generated!`);
-      // Logic to download PDF would go here
+
+      const { picking_list_number, pdf_content, filename } = response.data;
+
+      showSuccess(`Picking List ${picking_list_number} generated!`);
+
+      // Handle PDF download
+      if (pdf_content) {
+        const byteCharacters = atob(pdf_content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+
+        // Open in new tab or download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || `PickingList-${picking_list_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
     } catch (err) {
       showError('Failed to generate picking list');
+      console.error(err);
     }
   };
 
   // Permission checks
+  // Permission checks
+  const getRoleName = (user) => {
+    if (!user || !user.role) return '';
+    return typeof user.role === 'string' ? user.role : user.role.name;
+  };
+
   const canApprove = (transfer) => {
-    if (['Super Admin', 'Admin'].includes(user?.role?.name)) return true;
-    if (user?.role?.name === 'Gudang' && user?.warehouse_id === transfer.warehouse_from_id) return true;
+    const roleName = getRoleName(user);
+    if (['Super Admin', 'Admin'].includes(roleName)) return true;
+    if (roleName === 'Gudang' && user?.warehouse_id === transfer.warehouse_from_id) return true;
     return false;
   };
 
   const canDeliver = (transfer) => {
-    if (['Super Admin', 'Admin'].includes(user?.role?.name)) return true;
-    if (user?.role?.name === 'Gudang' && user?.warehouse_id === transfer.warehouse_from_id) return true;
+    const roleName = getRoleName(user);
+    if (['Super Admin', 'Admin'].includes(roleName)) return true;
+    if (roleName === 'Gudang' && user?.warehouse_id === transfer.warehouse_from_id) return true;
     return false;
   };
 
   const canReceive = (transfer) => {
-    if (['Super Admin', 'Admin'].includes(user?.role?.name)) return true;
-    if (user?.role?.name === 'Gudang' && user?.warehouse_id === transfer.warehouse_to_id) return true;
+    const roleName = getRoleName(user);
+    if (['Super Admin', 'Admin'].includes(roleName)) return true;
+    if (roleName === 'Gudang' && user?.warehouse_id === transfer.warehouse_to_id) return true;
     return false;
   };
 
@@ -295,17 +329,12 @@ const InternalTransfers = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Product</Label>
-                <Select
+                <ProductCombobox
+                  products={products}
                   value={formData.product_id}
-                  onValueChange={(v) => setFormData({ ...formData, product_id: v })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select Product" /></SelectTrigger>
-                  <SelectContent>
-                    {products.map(p => (
-                      <SelectItem key={p.id} value={p.id.toString()}>{p.sku} - {p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => setFormData({ ...formData, product_id: v })}
+                  placeholder="Select Product"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Quantity</Label>

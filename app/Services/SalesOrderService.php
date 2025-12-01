@@ -14,6 +14,13 @@ class SalesOrderService
 {
     use DocumentNumberHelper;
 
+    protected $productStockService;
+
+    public function __construct(ProductStockService $productStockService)
+    {
+        $this->productStockService = $productStockService;
+    }
+
     /**
      * Create a new Sales Order
      *
@@ -66,6 +73,15 @@ class SalesOrderService
                         // 'total_price' => ... 
                     ]);
 
+                    // Reserve Stock
+                    $this->productStockService->reserveStock(
+                        $qItem->product_id,
+                        $warehouseId,
+                        $qItem->quantity,
+                        'App\Models\SalesOrder',
+                        $salesOrder->id
+                    );
+
                     // Recalculate total logic should be robust
                     $totalAmount += $itemTotal; // Simplified
                 }
@@ -83,6 +99,15 @@ class SalesOrderService
                         'discount_percentage' => $item['discount_percentage'] ?? 0,
                         'tax_rate' => $item['tax_rate'] ?? 0,
                     ]);
+
+                    // Reserve Stock
+                    $this->productStockService->reserveStock(
+                        $item['product_id'],
+                        $warehouseId,
+                        $item['quantity'],
+                        'App\Models\SalesOrder',
+                        $salesOrder->id
+                    );
 
                     $totalAmount += $item['quantity'] * $item['unit_price'];
                 }
@@ -144,16 +169,31 @@ class SalesOrderService
      */
     public function updateStatus(SalesOrder $salesOrder, string $status): SalesOrder
     {
-        $salesOrder->update(['status' => $status]);
+        return DB::transaction(function () use ($salesOrder, $status) {
+            $oldStatus = $salesOrder->status;
 
-        ActivityLog::create([
-            'user_id' => auth()->id(),
-            'action' => 'Updated SO Status',
-            'description' => "Changed SO {$salesOrder->sales_order_number} status to {$status}",
-            'reference_type' => 'SalesOrder',
-            'reference_id' => $salesOrder->id,
-        ]);
+            // If cancelling, release stock
+            if ($status === 'CANCELLED' && $oldStatus !== 'CANCELLED') {
+                foreach ($salesOrder->items as $item) {
+                    $this->productStockService->releaseStock(
+                        $item->product_id,
+                        $salesOrder->warehouse_id,
+                        $item->quantity
+                    );
+                }
+            }
 
-        return $salesOrder;
+            $salesOrder->update(['status' => $status]);
+
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'Updated SO Status',
+                'description' => "Changed SO {$salesOrder->sales_order_number} status to {$status}",
+                'reference_type' => 'SalesOrder',
+                'reference_id' => $salesOrder->id,
+            ]);
+
+            return $salesOrder;
+        });
     }
 }

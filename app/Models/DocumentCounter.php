@@ -32,6 +32,7 @@ class DocumentCounter extends Model
 
         // Get warehouse code - if no warehouseId provided, we must use GEN
         if (!$warehouseId) {
+            \Illuminate\Support\Facades\Log::warning('DocumentCounter: No warehouse ID provided, using GEN', ['type' => $documentType]);
             $warehouseCode = 'GEN';
             $counterWarehouseId = null;
         } else {
@@ -40,6 +41,7 @@ class DocumentCounter extends Model
                 $warehouseCode = explode('-', $warehouse->code)[0]; // JKT-01 -> JKT
                 $counterWarehouseId = $warehouseId;
             } else {
+                \Illuminate\Support\Facades\Log::error('DocumentCounter: Warehouse not found', ['id' => $warehouseId]);
                 // Invalid warehouse ID - throw exception instead of using GEN
                 throw new \Exception("Warehouse with ID {$warehouseId} not found");
             }

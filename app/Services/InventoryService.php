@@ -178,7 +178,6 @@ class InventoryService
                     'quantity_change' => -$actualQuantity,
                     'previous_quantity' => $productStock->quantity + $actualQuantity,
                     'new_quantity' => $newQuantity,
-                    'movement_date' => now(),
                     'reference_type' => 'SalesOrder',
                     'reference_id' => $salesOrder->id,
                     'reference_number' => $salesOrder->sales_order_number,
@@ -241,7 +240,6 @@ class InventoryService
                     'quantity_change' => $reserveQuantity,
                     'previous_quantity' => $productStock->reserved_quantity - $reserveQuantity,
                     'new_quantity' => $productStock->reserved_quantity,
-                    'movement_date' => now(),
                     'reference_type' => 'SalesOrder',
                     'reference_id' => $salesOrder->id,
                     'reference_number' => $salesOrder->sales_order_number,
@@ -250,5 +248,102 @@ class InventoryService
                 ]);
             }
         }
+    }
+    /**
+     * Get available stock for a product in a specific warehouse
+     *
+     * @param int $productId
+     * @param int $warehouseId
+     * @return int
+     */
+    public function getAvailableStock(int $productId, int $warehouseId): int
+    {
+        $stock = ProductStock::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if (!$stock) {
+            return 0;
+        }
+
+        return max(0, $stock->quantity - $stock->reserved_quantity);
+    }
+
+    /**
+     * Reduce stock from a warehouse
+     *
+     * @param int $productId
+     * @param int $warehouseId
+     * @param int $quantity
+     * @param string $notes
+     * @param int|null $referenceId
+     * @param string|null $referenceType
+     * @return void
+     * @throws \Exception
+     */
+    public function reduceStock(int $productId, int $warehouseId, int $quantity, string $notes, $referenceId = null, $referenceType = null): void
+    {
+        $stock = ProductStock::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if (!$stock) {
+            throw new \Exception("Stock record not found for product {$productId} in warehouse {$warehouseId}");
+        }
+
+        if (($stock->quantity - $stock->reserved_quantity) < $quantity) {
+            throw new \Exception("Insufficient available stock. Available: " . ($stock->quantity - $stock->reserved_quantity));
+        }
+
+        $previousQuantity = $stock->quantity;
+        $stock->decrement('quantity', $quantity);
+
+        StockMovement::create([
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'type' => 'OUT',
+            'quantity_change' => -$quantity,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $stock->quantity,
+            'notes' => $notes,
+            'reference_id' => $referenceId,
+            'reference_type' => $referenceType,
+            'created_by' => auth()->id() ?? 1, // Fallback to 1 if no user (e.g. seeder/job)
+        ]);
+    }
+
+    /**
+     * Add stock to a warehouse
+     *
+     * @param int $productId
+     * @param int $warehouseId
+     * @param int $quantity
+     * @param string $notes
+     * @param int|null $referenceId
+     * @param string|null $referenceType
+     * @return void
+     */
+    public function addStock(int $productId, int $warehouseId, int $quantity, string $notes, $referenceId = null, $referenceType = null): void
+    {
+        $stock = ProductStock::firstOrCreate(
+            ['product_id' => $productId, 'warehouse_id' => $warehouseId],
+            ['quantity' => 0, 'reserved_quantity' => 0, 'aisle' => 'A', 'rack' => '1', 'shelf' => '1', 'bin' => '1']
+        );
+
+        $previousQuantity = $stock->quantity;
+        $stock->increment('quantity', $quantity);
+
+        StockMovement::create([
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'type' => 'IN',
+            'quantity_change' => $quantity,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $stock->quantity,
+            'notes' => $notes,
+            'reference_id' => $referenceId,
+            'reference_type' => $referenceType,
+            'created_by' => auth()->id() ?? 1,
+        ]);
     }
 }

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
 const AuthContext = createContext();
 
@@ -24,6 +25,36 @@ export const AuthProvider = ({ children }) => {
     }
   });
 
+  // Refresh user data on mount if token exists
+  useEffect(() => {
+    const refreshUserData = async () => {
+      if (token) {
+        try {
+          const response = await axios.get('/api/user/permissions', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json'
+            }
+          });
+
+          if (response.data && response.data.user) {
+            console.log('Refreshed user data:', response.data.user);
+            const updatedUser = response.data.user;
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        } catch (error) {
+          console.error('Failed to refresh user data:', error);
+          if (error.response && error.response.status === 401) {
+            logout();
+          }
+        }
+      }
+    };
+
+    refreshUserData();
+  }, [token]);
+
   const login = (token, userData) => {
     setToken(token);
     setUser(userData);
@@ -36,6 +67,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    window.location.href = '/login';
   };
 
   // Validate token format

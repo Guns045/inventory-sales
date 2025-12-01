@@ -7,26 +7,25 @@ import { DeliveryOrderTable } from '@/components/warehouse/DeliveryOrderTable';
 import { RefreshCw } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 
+import DeliveryOrderDetailsModal from '@/components/warehouse/DeliveryOrderDetailsModal';
+
 const DeliveryOrders = () => {
   const { api } = useAPI();
   const { showSuccess, showError } = useToast();
 
   const [salesOrders, setSalesOrders] = useState([]);
-  const [deliveryOrders, setDeliveryOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('sales');
+
+  // Modal state
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   // Pagination state
   const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
-  const [transferPagination, setTransferPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
 
   useEffect(() => {
-    if (activeTab === 'sales') {
-      fetchSalesDeliveryOrders();
-    } else {
-      fetchTransferDeliveryOrders();
-    }
-  }, [activeTab]);
+    fetchSalesDeliveryOrders();
+  }, []);
 
   const fetchSalesDeliveryOrders = async (page = 1) => {
     try {
@@ -47,28 +46,20 @@ const DeliveryOrders = () => {
     }
   };
 
-  const fetchTransferDeliveryOrders = async (page = 1) => {
-    try {
-      setLoading(true);
-      const response = await api.get(`/delivery-orders?source_type=IT&page=${page}`);
-      const data = response.data.data || response.data || [];
-      setDeliveryOrders(data);
-      setTransferPagination({
-        current_page: response.data.current_page || 1,
-        last_page: response.data.last_page || 1,
-        total: response.data.total || 0
-      });
-    } catch (err) {
-      showError('Failed to fetch transfer delivery orders');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleUpdateStatus = async (order, status) => {
     try {
-      await api.put(`/delivery-orders/${order.id}/status`, { status });
+      let orderId = order.id;
+
+      // If it's a pending SO, create DO first
+      if (order.is_pending_so) {
+        const createResponse = await api.post('/delivery-orders/from-sales-order', {
+          sales_order_id: order.sales_order_id
+        });
+        // Handle response structure (resource might be wrapped in data)
+        orderId = createResponse.data.data?.id || createResponse.data.id;
+      }
+
+      await api.put(`/delivery-orders/${orderId}/status`, { status });
 
       const successMessages = {
         'READY_TO_SHIP': 'Status updated to READY_TO_SHIP!',
@@ -77,8 +68,7 @@ const DeliveryOrders = () => {
       };
       showSuccess(successMessages[status] || 'Status updated successfully!');
 
-      if (activeTab === 'sales') fetchSalesDeliveryOrders(salesPagination.current_page);
-      else fetchTransferDeliveryOrders(transferPagination.current_page);
+      fetchSalesDeliveryOrders(salesPagination.current_page);
 
     } catch (error) {
       showError(error.response?.data?.message || 'Failed to update status');
@@ -90,11 +80,14 @@ const DeliveryOrders = () => {
       const response = await api.post('/picking-lists/from-sales-order', {
         sales_order_id: order.sales_order_id
       });
-      showSuccess(`Picking List ${response.data.picking_list_number} generated!`);
+      const pickingListNumber = response.data.data?.picking_list_number || response.data.picking_list_number || 'Generated';
+      showSuccess(`Picking List ${pickingListNumber} generated!`);
 
       if (response.data.pdf_content) {
         downloadAndOpenPDF(response.data.pdf_content, response.data.filename);
       }
+
+      fetchSalesDeliveryOrders(salesPagination.current_page);
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to generate picking list');
     }
@@ -132,9 +125,23 @@ const DeliveryOrders = () => {
     }
   };
 
+  const handlePrintPickingList = async (order) => {
+    try {
+      const pickingListId = order.picking_list_id || order.picking_list?.id;
+      if (!pickingListId) return;
+
+      const response = await api.get(`/picking-lists/${pickingListId}/print`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      showError('Failed to print picking list');
+    }
+  };
+
   const handleView = (order) => {
-    // Placeholder for view details modal
-    console.log('View order', order);
+    setSelectedOrder(order);
+    setIsViewModalOpen(true);
   };
 
   return (
@@ -142,62 +149,40 @@ const DeliveryOrders = () => {
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Delivery Management</h2>
-          <p className="text-muted-foreground">Manage delivery orders for sales and internal transfers</p>
+          <p className="text-muted-foreground">Manage delivery orders for sales</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => activeTab === 'sales' ? fetchSalesDeliveryOrders() : fetchTransferDeliveryOrders()}>
+          <Button variant="outline" onClick={() => fetchSalesDeliveryOrders()}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="sales" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="sales">Sales Orders ({salesPagination.total})</TabsTrigger>
-          <TabsTrigger value="transfer">Internal Transfer ({transferPagination.total})</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Orders Delivery</CardTitle>
+          <CardDescription>Manage deliveries for customer sales orders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DeliveryOrderTable
+            data={salesOrders}
+            loading={loading}
+            type="sales"
+            onView={handleView}
+            onUpdateStatus={handleUpdateStatus}
+            onPrint={handlePrintDeliveryOrder}
+            onCreatePickingList={handleCreatePickingList}
+            onPrintPickingList={handlePrintPickingList}
+          />
+        </CardContent>
+      </Card>
 
-        <TabsContent value="sales" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales Orders Delivery</CardTitle>
-              <CardDescription>Manage deliveries for customer sales orders</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DeliveryOrderTable
-                data={salesOrders}
-                loading={loading}
-                type="sales"
-                onView={handleView}
-                onUpdateStatus={handleUpdateStatus}
-                onPrint={handlePrintDeliveryOrder}
-                onCreatePickingList={handleCreatePickingList}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="transfer" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Internal Transfer Delivery</CardTitle>
-              <CardDescription>Manage deliveries for internal warehouse transfers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DeliveryOrderTable
-                data={deliveryOrders}
-                loading={loading}
-                type="transfer"
-                onView={handleView}
-                onUpdateStatus={handleUpdateStatus}
-                onPrint={handlePrintDeliveryOrder}
-                onCreatePickingList={handleCreatePickingList}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <DeliveryOrderDetailsModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        order={selectedOrder}
+      />
     </div>
   );
 };

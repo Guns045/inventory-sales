@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input"
 import { useAuth } from "@/contexts/AuthContext"
 import { useAPI } from "@/contexts/APIContext"
 
+import { Eye, EyeOff } from "lucide-react"
+
 export function LoginForm({
     className,
     ...props
@@ -20,6 +22,7 @@ export function LoginForm({
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -52,7 +55,13 @@ export function LoginForm({
             if (response.data.token && response.data.user && login) {
                 login(response.data.token, response.data.user);
                 setTimeout(() => {
-                    window.location.href = '/dashboard';
+                    // Redirect based on role
+                    const role = response.data.user.role ? response.data.user.role.name : '';
+                    if (role === 'Sales') {
+                        window.location.href = '/dashboard/sales';
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
                 }, 100);
             }
         } catch (err) {
@@ -71,7 +80,7 @@ export function LoginForm({
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
                     <CardDescription>
-                        Login to your Acme Inc account
+                        Login to your account
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -98,35 +107,49 @@ export function LoginForm({
                                         Forgot your password?
                                     </a>
                                 </div>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                            <Eye className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                             {error && (
                                 <div className="text-sm text-red-500 text-center">
                                     {error}
                                 </div>
                             )}
-                            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
+                            <Button type="submit" className="w-full bg-[#1e40af] hover:bg-[#1e3a8a] text-white" disabled={loading}>
                                 {loading ? "Logging in..." : "Login"}
                             </Button>
                             <div className="text-center text-sm">
                                 Don&apos;t have an account?{" "}
-                                <a href="#" className="text-blue-600 hover:underline">
-                                    Sign up
-                                </a>
+                                <span className="text-muted-foreground">
+                                    contact admin
+                                </span>
                             </div>
                         </div>
                     </form>
                 </CardContent>
             </Card>
             <div className="text-balance text-center text-xs text-muted-foreground">
-                By clicking continue, you agree to our <a href="#" className="underline hover:text-primary">Terms of Service</a>{" "}
-                and <a href="#" className="underline hover:text-primary">Privacy Policy</a>.
+                Powered by Jinan Truck Power Indonesia
             </div>
         </div>
     )

@@ -56,4 +56,9 @@ class SalesOrder extends Model
     {
         return $this->hasOne(Invoice::class);
     }
+
+    public function pickingList()
+    {
+        return $this->hasOne(PickingList::class);
+    }
 }

@@ -1,7 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Spinner, Alert, ListGroup, Badge, Modal, Form } from 'react-bootstrap';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Link } from 'react-router-dom';
 import { useAPI } from '../../contexts/APIContext';
+import {
+  DollarSign,
+  TrendingUp,
+  FileText,
+  ShoppingCart,
+  RefreshCw,
+  Truck,
+  CheckCircle,
+  Receipt,
+  Eye,
+  Building,
+  Calendar
+} from "lucide-react";
 
 const FinanceDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -23,9 +41,11 @@ const FinanceDashboard = () => {
   }, []);
 
   const fetchFinanceDashboard = async () => {
+    setLoading(true);
     try {
       const response = await api.get('/dashboard/finance');
       setDashboardData(response.data);
+      setError(null);
     } catch (error) {
       console.error('Error fetching finance dashboard:', error);
       setError('Failed to load finance dashboard data');
@@ -90,20 +110,18 @@ const FinanceDashboard = () => {
 
   if (loading) {
     return (
-      <div className="loading">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="danger">
-        <Alert.Heading>Error</Alert.Heading>
+      <div className="p-4 text-red-500 bg-red-50 rounded-md">
+        <h3 className="font-bold">Error</h3>
         <p>{error}</p>
-      </Alert>
+      </div>
     );
   }
 
@@ -114,386 +132,293 @@ const FinanceDashboard = () => {
   const { shipped_sales_orders, completed_sales_orders, finance_summary } = dashboardData;
 
   return (
-    <div>
+    <div className="flex-1 space-y-4 p-8 pt-6">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="flex items-center justify-between space-y-2">
         <div>
-          <h2 className="mb-1">Finance Dashboard</h2>
-          <p className="text-muted mb-0">Daftar SO yang SHIPPED dan Ringkasan Piutang</p>
+          <h2 className="text-3xl font-bold tracking-tight">Finance Dashboard</h2>
+          <p className="text-muted-foreground">Financial Overview and Invoicing</p>
         </div>
-        <Button variant="outline-primary" onClick={fetchFinanceDashboard}>
-          <i className="bi bi-arrow-clockwise me-2"></i>
+        <Button variant="outline" onClick={fetchFinanceDashboard}>
+          <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
       </div>
 
       {/* Finance Summary Cards */}
-      <Row className="mb-4">
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon receivable mx-auto mb-3">
-                <i className="bi bi-cash-stack fs-3"></i>
-              </div>
-              <h3 className="mb-1">{formatCurrency(finance_summary.total_receivable)}</h3>
-              <p className="text-muted mb-0">Total Piutang</p>
-            </Card.Body>
-          </Card>
-        </Col>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Receivable</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(finance_summary.total_receivable)}</div>
+            <p className="text-xs text-muted-foreground">Outstanding Payments</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(finance_summary.monthly_revenue)}</div>
+            <p className="text-xs text-muted-foreground">Revenue this Month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
+            <FileText className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{finance_summary.pending_invoices}</div>
+            <p className="text-xs text-muted-foreground">Orders Ready to Invoice</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{finance_summary.total_orders}</div>
+            <p className="text-xs text-muted-foreground">All Time Orders</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon revenue mx-auto mb-3">
-                <i className="bi bi-graph-up fs-3"></i>
-              </div>
-              <h3 className="mb-1">{formatCurrency(finance_summary.monthly_revenue)}</h3>
-              <p className="text-muted mb-0">Pendapatan Bulan Ini</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon pending-invoices mx-auto mb-3">
-                <i className="bi bi-file-earmark-text fs-3"></i>
-              </div>
-              <h3 className="mb-1">{finance_summary.pending_invoices}</h3>
-              <p className="text-muted mb-0">Pending Invoice</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon total-orders mx-auto mb-3">
-                <i className="bi bi-cart3 fs-3"></i>
-              </div>
-              <h3 className="mb-1">{finance_summary.total_orders}</h3>
-              <p className="text-muted mb-0">Total Orders</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Shipped Orders (Ready for Invoicing) */}
-      <Row className="mb-4">
-        <Col>
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-truck me-2"></i>
-                Sales Order Siap Di-Invoice
-              </h5>
-            </Card.Header>
-            <Card.Body>
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+        {/* Shipped Orders (Ready for Invoicing) */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Truck className="mr-2 h-5 w-5 text-blue-500" />
+              Ready for Invoicing
+            </CardTitle>
+            <CardDescription>Sales Orders with status SHIPPED</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
               {shipped_sales_orders.length > 0 ? (
-                <ListGroup variant="flush">
-                  {shipped_sales_orders.map((order) => (
-                    <ListGroup.Item key={order.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-2">
-                            <h6 className="mb-0 me-2">{order.sales_order_number}</h6>
-                            <Badge bg="success">SHIPPED</Badge>
-                          </div>
-                          <Row className="mb-2">
-                            <Col md={6}>
-                              <p className="text-muted mb-1">
-                                <i className="bi bi-building me-1"></i>
-                                <strong>Pelanggan:</strong> {order.customer?.company_name || 'Unknown Customer'}
-                              </p>
-                              <p className="text-muted mb-1">
-                                <i className="bi bi-calendar me-1"></i>
-                                <strong>Tanggal SO:</strong> {new Date(order.created_at).toLocaleDateString('id-ID')}
-                              </p>
-                            </Col>
-                            <Col md={6}>
-                              <p className="mb-1">
-                                <strong>Subtotal:</strong> {formatCurrency(order.total_amount)}
-                              </p>
-                              <p className="text-muted mb-1">
-                                <i className="bi bi-truck me-1"></i>
-                                <strong>Shipped:</strong> {new Date(order.updated_at).toLocaleDateString('id-ID')}
-                              </p>
-                            </Col>
-                          </Row>
-                          {order.quotation && (
-                            <p className="text-muted mb-1">
-                              <i className="bi bi-file-text me-1"></i>
-                              <strong>Quotation:</strong> {order.quotation.quotation_number}
-                            </p>
-                          )}
-                          {order.items && order.items.length > 0 && (
-                            <div className="mb-2">
-                              <small className="text-muted">
-                                <strong>Items ({order.items.length}):</strong>
-                              </small>
-                              <div className="mt-1">
-                                {order.items.slice(0, 3).map((item, index) => (
-                                  <Badge key={index} bg="light" text="dark" className="me-1 mb-1">
-                                    {item.product?.name || 'Unknown Product'} x{item.quantity}
-                                  </Badge>
-                                ))}
-                                {order.items.length > 3 && (
-                                  <Badge bg="secondary" className="mb-1">
-                                    +{order.items.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => openInvoiceModal(order)}
-                          >
-                            <i className="bi bi-receipt me-1"></i>
-                            Buat Invoice
-                          </Button>
-                          <Link to={`/sales-orders/${order.id}`} className="btn btn-sm btn-outline-secondary">
-                            <i className="bi bi-eye"></i>
-                          </Link>
-                        </div>
+                shipped_sales_orders.map((order) => (
+                  <div key={order.id} className="flex flex-col space-y-2 border-b pb-4 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{order.sales_order_number}</span>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">SHIPPED</Badge>
                       </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
-              ) : (
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-receipt fs-1"></i>
-                  <h5 className="mt-3">Tidak Ada Order Siap Invoice</h5>
-                  <p>Belum ada sales order yang siap untuk dibuatkan invoice</p>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                      <span className="font-bold">{formatCurrency(order.total_amount)}</span>
+                    </div>
 
-      {/* Completed Orders (Already Invoiced) */}
-      <Row>
-        <Col>
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-check-circle me-2"></i>
-                Order Selesai (Sudah Di-Invoice)
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              {completed_sales_orders.length > 0 ? (
-                <ListGroup variant="flush">
-                  {completed_sales_orders.map((order) => (
-                    <ListGroup.Item key={order.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-2">
-                            <h6 className="mb-0 me-2">{order.sales_order_number}</h6>
-                            <Badge bg="success">COMPLETED</Badge>
-                          </div>
-                          <p className="text-muted mb-1">
-                            <i className="bi bi-building me-1"></i>
-                            {order.customer?.company_name || 'Unknown Customer'}
-                          </p>
-                          <p className="mb-1">
-                            <strong>Total:</strong> {formatCurrency(order.total_amount)}
-                          </p>
-                          <p className="text-muted mb-1">
-                            <i className="bi bi-calendar-check me-1"></i>
-                            <strong>Completed:</strong> {new Date(order.updated_at).toLocaleDateString('id-ID')}
-                          </p>
-                          {order.items && order.items.length > 0 && (
-                            <div className="mb-2">
-                              <small className="text-muted">
-                                <strong>Items ({order.items.length}):</strong>
-                              </small>
-                              <div className="mt-1">
-                                {order.items.slice(0, 3).map((item, index) => (
-                                  <Badge key={index} bg="light" text="dark" className="me-1 mb-1">
-                                    {item.product?.name || 'Unknown Product'} x{item.quantity}
-                                  </Badge>
-                                ))}
-                                {order.items.length > 3 && (
-                                  <Badge bg="secondary" className="mb-1">
-                                    +{order.items.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="d-flex gap-2">
-                          <Link to={`/invoices?so=${order.id}`} className="btn btn-sm btn-outline-info">
-                            <i className="bi bi-receipt me-1"></i>
-                            Lihat Invoice
-                          </Link>
-                          <Link to={`/sales-orders/${order.id}`} className="btn btn-sm btn-outline-secondary">
-                            <i className="bi bi-eye"></i>
-                          </Link>
-                        </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center">
+                        <Building className="mr-1 h-3 w-3" />
+                        {order.customer?.company_name || 'Unknown Customer'}
                       </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+                      <div className="flex items-center justify-end">
+                        <Calendar className="mr-1 h-3 w-3" />
+                        {new Date(order.updated_at).toLocaleDateString('id-ID')}
+                      </div>
+                    </div>
+
+                    {order.items && order.items.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {order.items.slice(0, 3).map((item, index) => (
+                          <Badge key={index} variant="outline" className="text-xs font-normal">
+                            {item.product?.name} x{item.quantity}
+                          </Badge>
+                        ))}
+                        {order.items.length > 3 && (
+                          <Badge variant="outline" className="text-xs font-normal">+{order.items.length - 3} more</Badge>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2 mt-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/sales-orders/${order.id}`}>
+                          <Eye className="mr-1 h-3 w-3" /> View
+                        </Link>
+                      </Button>
+                      <Button size="sm" onClick={() => openInvoiceModal(order)}>
+                        <Receipt className="mr-1 h-3 w-3" /> Create Invoice
+                      </Button>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="bi bi-clipboard-check fs-3"></i>
-                  <p className="mb-0">Belum ada order yang selesai</p>
+                <div className="text-center text-muted-foreground py-8">
+                  <Receipt className="mx-auto h-10 w-10 mb-3 opacity-20" />
+                  <p>No orders ready for invoicing</p>
                 </div>
               )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Completed Orders (Already Invoiced) */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
+              Completed Orders
+            </CardTitle>
+            <CardDescription>Orders that have been invoiced and paid</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {completed_sales_orders.length > 0 ? (
+                completed_sales_orders.map((order) => (
+                  <div key={order.id} className="flex flex-col space-y-2 border-b pb-4 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{order.sales_order_number}</span>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">COMPLETED</Badge>
+                      </div>
+                      <span className="font-bold">{formatCurrency(order.total_amount)}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center">
+                        <Building className="mr-1 h-3 w-3" />
+                        {order.customer?.company_name || 'Unknown Customer'}
+                      </div>
+                      <div className="flex items-center justify-end">
+                        <Calendar className="mr-1 h-3 w-3" />
+                        {new Date(order.updated_at).toLocaleDateString('id-ID')}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/invoices?so=${order.id}`}>
+                          <Receipt className="mr-1 h-3 w-3" /> View Invoice
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/sales-orders/${order.id}`}>
+                          <Eye className="mr-1 h-3 w-3" /> View Order
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <CheckCircle className="mx-auto h-10 w-10 mb-3 opacity-20" />
+                  <p>No completed orders yet</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Create Invoice Modal */}
-      <Modal show={showInvoiceModal} onHide={() => setShowInvoiceModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-receipt text-primary me-2"></i>
-            Buat Invoice
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+          </DialogHeader>
+
           {selectedOrder && (
-            <>
-              <div className="mb-4">
-                <h6>Detail Sales Order</h6>
-                <p>
-                  <strong>SO Number:</strong> {selectedOrder.sales_order_number}<br />
-                  <strong>Pelanggan:</strong> {selectedOrder.customer?.company_name}<br />
-                  <strong>Subtotal:</strong> {formatCurrency(selectedOrder.total_amount)}
-                </p>
+            <div className="grid gap-4 py-4">
+              <div className="bg-muted/50 p-3 rounded-md text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="font-semibold">SO Number:</span> {selectedOrder.sales_order_number}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Customer:</span> {selectedOrder.customer?.company_name}
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-semibold">Subtotal:</span> {formatCurrency(selectedOrder.total_amount)}
+                  </div>
+                </div>
               </div>
 
-              <Form>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Invoice Number</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={invoiceData.invoice_number}
-                        onChange={(e) => setInvoiceData({
-                          ...invoiceData,
-                          invoice_number: e.target.value
-                        })}
-                        placeholder="Masukkan nomor invoice"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Pajak (PPN) %</Form.Label>
-                      <Form.Control
-                        type="number"
-                        value={invoiceData.tax_rate}
-                        onChange={(e) => setInvoiceData({
-                          ...invoiceData,
-                          tax_rate: parseFloat(e.target.value) || 0
-                        })}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Biaya Pengiriman</Form.Label>
-                  <Form.Control
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="invoice_number">Invoice Number</Label>
+                  <Input
+                    id="invoice_number"
+                    value={invoiceData.invoice_number}
+                    onChange={(e) => setInvoiceData({ ...invoiceData, invoice_number: e.target.value })}
+                    placeholder="INV-YYYY-MM-DD-XXX"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="tax_rate">Tax Rate (%)</Label>
+                  <Input
+                    id="tax_rate"
                     type="number"
-                    value={invoiceData.shipping_cost}
-                    onChange={(e) => setInvoiceData({
-                      ...invoiceData,
-                      shipping_cost: parseFloat(e.target.value) || 0
-                    })}
-                    placeholder="0"
+                    value={invoiceData.tax_rate}
+                    onChange={(e) => setInvoiceData({ ...invoiceData, tax_rate: parseFloat(e.target.value) || 0 })}
                   />
-                </Form.Group>
+                </div>
+              </div>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Catatan (Opsional)</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    placeholder="Tambahkan catatan untuk invoice..."
-                    value={invoiceData.notes}
-                    onChange={(e) => setInvoiceData({
-                      ...invoiceData,
-                      notes: e.target.value
-                    })}
-                  />
-                </Form.Group>
+              <div className="grid gap-2">
+                <Label htmlFor="shipping_cost">Shipping Cost</Label>
+                <Input
+                  id="shipping_cost"
+                  type="number"
+                  value={invoiceData.shipping_cost}
+                  onChange={(e) => setInvoiceData({ ...invoiceData, shipping_cost: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
 
-                {selectedOrder.total_amount > 0 && (
-                  <div className="bg-light p-3 rounded">
-                    <h6>Perhitungan Total</h6>
-                    <Row>
-                      <Col md={4}>
-                        <small>Subtotal:</small>
-                        <p className="mb-0 fw-semibold">{formatCurrency(selectedOrder.total_amount)}</p>
-                      </Col>
-                      <Col md={4}>
-                        <small>Pajak ({invoiceData.tax_rate}%):</small>
-                        <p className="mb-0 fw-semibold">
-                          {formatCurrency((selectedOrder.total_amount * invoiceData.tax_rate) / 100)}
-                        </p>
-                      </Col>
-                      <Col md={4}>
-                        <small>Biaya Kirim:</small>
-                        <p className="mb-0 fw-semibold">{formatCurrency(invoiceData.shipping_cost)}</p>
-                      </Col>
-                    </Row>
-                    <hr />
-                    <Row>
-                      <Col>
-                        <h5 className="mb-0">
-                          Total: {formatCurrency(
-                            calculateTotalWithTaxAndShipping(
-                              selectedOrder.total_amount,
-                              invoiceData.tax_rate,
-                              invoiceData.shipping_cost
-                            )
-                          )}
-                        </h5>
-                      </Col>
-                    </Row>
+              <div className="grid gap-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Input
+                  id="notes"
+                  value={invoiceData.notes}
+                  onChange={(e) => setInvoiceData({ ...invoiceData, notes: e.target.value })}
+                  placeholder="Add notes..."
+                />
+              </div>
+
+              <div className="bg-muted/50 p-4 rounded-md mt-2">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(selectedOrder.total_amount)}</span>
                   </div>
-                )}
-              </Form>
-            </>
+                  <div className="flex justify-between text-sm">
+                    <span>Tax ({invoiceData.tax_rate}%)</span>
+                    <span>{formatCurrency((selectedOrder.total_amount * invoiceData.tax_rate) / 100)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Shipping</span>
+                    <span>{formatCurrency(invoiceData.shipping_cost)}</span>
+                  </div>
+                  <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+                    <span>Total</span>
+                    <span>
+                      {formatCurrency(
+                        calculateTotalWithTaxAndShipping(
+                          selectedOrder.total_amount,
+                          invoiceData.tax_rate,
+                          invoiceData.shipping_cost
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowInvoiceModal(false)}>
-            Batal
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleCreateInvoice}
-            disabled={processing || !invoiceData.invoice_number.trim()}
-          >
-            {processing ? (
-              <>
-                <Spinner as="span" animation="border" size="sm" className="me-2" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <i className="bi bi-receipt me-2"></i>
-                Buat Invoice
-              </>
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInvoiceModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateInvoice} disabled={processing || !invoiceData.invoice_number.trim()}>
+              {processing ? 'Processing...' : 'Create Invoice'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

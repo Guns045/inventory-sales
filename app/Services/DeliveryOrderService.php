@@ -16,6 +16,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class DeliveryOrderService
 {
+    protected $productStockService;
+
+    public function __construct(ProductStockService $productStockService)
+    {
+        $this->productStockService = $productStockService;
+    }
+
     /**
      * Create a delivery order from a sales order
      *
@@ -29,8 +36,8 @@ class DeliveryOrderService
         return DB::transaction(function () use ($salesOrderId, $data) {
             $salesOrder = SalesOrder::with(['customer', 'items.product'])->findOrFail($salesOrderId);
 
-            if ($salesOrder->status !== 'READY_TO_SHIP') {
-                throw new \Exception('Cannot generate delivery order. Sales order must be in READY_TO_SHIP status.');
+            if (!in_array($salesOrder->status, ['READY_TO_SHIP', 'PROCESSING'])) {
+                throw new \Exception('Cannot generate delivery order. Sales order must be in READY_TO_SHIP or PROCESSING status.');
             }
 
             // Check if delivery order already exists
@@ -63,6 +70,8 @@ class DeliveryOrderService
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
                 'total_amount' => $totalAmount,
+                'source_type' => 'SO',
+                'source_id' => $salesOrder->id,
             ]);
 
             // Create delivery order items
@@ -77,7 +86,7 @@ class DeliveryOrderService
             }
 
             // Update sales order status
-            $salesOrder->update(['status' => 'PREPARING']);
+            $salesOrder->update(['status' => 'PROCESSING']);
 
             $this->logCreation($deliveryOrder, "from sales order {$salesOrder->sales_order_number}");
 
@@ -134,6 +143,8 @@ class DeliveryOrderService
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
                 'total_amount' => $totalAmount,
+                'source_type' => 'SO',
+                'source_id' => $pickingList->sales_order_id,
             ]);
 
             // Create delivery order items from picking list items
@@ -148,7 +159,7 @@ class DeliveryOrderService
             }
 
             // Update sales order status
-            $pickingList->salesOrder->update(['status' => 'PREPARING']);
+            $pickingList->salesOrder->update(['status' => 'PROCESSING']);
 
             $this->logCreation($deliveryOrder, "from picking list {$pickingList->picking_list_number}");
 
@@ -180,6 +191,21 @@ class DeliveryOrderService
     {
         return DB::transaction(function () use ($deliveryOrder, $status) {
             $oldStatus = $deliveryOrder->status;
+
+            // If status is SHIPPED, deduct stock
+            if ($oldStatus !== 'SHIPPED' && $status === 'SHIPPED') {
+                foreach ($deliveryOrder->deliveryOrderItems as $item) {
+                    $this->productStockService->deductStock(
+                        $item->product_id,
+                        $deliveryOrder->warehouse_id,
+                        $item->quantity_shipped,
+                        'App\Models\DeliveryOrder',
+                        $deliveryOrder->id,
+                        "Shipped DO {$deliveryOrder->delivery_order_number}"
+                    );
+                }
+            }
+
             $deliveryOrder->update(['status' => $status]);
 
             // Update related sales order status
@@ -237,6 +263,18 @@ class DeliveryOrderService
         }
 
         return DB::transaction(function () use ($deliveryOrder) {
+            // Deduct stock
+            foreach ($deliveryOrder->deliveryOrderItems as $item) {
+                $this->productStockService->deductStock(
+                    $item->product_id,
+                    $deliveryOrder->warehouse_id,
+                    $item->quantity_shipped,
+                    'App\Models\DeliveryOrder',
+                    $deliveryOrder->id,
+                    "Shipped DO {$deliveryOrder->delivery_order_number}"
+                );
+            }
+
             $deliveryOrder->update([
                 'status' => 'SHIPPED',
                 'shipping_date' => now(),

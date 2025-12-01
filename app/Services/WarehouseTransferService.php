@@ -49,15 +49,13 @@ class WarehouseTransferService
                 'reference_id' => $transfer->id,
             ]);
 
-            Notification::create([
-                'user_id' => null, // System notification or specific role
-                'role' => config('inventory.roles.warehouse_staff', 'Gudang'), // Notify warehouse staff
-                'title' => 'New Transfer Request',
-                'message' => "New warehouse transfer request: {$transfer->transfer_number} - {$transfer->quantity_requested} units needed",
-                'type' => 'info',
-                'link' => '/warehouse/transfers',
-                'read' => false,
-            ]);
+            Notification::createForRole(
+                config('inventory.roles.warehouse_staff', 'Gudang'),
+                "New warehouse transfer request: {$transfer->transfer_number} - {$transfer->quantity_requested} units needed",
+                'info',
+                '/warehouse/transfers',
+                ['title' => 'New Transfer Request']
+            );
 
             return $transfer->load(['product', 'warehouseFrom', 'warehouseTo', 'requestedBy']);
         });
@@ -88,7 +86,9 @@ class WarehouseTransferService
 
             // Create Picking List
             $pickingList = PickingList::create([
+                'picking_list_number' => DocumentCounter::getNextNumber('PICKING_LIST', $transfer->warehouse_from_id),
                 'sales_order_id' => null, // Not associated with sales order
+                'warehouse_id' => $transfer->warehouse_from_id,
                 'user_id' => $user->id,
                 'status' => 'DRAFT',
                 'notes' => "For warehouse transfer: {$transfer->transfer_number}",
@@ -110,15 +110,13 @@ class WarehouseTransferService
                 'reference_id' => $transfer->id,
             ]);
 
-            Notification::create([
-                'user_id' => null,
-                'role' => config('inventory.roles.warehouse_staff', 'Gudang'),
-                'title' => 'Transfer Approved',
-                'message' => "Warehouse transfer approved: {$transfer->transfer_number} - Ready for picking",
-                'type' => 'success',
-                'link' => '/picking-lists',
-                'read' => false,
-            ]);
+            Notification::createForRole(
+                config('inventory.roles.warehouse_staff', 'Gudang'),
+                "Warehouse transfer approved: {$transfer->transfer_number} - Ready for picking",
+                'success',
+                '/picking-lists',
+                ['title' => 'Transfer Approved']
+            );
 
             return [
                 'transfer' => $transfer->load(['product', 'warehouseFrom', 'warehouseTo', 'approvedBy']),
@@ -170,15 +168,13 @@ class WarehouseTransferService
                 'reference_id' => $transfer->id,
             ]);
 
-            Notification::create([
-                'user_id' => null,
-                'role' => config('inventory.roles.warehouse_staff', 'Gudang'),
-                'title' => 'Incoming Delivery',
-                'message' => "Incoming delivery: {$deliveryOrder->delivery_order_number} from {$transfer->warehouseFrom->name}",
-                'type' => 'info',
-                'link' => '/delivery-orders',
-                'read' => false,
-            ]);
+            Notification::createForRole(
+                config('inventory.roles.warehouse_staff', 'Gudang'),
+                "Incoming delivery: {$deliveryOrder->delivery_order_number} from {$transfer->warehouseFrom->name}",
+                'info',
+                '/delivery-orders',
+                ['title' => 'Incoming Delivery']
+            );
 
             return [
                 'transfer' => $transfer->load(['product', 'warehouseFrom', 'warehouseTo', 'deliveredBy']),
@@ -237,15 +233,13 @@ class WarehouseTransferService
                 'reference_id' => $transfer->id,
             ]);
 
-            Notification::create([
-                'user_id' => null,
-                'role' => config('inventory.roles.warehouse_staff', 'Gudang'),
-                'title' => 'Transfer Received',
-                'message' => "Transfer received: {$transfer->transfer_number} - {$data['quantity_received']} units received",
-                'type' => 'success',
-                'link' => '/warehouse/transfers',
-                'read' => false,
-            ]);
+            Notification::createForRole(
+                config('inventory.roles.warehouse_staff', 'Gudang'),
+                "Transfer received: {$transfer->transfer_number} - {$data['quantity_received']} units received",
+                'success',
+                '/warehouse/transfers',
+                ['title' => 'Transfer Received']
+            );
 
             return $transfer->load(['product', 'warehouseFrom', 'warehouseTo', 'receivedBy']);
         });
@@ -283,7 +277,7 @@ class WarehouseTransferService
      */
     private function generateTransferNumber(int $warehouseId): string
     {
-        return DocumentCounter::getNextNumber('TRANSFER', $warehouseId);
+        return DocumentCounter::getNextNumber('WAREHOUSE_TRANSFER', $warehouseId);
     }
 
     /**

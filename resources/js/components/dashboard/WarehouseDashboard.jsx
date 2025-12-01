@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Spinner, Alert, ListGroup, Badge, Modal, Form } from 'react-bootstrap';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Link } from 'react-router-dom';
 import { useAPI } from '../../contexts/APIContext';
+import {
+  Clock,
+  Settings,
+  Truck,
+  ShoppingCart,
+  RefreshCw,
+  Eye,
+  Play,
+  CheckCircle,
+  Building,
+  User,
+  Calendar,
+  Package
+} from "lucide-react";
 
 const WarehouseDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -19,9 +44,11 @@ const WarehouseDashboard = () => {
   }, []);
 
   const fetchWarehouseDashboard = async () => {
+    setLoading(true);
     try {
       const response = await api.get('/dashboard/warehouse');
       setDashboardData(response.data);
+      setError(null);
     } catch (error) {
       console.error('Error fetching warehouse dashboard:', error);
       setError('Failed to load warehouse dashboard data');
@@ -59,11 +86,11 @@ const WarehouseDashboard = () => {
     }).format(amount);
   };
 
-  const getStatusBadgeColor = (status) => {
+  const getStatusBadgeVariant = (status) => {
     switch (status) {
       case 'PENDING': return 'warning';
-      case 'PROCESSING': return 'info';
-      case 'READY_TO_SHIP': return 'primary';
+      case 'PROCESSING': return 'default'; // info usually maps to default or secondary in shadcn
+      case 'READY_TO_SHIP': return 'default'; // primary
       case 'SHIPPED': return 'success';
       case 'COMPLETED': return 'success';
       default: return 'secondary';
@@ -74,11 +101,11 @@ const WarehouseDashboard = () => {
     switch (currentStatus) {
       case 'PENDING':
         return [
-          { value: 'PROCESSING', label: 'Start Processing', color: 'info' }
+          { value: 'PROCESSING', label: 'Start Processing', icon: Play }
         ];
       case 'PROCESSING':
         return [
-          { value: 'READY_TO_SHIP', label: 'Ready to Ship', color: 'primary' }
+          { value: 'READY_TO_SHIP', label: 'Ready to Ship', icon: CheckCircle }
         ];
       default:
         return [];
@@ -87,20 +114,18 @@ const WarehouseDashboard = () => {
 
   if (loading) {
     return (
-      <div className="loading">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="danger">
-        <Alert.Heading>Error</Alert.Heading>
+      <div className="p-4 text-red-500 bg-red-50 rounded-md">
+        <h3 className="font-bold">Error</h3>
         <p>{error}</p>
-      </Alert>
+      </div>
     );
   }
 
@@ -111,400 +136,332 @@ const WarehouseDashboard = () => {
   const { pending_sales_orders, processing_sales_orders, ready_to_ship_orders, warehouse_stats } = dashboardData;
 
   return (
-    <div>
+    <div className="flex-1 space-y-4 p-8 pt-6">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="flex items-center justify-between space-y-2">
         <div>
-          <h2 className="mb-1">Gudang Dashboard</h2>
-          <p className="text-muted mb-0">Daftar Sales Order yang PENDING dan Siap Diproses</p>
+          <h2 className="text-3xl font-bold tracking-tight">Warehouse Dashboard</h2>
+          <p className="text-muted-foreground">Manage Pending and Processing Sales Orders</p>
         </div>
-        <Button variant="outline-primary" onClick={fetchWarehouseDashboard}>
-          <i className="bi bi-arrow-clockwise me-2"></i>
+        <Button variant="outline" onClick={fetchWarehouseDashboard}>
+          <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <Row className="mb-4">
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon pending mx-auto mb-3">
-                <i className="bi bi-clock-history fs-3"></i>
-              </div>
-              <h3 className="mb-1">{warehouse_stats.pending_processing}</h3>
-              <p className="text-muted mb-0">Pending Processing</p>
-            </Card.Body>
-          </Card>
-        </Col>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Processing</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{warehouse_stats.pending_processing}</div>
+            <p className="text-xs text-muted-foreground">Orders waiting to start</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Processing</CardTitle>
+            <Settings className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{warehouse_stats.processing}</div>
+            <p className="text-xs text-muted-foreground">Orders in progress</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ready to Ship</CardTitle>
+            <Truck className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{warehouse_stats.ready_to_ship}</div>
+            <p className="text-xs text-muted-foreground">Orders ready for delivery</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{warehouse_stats.total_orders}</div>
+            <p className="text-xs text-muted-foreground">All time orders</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon processing mx-auto mb-3">
-                <i className="bi bi-gear fs-3"></i>
-              </div>
-              <h3 className="mb-1">{warehouse_stats.processing}</h3>
-              <p className="text-muted mb-0">Processing</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon ready mx-auto mb-3">
-                <i className="bi bi-truck fs-3"></i>
-              </div>
-              <h3 className="mb-1">{warehouse_stats.ready_to_ship}</h3>
-              <p className="text-muted mb-0">Ready to Ship</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card className="stats-card h-100">
-            <Card.Body className="text-center">
-              <div className="stats-icon total mx-auto mb-3">
-                <i className="bi bi-cart3 fs-3"></i>
-              </div>
-              <h3 className="mb-1">{warehouse_stats.total_orders}</h3>
-              <p className="text-muted mb-0">Total Orders</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Pending Sales Orders */}
-      <Row className="mb-4">
-        <Col>
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-clock-history me-2"></i>
-                Sales Order Menunggu Proses
-              </h5>
-            </Card.Header>
-            <Card.Body>
+      <div className="grid gap-4 md:grid-cols-1">
+        {/* Pending Sales Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Pending Sales Orders
+            </CardTitle>
+            <CardDescription>Orders waiting for warehouse processing</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               {pending_sales_orders.length > 0 ? (
-                <ListGroup variant="flush">
-                  {pending_sales_orders.map((order) => (
-                    <ListGroup.Item key={order.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-2">
-                            <h6 className="mb-0 me-2">{order.sales_order_number}</h6>
-                            <Badge bg="warning">PENDING</Badge>
-                          </div>
-                          <Row className="mb-2">
-                            <Col md={6}>
-                              <p className="text-muted mb-1">
-                                <i className="bi bi-building me-1"></i>
-                                <strong>Pelanggan:</strong> {order.customer?.company_name || 'Unknown Customer'}
-                              </p>
-                              <p className="text-muted mb-1">
-                                <i className="bi bi-person me-1"></i>
-                                <strong>Sales:</strong> {order.user?.name || 'Unknown Sales'}
-                              </p>
-                            </Col>
-                            <Col md={6}>
-                              <p className="mb-1">
-                                <strong>Total:</strong> {formatCurrency(order.total_amount)}
-                              </p>
-                              <p className="text-muted mb-1">
-                                <i className="bi bi-calendar me-1"></i>
-                                {new Date(order.created_at).toLocaleDateString('id-ID')}
-                              </p>
-                            </Col>
-                          </Row>
-                          {order.items && order.items.length > 0 && (
-                            <div className="mb-2">
-                              <small className="text-muted">
-                                <strong>Items ({order.items.length}):</strong>
-                              </small>
-                              <div className="mt-1">
-                                {order.items.slice(0, 3).map((item, index) => (
-                                  <Badge key={index} bg="light" text="dark" className="me-1 mb-1">
-                                    {item.product?.name || 'Unknown Product'} x{item.quantity}
-                                  </Badge>
-                                ))}
-                                {order.items.length > 3 && (
-                                  <Badge bg="secondary" className="mb-1">
-                                    +{order.items.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          {order.notes && (
-                            <p className="mb-1">
-                              <small><strong>Catatan:</strong> {order.notes}</small>
-                            </p>
-                          )}
+                pending_sales_orders.map((order) => (
+                  <div key={order.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1 flex-1 mb-4 sm:mb-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{order.sales_order_number}</span>
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">PENDING</Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Building className="h-3 w-3" />
+                          {order.customer?.company_name || 'Unknown Customer'}
                         </div>
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="info"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setSelectedStatus('PROCESSING');
-                              setShowStatusModal(true);
-                            }}
-                          >
-                            <i className="bi bi-play-fill me-1"></i>
-                            Start Processing
-                          </Button>
-                          <Link to={`/sales-orders/${order.id}`} className="btn btn-sm btn-outline-secondary">
-                            <i className="bi bi-eye"></i>
-                          </Link>
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          Sales: {order.user?.name || 'Unknown Sales'}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(order.created_at).toLocaleDateString('id-ID')}
+                        </div>
+                        <div className="font-medium text-foreground">
+                          {formatCurrency(order.total_amount)}
                         </div>
                       </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+
+                      {order.items && order.items.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {order.items.slice(0, 3).map((item, index) => (
+                            <Badge key={index} variant="outline" className="font-normal">
+                              <Package className="h-3 w-3 mr-1" />
+                              {item.product?.name} x{item.quantity}
+                            </Badge>
+                          ))}
+                          {order.items.length > 3 && (
+                            <Badge variant="outline" className="font-normal">+{order.items.length - 3} more</Badge>
+                          )}
+                        </div>
+                      )}
+
+                      {order.notes && (
+                        <p className="text-xs text-muted-foreground mt-1 bg-muted p-2 rounded inline-block">
+                          Note: {order.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        className="flex-1 sm:flex-none"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setSelectedStatus('PROCESSING');
+                          setShowStatusModal(true);
+                        }}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Processing
+                      </Button>
+                      <Button variant="outline" size="icon" asChild>
+                        <Link to={`/sales-orders/${order.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-check-circle fs-1"></i>
-                  <h5 className="mt-3">Tidak Ada Order Pending</h5>
-                  <p>Semua order telah diproses</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500/50" />
+                  <p>No pending orders. Good job!</p>
                 </div>
               )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Processing Orders */}
-      <Row className="mb-4">
-        <Col>
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-gear me-2"></i>
-                Sedang Diproses
-              </h5>
-            </Card.Header>
-            <Card.Body>
+        {/* Processing Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Processing Orders
+            </CardTitle>
+            <CardDescription>Orders currently being processed</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               {processing_sales_orders.length > 0 ? (
-                <ListGroup variant="flush">
-                  {processing_sales_orders.map((order) => (
-                    <ListGroup.Item key={order.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-2">
-                            <h6 className="mb-0 me-2">{order.sales_order_number}</h6>
-                            <Badge bg="info">PROCESSING</Badge>
-                          </div>
-                          <p className="text-muted mb-1">
-                            <i className="bi bi-building me-1"></i>
-                            {order.customer?.company_name || 'Unknown Customer'}
-                          </p>
-                          <p className="mb-1">
-                            <strong>Total:</strong> {formatCurrency(order.total_amount)}
-                          </p>
-                          {order.items && order.items.length > 0 && (
-                            <div className="mb-2">
-                              <small className="text-muted">
-                                <strong>Items ({order.items.length}):</strong>
-                              </small>
-                              <div className="mt-1">
-                                {order.items.slice(0, 3).map((item, index) => (
-                                  <Badge key={index} bg="light" text="dark" className="me-1 mb-1">
-                                    {item.product?.name || 'Unknown Product'} x{item.quantity}
-                                  </Badge>
-                                ))}
-                                {order.items.length > 3 && (
-                                  <Badge bg="secondary" className="mb-1">
-                                    +{order.items.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setSelectedStatus('READY_TO_SHIP');
-                              setShowStatusModal(true);
-                            }}
-                          >
-                            <i className="bi bi-check-lg me-1"></i>
-                            Ready to Ship
-                          </Button>
-                          <Link to={`/sales-orders/${order.id}`} className="btn btn-sm btn-outline-secondary">
-                            <i className="bi bi-eye"></i>
-                          </Link>
+                processing_sales_orders.map((order) => (
+                  <div key={order.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1 flex-1 mb-4 sm:mb-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{order.sales_order_number}</span>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100">PROCESSING</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Building className="h-3 w-3" />
+                          {order.customer?.company_name}
                         </div>
                       </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+
+                      {order.items && order.items.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {order.items.slice(0, 3).map((item, index) => (
+                            <Badge key={index} variant="outline" className="font-normal">
+                              <Package className="h-3 w-3 mr-1" />
+                              {item.product?.name} x{item.quantity}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        variant="default" // Primary
+                        className="flex-1 sm:flex-none"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setSelectedStatus('READY_TO_SHIP');
+                          setShowStatusModal(true);
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Ready to Ship
+                      </Button>
+                      <Button variant="outline" size="icon" asChild>
+                        <Link to={`/sales-orders/${order.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="bi bi-gear fs-3"></i>
-                  <p className="mb-0">Tidak ada order yang sedang diproses</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No orders currently in processing.</p>
                 </div>
               )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Ready to Ship Orders */}
-      <Row>
-        <Col>
-          <Card>
-            <Card.Header className="bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-truck me-2"></i>
-                Siap Dikirim
-              </h5>
-            </Card.Header>
-            <Card.Body>
+        {/* Ready to Ship Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Ready to Ship
+            </CardTitle>
+            <CardDescription>Orders ready for delivery</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               {ready_to_ship_orders.length > 0 ? (
-                <ListGroup variant="flush">
-                  {ready_to_ship_orders.map((order) => (
-                    <ListGroup.Item key={order.id} className="px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-2">
-                            <h6 className="mb-0 me-2">{order.sales_order_number}</h6>
-                            <Badge bg="primary">READY TO SHIP</Badge>
-                          </div>
-                          <p className="text-muted mb-1">
-                            <i className="bi bi-building me-1"></i>
-                            {order.customer?.company_name || 'Unknown Customer'}
-                          </p>
-                          <p className="mb-1">
-                            <strong>Total:</strong> {formatCurrency(order.total_amount)}
-                          </p>
-                          {order.items && order.items.length > 0 && (
-                            <div className="mb-2">
-                              <small className="text-muted">
-                                <strong>Items ({order.items.length}):</strong>
-                              </small>
-                              <div className="mt-1">
-                                {order.items.slice(0, 3).map((item, index) => (
-                                  <Badge key={index} bg="light" text="dark" className="me-1 mb-1">
-                                    {item.product?.name || 'Unknown Product'} x{item.quantity}
-                                  </Badge>
-                                ))}
-                                {order.items.length > 3 && (
-                                  <Badge bg="secondary" className="mb-1">
-                                    +{order.items.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="success"
-                            size="sm"
-                            onClick={() => {
-                              // Create delivery order logic here
-                              alert('Create delivery order functionality would be implemented here');
-                            }}
-                          >
-                            <i className="bi bi-truck me-1"></i>
-                            Create DO
-                          </Button>
-                          <Link to={`/sales-orders/${order.id}`} className="btn btn-sm btn-outline-secondary">
-                            <i className="bi bi-eye"></i>
-                          </Link>
+                ready_to_ship_orders.map((order) => (
+                  <div key={order.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1 flex-1 mb-4 sm:mb-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{order.sales_order_number}</span>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">READY TO SHIP</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Building className="h-3 w-3" />
+                          {order.customer?.company_name}
                         </div>
                       </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        className="flex-1 sm:flex-none border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                        onClick={() => alert('Create Delivery Order functionality to be implemented')}
+                      >
+                        <Truck className="h-4 w-4 mr-2" />
+                        Create DO
+                      </Button>
+                      <Button variant="outline" size="icon" asChild>
+                        <Link to={`/sales-orders/${order.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="bi bi-truck fs-3"></i>
-                  <p className="mb-0">Tidak ada order yang siap dikirim</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No orders ready to ship.</p>
                 </div>
               )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Update Status Modal */}
-      <Modal show={showStatusModal} onHide={() => setShowStatusModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-gear text-info me-2"></i>
-            Update Status Order
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedOrder && (
-            <>
-              <p>
-                <strong>Order:</strong> {selectedOrder.sales_order_number}<br />
-                <strong>Pelanggan:</strong> {selectedOrder.customer?.company_name}<br />
-                <strong>Status Saat Ini:</strong>{' '}
-                <Badge bg={getStatusBadgeColor(selectedOrder.status)}>
-                  {selectedOrder.status}
-                </Badge>
-              </p>
+      {/* Status Update Modal */}
+      <Dialog open={showStatusModal} onOpenChange={setShowStatusModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Order Status</DialogTitle>
+            <DialogDescription>
+              Change the status of order {selectedOrder?.sales_order_number}
+            </DialogDescription>
+          </DialogHeader>
 
-              {getStatusOptions(selectedOrder.status).map((option) => (
-                <Button
-                  key={option.value}
-                  variant={option.color}
-                  className="w-100 mb-2"
-                  onClick={() => setSelectedStatus(option.value)}
-                  active={selectedStatus === option.value}
-                >
-                  <i className="bi bi-arrow-right me-2"></i>
-                  {option.label}
-                </Button>
-              ))}
+          <div className="py-4">
+            {selectedOrder && (
+              <div className="space-y-4">
+                <div className="text-sm">
+                  <p><strong>Customer:</strong> {selectedOrder.customer?.company_name}</p>
+                  <p><strong>Current Status:</strong> {selectedOrder.status}</p>
+                </div>
 
-              {selectedStatus && (
-                <Form.Group className="mt-3">
-                  <Form.Label>Catatan (Opsional)</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    placeholder="Tambahkan catatan untuk update status..."
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">New Status</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {getStatusOptions(selectedOrder.status).map((option) => (
+                      <Button
+                        key={option.value}
+                        variant={selectedStatus === option.value ? "default" : "outline"}
+                        className="w-full justify-start"
+                        onClick={() => setSelectedStatus(option.value)}
+                      >
+                        {option.icon && <option.icon className="mr-2 h-4 w-4" />}
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Notes (Optional)</label>
+                  <Textarea
+                    placeholder="Add notes about this status change..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
-                </Form.Group>
-              )}
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowStatusModal(false)}>
-            Batal
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleUpdateStatus}
-            disabled={processing || !selectedStatus}
-          >
-            {processing ? (
-              <>
-                <Spinner as="span" animation="border" size="sm" className="me-2" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <i className="bi bi-check-lg me-2"></i>
-                Update Status
-              </>
+                </div>
+              </div>
             )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusModal(false)}>Cancel</Button>
+            <Button
+              onClick={handleUpdateStatus}
+              disabled={processing || !selectedStatus}
+            >
+              {processing ? 'Updating...' : 'Update Status'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

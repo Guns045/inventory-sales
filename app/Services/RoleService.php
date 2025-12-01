@@ -41,6 +41,153 @@ class RoleService
      */
     public function getMenuForRole(Role $role): array
     {
+        // Custom Menu for Sales Role
+        if ($role->name === 'Sales') {
+            return [
+                [
+                    'title' => 'Dashboard',
+                    'path' => '/dashboard/sales',
+                    'icon' => 'bi-speedometer2',
+                    'permission' => 'dashboard.sales',
+                ],
+                [
+                    'title' => 'Customer',
+                    'path' => '/customers',
+                    'icon' => 'bi-people',
+                    'permission' => 'customers.read',
+                ],
+                [
+                    'title' => 'Quotation',
+                    'path' => '/quotations',
+                    'icon' => 'bi-file-text',
+                    'permission' => 'quotations.read',
+                ],
+                [
+                    'title' => 'Sales Order',
+                    'path' => '/sales-orders',
+                    'icon' => 'bi-cart',
+                    'permission' => 'sales-orders.read',
+                ],
+                [
+                    'title' => 'On Hands Stock',
+                    'path' => '/product-stock',
+                    'icon' => 'bi-box-seam',
+                    'permission' => 'product-stock.read',
+                ],
+                [
+                    'title' => 'Invoice',
+                    'path' => '/invoices',
+                    'icon' => 'bi-receipt',
+                    'permission' => 'invoices.read',
+                ],
+                [
+                    'title' => 'Payment',
+                    'path' => '/payments',
+                    'icon' => 'bi-credit-card',
+                    'permission' => 'payments.read',
+                ],
+                [
+                    'title' => 'Logout',
+                    'path' => '#',
+                    'icon' => 'bi-box-arrow-right',
+                    'permission' => null,
+                    'action' => 'logout'
+                ]
+            ];
+        }
+
+        // Custom Menu for Warehouse Role
+        if ($role->name === 'Warehouse') {
+            return [
+                [
+                    'title' => 'Dashboard',
+                    'path' => '/dashboard/warehouse',
+                    'icon' => 'bi-speedometer2',
+                    'permission' => 'dashboard.warehouse',
+                ],
+                [
+                    'title' => 'On Hands Stock',
+                    'path' => '/product-stock',
+                    'icon' => 'bi-box-seam',
+                    'permission' => 'product-stock.read',
+                ],
+                [
+                    'title' => 'Warehouse Transfer',
+                    'path' => '/internal-transfers',
+                    'icon' => 'bi-arrow-left-right',
+                    'permission' => 'warehouse-transfers.read',
+                ],
+                [
+                    'title' => 'Delivery Order',
+                    'path' => '/delivery-orders',
+                    'icon' => 'bi-truck',
+                    'permission' => 'delivery-orders.read',
+                ],
+                [
+                    'title' => 'Goods Receipt',
+                    'path' => '/goods-receipts',
+                    'icon' => 'bi-clipboard-data',
+                    'permission' => 'goods-receipts.read',
+                ],
+                [
+                    'title' => 'Logout',
+                    'path' => '#',
+                    'icon' => 'bi-box-arrow-right',
+                    'permission' => null,
+                    'action' => 'logout'
+                ]
+            ];
+        }
+
+        // Custom Menu for Finance Role
+        if ($role->name === 'Finance') {
+            return [
+                [
+                    'title' => 'Dashboard',
+                    'path' => '/dashboard/finance',
+                    'icon' => 'bi-speedometer2',
+                    'permission' => 'dashboard.finance',
+                ],
+                [
+                    'title' => 'Invoices',
+                    'path' => '/invoices',
+                    'icon' => 'bi-receipt',
+                    'permission' => 'invoices.read',
+                ],
+                [
+                    'title' => 'Payments',
+                    'path' => '/payments',
+                    'icon' => 'bi-credit-card',
+                    'permission' => 'payments.read',
+                ],
+                [
+                    'title' => 'Purchase Orders',
+                    'path' => '/purchase-orders',
+                    'icon' => 'bi-cart-check',
+                    'permission' => 'purchase-orders.read',
+                ],
+                [
+                    'title' => 'Customers',
+                    'path' => '/customers',
+                    'icon' => 'bi-people',
+                    'permission' => 'customers.read',
+                ],
+                [
+                    'title' => 'Sales Orders',
+                    'path' => '/sales-orders',
+                    'icon' => 'bi-cart',
+                    'permission' => 'sales-orders.read',
+                ],
+                [
+                    'title' => 'Logout',
+                    'path' => '#',
+                    'icon' => 'bi-box-arrow-right',
+                    'permission' => null,
+                    'action' => 'logout'
+                ]
+            ];
+        }
+
         $menuConfig = Config::get('menu');
         $userMenu = [];
 
@@ -52,6 +199,11 @@ class RoleService
                     'icon' => $item['icon'],
                     'permission' => $item['permission'],
                 ];
+
+                // Custom Dashboard Path for Sales Role
+                if ($item['title'] === 'Dashboard' && $role->name === 'Sales') {
+                    $menuItem['path'] = '/dashboard/sales';
+                }
 
                 if (isset($item['action'])) {
                     $menuItem['action'] = $item['action'];

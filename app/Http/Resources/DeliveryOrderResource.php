@@ -21,6 +21,7 @@ class DeliveryOrderResource extends JsonResource
             'warehouse' => $this->whenLoaded('warehouse'),
             'source_type' => $this->source_type,
             'source_id' => $this->source_id,
+            'warehouse_transfer' => $this->whenLoaded('warehouseTransfer'),
             'shipping_date' => $this->shipping_date,
             'shipping_contact_person' => $this->shipping_contact_person,
             'shipping_address' => $this->shipping_address,

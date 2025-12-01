@@ -11,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 use App\Models\PurchaseOrder;
 use App\Transformers\PurchaseOrderTransformer;
 
-class PurchaseOrderMail extends Mailable
+class PurchaseOrderMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
@@ -65,7 +65,7 @@ class PurchaseOrderMail extends Mailable
             \Illuminate\Mail\Mailables\Attachment::fromPath(
                 $this->generatePDF()
             )->as("Purchase Order - {$this->purchaseOrder->po_number}.pdf")
-            ->withMime('application/pdf'),
+                ->withMime('application/pdf'),
         ];
     }
 
