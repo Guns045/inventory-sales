@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Alert } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
-import DashboardMain from './DashboardMain';
 import SalesDashboard from '../components/dashboard/SalesDashboard';
 import WarehouseDashboard from '../components/dashboard/WarehouseDashboard';
 import FinanceDashboard from '../components/dashboard/FinanceDashboard';
@@ -21,8 +20,8 @@ const Dashboard = () => {
         <div>Time: ${new Date().toLocaleTimeString()}</div>
       `;
     }
-    console.log('🎉 Dashboard component mounted, user:', user);
-    console.log('🎉 User role:', getUserRole());
+
+
   }, [user]);
 
   const getUserRole = () => {
@@ -48,7 +47,6 @@ const Dashboard = () => {
       case 'Super Admin':
       case 'Admin':
       case 'manager':
-        return <DashboardMain />;
       case 'Sales':
       case 'Sales Team':
         return <SalesDashboard />;

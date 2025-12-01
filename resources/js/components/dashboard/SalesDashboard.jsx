@@ -23,7 +23,7 @@ const SalesDashboard = () => {
   const { api } = useAPI();
 
   useEffect(() => {
-    console.log('SalesDashboard mounted');
+
     fetchSalesDashboard();
   }, []);
 

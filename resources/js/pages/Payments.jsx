@@ -204,7 +204,7 @@ const Payments = () => {
           <PaymentTable
             data={payments}
             loading={loading}
-            onView={(row) => console.log('View', row)}
+            onView={(row) => { }}
           />
         </CardContent>
       </Card>

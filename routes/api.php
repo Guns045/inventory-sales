@@ -33,31 +33,7 @@ Route::post('/register', [AuthController::class, 'register']);
 // Public company settings (for displaying logo/info)
 Route::get('/company-settings/public', [CompanySettingsController::class, 'index']);
 
-// Simple test endpoints
-Route::get('/test-basic', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'API basic test working!',
-        'server_time' => now()->toDateTimeString(),
-        'ip' => request()->ip(),
-        'headers' => request()->headers->all()
-    ]);
-});
 
-Route::get('/test-cors', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'CORS test working!',
-        'origin' => request()->header('Origin'),
-        'allowed_origins' => config('cors.allowed_origins'),
-        'test_data' => [
-            'timestamp' => now()->timestamp,
-            'random_id' => uniqid()
-        ]
-    ])->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-});
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -73,9 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/avatar', [App\Http\Controllers\API\ProfileController::class, 'uploadAvatar']);
 
     Route::apiResource('users', UserController::class);
-    // Route::post('users', [UserController::class, 'store'])->middleware('permission:users.create');
-    // Route::put('users/{id}', [UserController::class, 'update'])->middleware('permission:users.update');
-    // Route::delete('users/{id}', [UserController::class, 'destroy'])->middleware('permission:users.delete');
+    Route::apiResource('users', UserController::class);
 
     // User management specific routes
     Route::put('/users/{id}/status', [UserController::class, 'updateStatus'])->middleware('permission:edit_users');
@@ -253,11 +227,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/company-settings/upload-logo', [CompanySettingsController::class, 'uploadLogo'])->middleware('super.admin.or.company.settings');
     Route::delete('/company-settings/{id}/delete-logo', [CompanySettingsController::class, 'deleteLogo'])->middleware('super.admin.or.company.settings');
 
-    // Inventory Management routes - Commented out (InventoryController not implemented yet)
-    // Route::post('/inventory/deduct', [InventoryController::class, 'deductStock'])->middleware('permission:inventory.update');
-    // Route::post('/inventory/reserve', [InventoryController::class, 'reserveStock'])->middleware('permission:inventory.update');
-    // Route::get('/inventory/stock-levels', [InventoryController::class, 'getStockLevels'])->middleware('permission:inventory.read'));
-    // Route::get('/inventory/product-movements/{product_id}', [InventoryController::class, 'getProductMovements'])->middleware('permission:inventory.read');
+
 
     // Warehouse Transfer Management
     Route::get('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'index'])->middleware('permission:product-stock.read');

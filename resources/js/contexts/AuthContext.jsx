@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
           });
 
           if (response.data && response.data.user) {
-            console.log('Refreshed user data:', response.data.user);
+
             const updatedUser = response.data.user;
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));

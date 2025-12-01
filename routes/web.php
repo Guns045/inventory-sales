@@ -8,60 +8,15 @@ Route::get('/login', function () {
     return view('welcome');
 })->name('login');
 
-// Simple API test endpoint
-Route::get('/test-api', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'API is working!',
-        'server_time' => now()->toDateTimeString(),
-        'ip' => request()->ip(),
-        'user_agent' => request()->userAgent()
-    ]);
-});
 
-// Database test endpoint
-Route::get('/test-db', function () {
-    try {
-        $users = \DB::table('users')->count();
-        $products = \DB::table('products')->count();
-        return response()->json([
-            'success' => true,
-            'message' => 'Database connection working!',
-            'data' => [
-                'total_users' => $users,
-                'total_products' => $products
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Database connection failed!',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/preview/delivery', [PdfPreviewController::class, 'mockDelivery'])->name('preview.delivery');
-Route::get('/preview/delivery-db/{id?}', [PdfPreviewController::class, 'testDeliveryFromDatabase'])->name('preview.delivery.db');
-Route::get('/preview/picking-list', [PdfPreviewController::class, 'mockPickingList'])->name('preview.picking-list');
-Route::get('/preview/picking-list-db/{id?}', [PdfPreviewController::class, 'testPickingListFromDatabase'])->name('preview.picking-list.db');
-Route::get('/preview/quotation', [PdfPreviewController::class, 'mockQuotation'])->name('preview.quotation');
-Route::get('/preview/quotation-db/{id?}', [PdfPreviewController::class, 'testQuotationFromDatabase'])->name('preview.quotation.db');
-Route::get('/preview/invoice', [PdfPreviewController::class, 'mockInvoice'])->name('preview.invoice');
-Route::get('/preview/invoice-db/{id?}', [PdfPreviewController::class, 'testInvoiceFromDatabase'])->name('preview.invoice.db');
 
-// Testing routes for connection tests (must be before catch-all)
-Route::get('/test-connection', function () {
-    return response()->file(base_path('test-connection.html'));
-});
 
-Route::get('/simple-test', function () {
-    return response()->file(base_path('simple-test.html'));
-});
+
 
 // Fix static asset serving for LAN access
 Route::get('/node_modules/{path}', function ($path) {

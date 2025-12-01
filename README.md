@@ -162,27 +162,89 @@ For testing the application across multiple devices (mobile, tablet, other compu
    ```
 4. Access from other devices: `http://YOUR_IP:3000`
 
-## Contributing
+## Deployment Guide
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### 1. Production Build
+To prepare the application for production, you need to build the frontend assets:
 
-## License
+```bash
+npm run build
+```
+This command compiles the React assets into the `public/build` directory.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### 2. Server Requirements
+- **Web Server**: Apache or Nginx
+- **PHP**: 8.1 or higher
+- **Database**: MySQL 5.7+ or 8.0+
+- **Composer**: Latest version
+- **Node.js**: 16+ (for building assets)
 
-## Support
+### 3. Deployment Steps
 
-For support and questions:
+#### A. Clone & Install
+```bash
+git clone <repository-url>
+cd jinan-inventory
+composer install --optimize-autoloader --no-dev
+npm install
+npm run build
+```
 
-1. Check the documentation in `/docs`
-2. Review test files in `/tests` for examples
-3. Check startup scripts in `/scripts` for configuration options
+#### B. Environment Configuration
+1. Copy `.env.example` to `.env`
+2. Update database credentials:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=your_db_name
+   DB_USERNAME=your_db_user
+   DB_PASSWORD=your_db_password
+   ```
+3. Set application environment:
+   ```env
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_URL=https://your-domain.com
+   ```
+4. Generate application key:
+   ```bash
+   php artisan key:generate
+   ```
+
+#### C. Database Setup
+```bash
+php artisan migrate --force
+php artisan db:seed --force
+```
+
+#### D. File Permissions
+Ensure the web server (e.g., `www-data`) has write access to storage and cache directories:
+```bash
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+```
+
+#### E. Web Server Configuration (Apache Example)
+Ensure your VirtualHost points to the `public` directory:
+```apache
+<VirtualHost *:80>
+    ServerName your-domain.com
+    DocumentRoot /var/www/jinan-inventory/public
+
+    <Directory /var/www/jinan-inventory/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+### 4. Troubleshooting
+- **403 Forbidden**: Check file permissions for `storage` and `bootstrap/cache`.
+- **500 Internal Server Error**: Check `storage/logs/laravel.log`.
+- **Assets 404**: Ensure `npm run build` was executed and `public/build` exists.
 
 ---
 
-**Version**: 1.0.0
-**Last Updated**: October 28, 2025
+**Version**: 1.0.1
+**Last Updated**: December 02, 2025

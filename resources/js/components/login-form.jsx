@@ -18,7 +18,7 @@ export function LoginForm({
     className,
     ...props
 }) {
-    console.log('LoginForm component loaded');
+
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -32,7 +32,7 @@ export function LoginForm({
         const apiContext = useAPI();
         login = auth?.login;
         api = apiContext?.api;
-        console.log('Auth and API contexts loaded successfully');
+
     } catch (err) {
         console.error('Error loading contexts:', err);
     }
@@ -72,7 +72,7 @@ export function LoginForm({
         }
     };
 
-    console.log('Rendering LoginForm');
+
 
     return (
         <div className={cn("flex flex-col gap-6", className)} {...props}>

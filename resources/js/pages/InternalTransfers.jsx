@@ -305,7 +305,7 @@ const InternalTransfers = () => {
           <InternalTransferTable
             data={transfers}
             loading={loading}
-            onViewDetails={(t) => console.log('View', t)}
+            onViewDetails={(t) => { }}
             onApprove={handleApprove}
             onDeliver={handleDeliver}
             onReceive={handleReceive}

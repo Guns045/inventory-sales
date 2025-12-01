@@ -138,12 +138,12 @@ const ProductStock = () => {
 
   const handleAdjustStock = (stock) => {
     // TODO: Implement adjust stock modal
-    console.log('Adjust stock', stock);
+
   };
 
   const handleViewHistory = (stock) => {
     // TODO: Implement view history modal
-    console.log('View history', stock);
+
   };
 
   const handleCreateStock = () => {
