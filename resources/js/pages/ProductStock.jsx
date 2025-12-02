@@ -154,7 +154,7 @@ const ProductStock = () => {
       quantity: stock.quantity,
       bin_location: stock.bin_location || ''
     });
-    setProductSearch(`${stock.product.name} (${stock.product.sku})`);
+    setProductSearch(`${stock.product.sku} - ${stock.product.name}`);
     setIsEditOpen(true);
   };
 
@@ -221,7 +221,7 @@ const ProductStock = () => {
 
   const handleSelectProduct = (product) => {
     setFormData({ ...formData, product_id: product.id });
-    setProductSearch(`${product.name} (${product.sku})`);
+    setProductSearch(`${product.sku} - ${product.name}`);
     setShowSuggestions(false);
   };
 
