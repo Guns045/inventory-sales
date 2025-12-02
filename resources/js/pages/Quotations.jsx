@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { QuotationTable } from '@/components/transactions/QuotationTable';
 import { QuotationForm } from '@/components/transactions/QuotationForm';
 import { RejectModal } from '@/components/transactions/RejectModal';
+import { QuotationDetailModal } from '@/components/transactions/QuotationDetailModal';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const Quotations = () => {
   const { isOpen: isFormOpen, open: openForm, close: closeForm } = useModal();
   const { isOpen: isRejectOpen, open: openReject, close: closeReject } = useModal();
   const { isOpen: isDeleteOpen, open: openDelete, close: closeDelete } = useModal();
+  const { isOpen: isDetailOpen, open: openDetail, close: closeDetail } = useModal();
 
   // State
   const [selectedQuotation, setSelectedQuotation] = useState(null);
@@ -214,6 +216,21 @@ const Quotations = () => {
     }
   };
 
+  const handleView = async (quotation) => {
+    try {
+      // Fetch full details including items
+      const { success, data, error } = await getById(quotation.id);
+      if (success) {
+        setSelectedQuotation(data.data || data);
+        openDetail();
+      } else {
+        showError(error);
+      }
+    } catch (err) {
+      showError('Failed to load quotation details');
+    }
+  };
+
   const handlePrint = async (quotation) => {
     try {
       const response = await api.get(`/quotations/${quotation.id}/print`, {
@@ -291,6 +308,7 @@ const Quotations = () => {
               onSubmit={handleSubmitForApproval}
               onConvert={handleConvertToSO}
               onPrint={handlePrint}
+              onView={handleView}
             />
           </CardContent>
         </Card>
@@ -309,6 +327,12 @@ const Quotations = () => {
         title="Delete Quotation"
         message={`Are you sure you want to delete quotation ${selectedQuotation?.quotation_number}? This action cannot be undone.`}
         variant="destructive"
+      />
+
+      <QuotationDetailModal
+        open={isDetailOpen}
+        onOpenChange={closeDetail}
+        quotation={selectedQuotation}
       />
     </div>
   );

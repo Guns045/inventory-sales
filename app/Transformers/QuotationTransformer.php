@@ -17,25 +17,26 @@ class QuotationTransformer
 
         foreach ($quotation->quotationItems as $item) {
             $itemTotal = $item->quantity * $item->unit_price;
-            $discountAmount = ($item->discount_percent / 100) * $itemTotal;
-            $finalTotal = $itemTotal - $discountAmount;
+            $discountAmount = ($item->discount_percentage / 100) * $itemTotal;
+            $taxableAmount = $itemTotal - $discountAmount;
+            $itemTaxAmount = ($item->tax_rate / 100) * $taxableAmount;
+            $finalTotal = $taxableAmount + $itemTaxAmount;
 
-            $subtotal += $finalTotal;
+            $subtotal += $taxableAmount; // Subtotal excludes tax
+            $taxAmount += $itemTaxAmount; // Accumulate tax
 
             $items[] = [
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
                 'description' => $item->product->description ?? $item->description ?? 'No description',
                 'qty' => $item->quantity,
                 'unit_price' => $item->unit_price,
-                'disc' => $item->discount_percent,
+                'disc' => $item->discount_percentage,
                 'total_price' => $finalTotal
             ];
         }
 
-        // Calculate tax and grand total
-        $taxRate = $quotation->tax_rate ?? 0;
+        // Calculate grand total
         $otherCosts = $quotation->other_costs ?? 0;
-        $taxAmount = ($taxRate / 100) * $subtotal;
         $grandTotal = $subtotal + $taxAmount + $otherCosts;
 
         // Get warehouse name for Franco
