@@ -78,16 +78,32 @@ class SettingsController extends Controller
                 ], 400);
             }
 
-            // Check for duplicates in existing data
-            $existingPartNumbers = RawProduct::pluck('part_number')->toArray();
-            $newPartNumbers = array_column($data, 'part_number');
-            $duplicates = array_intersect($existingPartNumbers, $newPartNumbers);
+            // 1. Check for duplicates WITHIN the uploaded file
+            $partNumbers = array_column($data, 'part_number');
+            $uniquePartNumbers = array_unique($partNumbers);
 
-            if (!empty($duplicates)) {
+            if (count($partNumbers) !== count($uniquePartNumbers)) {
+                $counts = array_count_values($partNumbers);
+                $internalDuplicates = array_keys(array_filter($counts, function ($count) {
+                    return $count > 1; }));
+
+                return response()->json([
+                    'error' => 'Duplicate entries in file',
+                    'message' => 'The uploaded file contains duplicate part numbers.',
+                    'duplicates' => array_slice($internalDuplicates, 0, 10) // Show max 10 duplicates
+                ], 422);
+            }
+
+            // 2. Check for duplicates against DATABASE
+            $existingDuplicates = RawProduct::whereIn('part_number', $uniquePartNumbers)
+                ->pluck('part_number')
+                ->toArray();
+
+            if (!empty($existingDuplicates)) {
                 return response()->json([
                     'error' => 'Duplicate part numbers found',
-                    'duplicates' => array_values($duplicates),
-                    'message' => 'These part numbers already exist in the database'
+                    'message' => 'These part numbers already exist in the Master Data.',
+                    'duplicates' => array_slice($existingDuplicates, 0, 10) // Show max 10 duplicates
                 ], 409);
             }
 
@@ -110,6 +126,22 @@ class SettingsController extends Controller
                 'statistics' => RawProduct::getStatistics()
             ]);
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle Database Errors (like integrity constraint violations)
+            Log::error('Database Error during upload: ' . $e->getMessage());
+
+            $errorCode = $e->errorInfo[1] ?? 0;
+            $errorMessage = 'Database error occurred.';
+
+            if ($errorCode == 1062) { // Duplicate entry
+                $errorMessage = 'Duplicate entry found. Some part numbers already exist.';
+            }
+
+            return response()->json([
+                'error' => 'Database Error',
+                'message' => $errorMessage
+            ], 409);
+
         } catch (\Exception $e) {
             Log::error('Excel Upload Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -122,9 +154,15 @@ class SettingsController extends Controller
                 }
             }
 
+            // Truncate error message if it's too long (to avoid massive UI alerts)
+            $message = $e->getMessage();
+            if (strlen($message) > 200) {
+                $message = substr($message, 0, 200) . '... (check logs for full error)';
+            }
+
             return response()->json([
                 'error' => 'Failed to upload Excel file',
-                'message' => $e->getMessage()
+                'message' => $message
             ], 500);
         }
     }
