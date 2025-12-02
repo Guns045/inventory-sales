@@ -13,6 +13,7 @@ class QuotationTransformer
     {
         // Calculate totals
         $subtotal = 0;
+        $taxAmount = 0;
         $items = [];
 
         foreach ($quotation->quotationItems as $item) {
