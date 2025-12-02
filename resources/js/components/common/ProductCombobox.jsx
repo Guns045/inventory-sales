@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,6 +22,7 @@ export function ProductCombobox({
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
     const wrapperRef = useRef(null);
 
     // Debounce search
@@ -44,21 +45,52 @@ export function ProductCombobox({
             const product = products.find(p => p.id.toString() === value?.toString());
             if (product) {
                 setSelectedProduct(product);
-                // Only set search term if it's not already set (to avoid overwriting user typing)
-                if (!searchTerm) {
-                    setSearchTerm(`${product.name} (${product.sku})`);
-                }
+                // Always update search term to match selected product
+                setSearchTerm(`${product.name} (${product.sku})`);
             }
         } else {
             setSelectedProduct(null);
-            setSearchTerm("");
+            // Only clear search term if input is NOT focused (external reset)
+            // If input is focused, user is typing, so don't clear
+            const isFocused = wrapperRef.current?.contains(document.activeElement);
+            if (!isFocused) {
+                setSearchTerm("");
+            }
         }
     }, [value, products]);
+
+    // Update coords when opening
+    useEffect(() => {
+        if (open && wrapperRef.current) {
+            const updatePosition = () => {
+                const rect = wrapperRef.current.getBoundingClientRect();
+                setCoords({
+                    top: rect.bottom + window.scrollY,
+                    left: rect.left + window.scrollX,
+                    width: rect.width
+                });
+            };
+
+            updatePosition();
+            window.addEventListener("resize", updatePosition);
+            window.addEventListener("scroll", updatePosition, true);
+
+            return () => {
+                window.removeEventListener("resize", updatePosition);
+                window.removeEventListener("scroll", updatePosition, true);
+            };
+        }
+    }, [open]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                // Check if click is inside the portal
+                const portal = document.getElementById("product-combobox-portal");
+                if (portal && portal.contains(event.target)) {
+                    return;
+                }
                 setOpen(false);
             }
         }
@@ -79,8 +111,8 @@ export function ProductCombobox({
         setSearchTerm(val);
         setOpen(true);
 
-        // If user clears input, clear selection
-        if (val === '') {
+        // If user types, clear selection to enter search mode
+        if (value) {
             onChange(null);
         }
     };
@@ -107,8 +139,16 @@ export function ProductCombobox({
                 </div>
             )}
 
-            {open && (searchTerm.length > 0 || filteredProducts.length > 0) && (
-                <div className="absolute z-50 mt-1 max-h-96 min-w-[400px] w-auto overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+            {open && (searchTerm.length > 0 || filteredProducts.length > 0) && createPortal(
+                <div
+                    id="product-combobox-portal"
+                    className="absolute z-[9999] mt-1 max-h-96 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+                    style={{
+                        top: coords.top,
+                        left: coords.left,
+                        width: Math.max(coords.width, 400), // Min width 400px
+                    }}
+                >
                     <div className="p-1">
                         {loading ? (
                             <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
@@ -140,7 +180,8 @@ export function ProductCombobox({
                             ))
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
