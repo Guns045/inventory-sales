@@ -78,21 +78,25 @@ class SettingsController extends Controller
                 ], 400);
             }
 
-            // 1. Check for duplicates WITHIN the uploaded file
-            $partNumbers = array_column($data, 'part_number');
-            $uniquePartNumbers = array_unique($partNumbers);
+            // 1. Deduplicate entries WITHIN the uploaded file
+            // Keep the first occurrence of each part number
+            $uniqueData = [];
+            $seenPartNumbers = [];
+            $duplicateCount = 0;
 
-            if (count($partNumbers) !== count($uniquePartNumbers)) {
-                $counts = array_count_values($partNumbers);
-                $internalDuplicates = array_keys(array_filter($counts, function ($count) {
-                    return $count > 1; }));
-
-                return response()->json([
-                    'error' => 'Duplicate entries in file',
-                    'message' => 'The uploaded file contains duplicate part numbers.',
-                    'duplicates' => array_slice($internalDuplicates, 0, 10) // Show max 10 duplicates
-                ], 422);
+            foreach ($data as $row) {
+                $partNumber = $row['part_number'];
+                if (!in_array($partNumber, $seenPartNumbers)) {
+                    $seenPartNumbers[] = $partNumber;
+                    $uniqueData[] = $row;
+                } else {
+                    $duplicateCount++;
+                }
             }
+
+            // Use the unique data for further processing
+            $data = $uniqueData;
+            $uniquePartNumbers = $seenPartNumbers; // Update for next check
 
             // 2. Check for duplicates against DATABASE
             $existingDuplicates = RawProduct::whereIn('part_number', $uniquePartNumbers)
