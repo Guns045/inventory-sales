@@ -2,6 +2,7 @@ import React from 'react';
 import { DataTable } from '@/components/common/DataTable';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Pencil,
     Eye,
@@ -21,7 +22,9 @@ export function ProductStockTable({
     canUpdate = false,
     canDelete = false,
     warehouses = [],
-    viewMode = 'per-warehouse'
+    viewMode = 'per-warehouse',
+    selectedIds = [],
+    onSelectionChange = () => { }
 }) {
     const getStockStatus = (stock) => {
         const available = stock.quantity - stock.reserved_quantity;
@@ -34,7 +37,51 @@ export function ProductStockTable({
 
     const isAllWarehousesView = viewMode === 'all-warehouses';
 
-    let columns = [
+    // Handle "Select All"
+    const handleSelectAll = (checked) => {
+        if (checked) {
+            const allIds = data.map(item => item.id);
+            onSelectionChange(allIds);
+        } else {
+            onSelectionChange([]);
+        }
+    };
+
+    // Handle individual selection
+    const handleSelectRow = (id, checked) => {
+        if (checked) {
+            onSelectionChange([...selectedIds, id]);
+        } else {
+            onSelectionChange(selectedIds.filter(itemId => itemId !== id));
+        }
+    };
+
+    let columns = [];
+
+    // Add checkbox column if not in pivot view
+    if (!isAllWarehousesView) {
+        columns.push({
+            id: "select",
+            header: () => (
+                <Checkbox
+                    checked={data.length > 0 && selectedIds.length === data.length}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                />
+            ),
+            cell: (row) => (
+                <Checkbox
+                    checked={selectedIds.includes(row.id)}
+                    onCheckedChange={(checked) => handleSelectRow(row.id, checked)}
+                    aria-label="Select row"
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        });
+    }
+
+    columns.push(
         {
             header: "Part Number",
             accessorKey: "product.sku",
@@ -50,7 +97,7 @@ export function ProductStockTable({
                 </div>
             )
         }
-    ];
+    );
 
     if (isAllWarehousesView && warehouses) {
         // Add columns for each warehouse

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductStockTable } from '@/components/inventory/ProductStockTable';
-import { Plus, Search, RefreshCw, Loader2, CheckCircle } from "lucide-react";
+import { Plus, Search, RefreshCw, Loader2, CheckCircle, Trash2 } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { FormDialog } from "@/components/common/FormDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -39,6 +39,10 @@ const ProductStock = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [stockToDelete, setStockToDelete] = useState(null);
+
+  // Bulk Delete State
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -74,12 +78,14 @@ const ProductStock = () => {
 
   useEffect(() => {
     fetchProductStock(1);
+    setSelectedIds([]); // Clear selection on filter change
   }, [selectedWarehouse]); // Reset to page 1 when warehouse changes
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchProductStock(1);
+      setSelectedIds([]); // Clear selection on search
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -253,6 +259,27 @@ const ProductStock = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      const response = await api.post('/product-stock/bulk-delete', { ids: selectedIds });
+
+      if (response.status === 207) {
+        // Partial success
+        const { success_count, fail_count } = response.data.details;
+        showSuccess(`Deleted ${success_count} items. Failed: ${fail_count}`);
+      } else {
+        showSuccess('Selected stocks deleted successfully');
+      }
+
+      setIsBulkDeleteOpen(false);
+      setSelectedIds([]);
+      fetchProductStock(pagination.current_page);
+    } catch (error) {
+      console.error('Error deleting stocks:', error);
+      showError(error.response?.data?.message || 'Failed to delete selected stocks');
+    }
+  };
+
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -263,6 +290,15 @@ const ProductStock = () => {
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          {selectedIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setIsBulkDeleteOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Selected ({selectedIds.length})
+            </Button>
+          )}
           <Button variant="outline" onClick={() => fetchProductStock(pagination.current_page)}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
@@ -325,6 +361,8 @@ const ProductStock = () => {
               canDelete={canCreate('product-stock')}
               warehouses={warehouses}
               viewMode={selectedWarehouse === 'all' ? 'all-warehouses' : 'per-warehouse'}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
             />
           </CardContent>
         </Card>
@@ -534,6 +572,16 @@ const ProductStock = () => {
         confirmText="Delete"
         variant="destructive"
         onConfirm={handleConfirmDelete}
+      />
+
+      <ConfirmDialog
+        open={isBulkDeleteOpen}
+        onOpenChange={setIsBulkDeleteOpen}
+        title="Delete Selected Stock"
+        message={`Are you sure you want to delete ${selectedIds.length} stock entries? This action cannot be undone.`}
+        confirmText="Delete Selected"
+        variant="destructive"
+        onConfirm={handleBulkDelete}
       />
     </div>
   );

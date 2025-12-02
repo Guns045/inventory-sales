@@ -122,6 +122,40 @@ class ProductStockController extends Controller
     }
 
     /**
+     * Remove multiple resources from storage.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:product_stocks,id'
+        ]);
+
+        try {
+            $result = $this->productStockService->bulkDeleteStock($request->ids);
+
+            if ($result['fail_count'] > 0) {
+                return response()->json([
+                    'message' => 'Bulk delete completed with some errors',
+                    'details' => $result
+                ], 207); // Multi-Status
+            }
+
+            return response()->json([
+                'message' => 'Selected stocks deleted successfully',
+                'details' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('ProductStock Bulk Delete Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete selected stocks',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Adjust stock quantity manually.
      */
     public function adjustStock(AdjustStockRequest $request)

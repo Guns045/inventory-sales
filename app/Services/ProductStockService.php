@@ -225,6 +225,42 @@ class ProductStockService
     }
 
     /**
+     * Bulk delete product stock records
+     *
+     * @param array $ids
+     * @return array
+     */
+    public function bulkDeleteStock(array $ids): array
+    {
+        $successCount = 0;
+        $failCount = 0;
+        $errors = [];
+
+        foreach ($ids as $id) {
+            try {
+                $stock = ProductStock::find($id);
+                if (!$stock) {
+                    $failCount++;
+                    $errors[] = "Stock ID {$id} not found";
+                    continue;
+                }
+
+                $stock->delete();
+                $successCount++;
+            } catch (\Exception $e) {
+                $failCount++;
+                $errors[] = "Failed to delete stock ID {$id}: " . $e->getMessage();
+            }
+        }
+
+        return [
+            'success_count' => $successCount,
+            'fail_count' => $failCount,
+            'errors' => $errors
+        ];
+    }
+
+    /**
      * Adjust stock quantity manually
      *
      * @param array $data
