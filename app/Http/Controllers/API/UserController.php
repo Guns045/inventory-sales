@@ -16,7 +16,8 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with(['roles', 'warehouse']);
+        $query = User::with(['roles', 'warehouse'])
+            ->where('email', '!=', 'root@jinantruck.my.id'); // Hide root user
 
         // Search by name or email
         if ($request->filled('search')) {
@@ -87,6 +88,12 @@ class UserController extends Controller
     public function show($id)
     {
         $user = User::with(['roles', 'warehouse'])->findOrFail($id);
+
+        // Protect root user
+        if ($user->email === 'root@jinantruck.my.id') {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
         return response()->json($user);
     }
 
@@ -96,6 +103,11 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
+
+        // Protect root user
+        if ($user->email === 'root@jinantruck.my.id') {
+            return response()->json(['message' => 'Cannot edit this user'], 403);
+        }
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -141,6 +153,12 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
+
+        // Protect root user
+        if ($user->email === 'root@jinantruck.my.id') {
+            return response()->json(['message' => 'Cannot delete this user'], 403);
+        }
+
         $user->delete();
 
         return response()->json(['message' => 'User deleted successfully']);
