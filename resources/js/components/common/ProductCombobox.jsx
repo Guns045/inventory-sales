@@ -46,9 +46,13 @@ export function ProductCombobox({
             if (product) {
                 setSelectedProduct(product);
                 // Always update search term to match selected product
-                setSearchTerm(`${product.name} (${product.sku})`);
+                setSearchTerm(`${product.sku} - ${product.name}`);
             }
-        } else {
+        }
+    }, [value, products]);
+
+    useEffect(() => {
+        if (!value) {
             setSelectedProduct(null);
             // Only clear search term if input is NOT focused (external reset)
             // If input is focused, user is typing, so don't clear
@@ -57,7 +61,7 @@ export function ProductCombobox({
                 setSearchTerm("");
             }
         }
-    }, [value, products]);
+    }, [value]);
 
     // Update coords when opening
     useEffect(() => {
@@ -119,7 +123,7 @@ export function ProductCombobox({
 
     const handleSelect = (product) => {
         onChange(product.id.toString());
-        setSearchTerm(`${product.name} (${product.sku})`);
+        setSearchTerm(`${product.sku} - ${product.name}`);
         setOpen(false);
     };
 
