@@ -24,6 +24,7 @@ export function QuotationForm({
     products = [],
     onSubmit,
     onCancel,
+    onSearchProducts,
     loading = false
 }) {
     const { register, handleSubmit, errors, setValue, watch } = useForm(schema, {
@@ -182,6 +183,7 @@ export function QuotationForm({
                         onAdd={addItem}
                         onUpdate={updateItem}
                         onRemove={removeItem}
+                        onSearch={onSearchProducts}
                         editable={true}
                     />
                 </CardContent>

@@ -15,17 +15,37 @@ export function ProductCombobox({
     products = [],
     value,
     onChange,
+    onSearch,
     placeholder = "Select product..."
 }) {
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [loading, setLoading] = useState(false);
     const wrapperRef = useRef(null);
+
+    // Debounce search
+    useEffect(() => {
+        if (!onSearch) return;
+
+        const timer = setTimeout(async () => {
+            if (searchTerm) {
+                setLoading(true);
+                await onSearch(searchTerm);
+                setLoading(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm, onSearch]);
 
     useEffect(() => {
         if (value) {
+            // Try to find in current list, or maybe we need a way to fetch the selected product details if not in list
             const product = products.find(p => p.id.toString() === value?.toString());
-            setSelectedProduct(product || null);
+            if (product) {
+                setSelectedProduct(product);
+            }
         } else {
             setSelectedProduct(null);
         }
@@ -42,7 +62,9 @@ export function ProductCombobox({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef]);
 
-    const filteredProducts = products.filter(product => {
+    // If onSearch is provided, we assume 'products' is the search result
+    // Otherwise, we filter locally
+    const filteredProducts = onSearch ? products : products.filter(product => {
         const searchLower = searchTerm.toLowerCase();
         return (
             product.name.toLowerCase().includes(searchLower) ||
@@ -80,7 +102,9 @@ export function ProductCombobox({
                         />
                     </div>
                     <div className="p-1">
-                        {filteredProducts.length === 0 ? (
+                        {loading ? (
+                            <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
+                        ) : filteredProducts.length === 0 ? (
                             <div className="py-6 text-center text-sm">No product found.</div>
                         ) : (
                             filteredProducts.map((product) => (
@@ -94,6 +118,8 @@ export function ProductCombobox({
                                         onChange(product.id.toString());
                                         setOpen(false);
                                         setSearchTerm("");
+                                        // If using async search, we might want to keep the selected product in the list or handle it
+                                        setSelectedProduct(product);
                                     }}
                                 >
                                     <Check

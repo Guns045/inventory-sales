@@ -234,6 +234,15 @@ const Quotations = () => {
     }
   };
 
+  const handleSearchProducts = async (query) => {
+    try {
+      const response = await api.get(`/products?search=${query}&per_page=20`);
+      setProducts(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to search products:', err);
+    }
+  };
+
   if (isFormOpen) {
     return (
       <div className="container mx-auto p-6">
@@ -244,6 +253,7 @@ const Quotations = () => {
           products={products}
           onSubmit={handleFormSubmit}
           onCancel={closeForm}
+          onSearchProducts={handleSearchProducts}
           loading={formLoading}
         />
       </div>

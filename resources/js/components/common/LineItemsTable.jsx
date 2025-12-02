@@ -21,6 +21,7 @@ export function LineItemsTable({
     onAdd,
     onUpdate,
     onRemove,
+    onSearch,
     editable = true
 }) {
     const formatCurrency = (value) => {
@@ -68,6 +69,7 @@ export function LineItemsTable({
                                         <ProductCombobox
                                             products={products}
                                             value={item.product_id}
+                                            onSearch={onSearch}
                                             onChange={(value) => {
                                                 const selectedProduct = products.find(p => p.id.toString() === value.toString());
                                                 onUpdate(index, {
