@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('warehouses', WarehouseController::class);
     Route::get('/products/statistics', [ProductController::class, 'getStatistics']);
+    Route::post('products/bulk-delete', [ProductController::class, 'bulkDestroy']);
     Route::apiResource('products', ProductController::class);
 
     // Inventory management

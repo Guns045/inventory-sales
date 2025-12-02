@@ -16,6 +16,7 @@ export function ProductStockTable({
     loading,
     onAdjust,
     onViewHistory,
+    onDelete,
     userRole,
     canUpdate = false,
     canDelete = false,

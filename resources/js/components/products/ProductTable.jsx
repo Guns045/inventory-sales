@@ -3,6 +3,7 @@ import { DataTable } from "@/components/common/DataTable"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 /**
  * ProductTable component for displaying products
@@ -10,8 +11,10 @@ import { Pencil, Trash2 } from "lucide-react"
  * @param {boolean} loading - Loading state
  * @param {Function} onEdit - Edit handler
  * @param {Function} onDelete - Delete handler
+ * @param {Array} selectedIds - Selected product IDs
+ * @param {Function} onSelectionChange - Selection change handler
  */
-export function ProductTable({ data, loading, onEdit, onDelete }) {
+export function ProductTable({ data, loading, onEdit, onDelete, selectedIds = [], onSelectionChange }) {
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -20,7 +23,45 @@ export function ProductTable({ data, loading, onEdit, onDelete }) {
         }).format(value)
     }
 
+    const handleSelectAll = (checked) => {
+        if (checked) {
+            onSelectionChange(data.map(row => row.id))
+        } else {
+            onSelectionChange([])
+        }
+    }
+
+    const handleSelectOne = (id, checked) => {
+        if (checked) {
+            onSelectionChange([...selectedIds, id])
+        } else {
+            onSelectionChange(selectedIds.filter(selectedId => selectedId !== id))
+        }
+    }
+
+    const allSelected = data.length > 0 && selectedIds.length === data.length
+    const someSelected = selectedIds.length > 0 && selectedIds.length < data.length
+
     const columns = [
+        {
+            header: (
+                <Checkbox
+                    checked={allSelected || (someSelected ? "indeterminate" : false)}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                />
+            ),
+            id: "select",
+            cell: (row) => (
+                <Checkbox
+                    checked={selectedIds.includes(row.id)}
+                    onCheckedChange={(checked) => handleSelectOne(row.id, checked)}
+                    aria-label={`Select product ${row.sku}`}
+                />
+            ),
+            headerClassName: "w-[50px]",
+            cellClassName: "w-[50px]"
+        },
         {
             header: "Part Number",
             accessorKey: "sku",

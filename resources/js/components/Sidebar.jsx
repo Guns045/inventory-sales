@@ -172,7 +172,7 @@ export function Sidebar({ className }) {
                     </Button>
                 </div>
 
-                <SheetContent side="left" className="p-0 w-[280px] bg-[#172554] border-r-indigo-800 text-white">
+                <SheetContent side="left" className="p-0 w-[280px] bg-[#172554] border-r-indigo-800 text-white flex flex-col h-full">
                     <SheetHeader className="p-4 border-b border-indigo-800">
                         <div className="flex flex-col items-center gap-3 w-full">
                             {logoUrl ? (

@@ -14,7 +14,7 @@ class WarehouseController extends Controller
      */
     public function index()
     {
-        $warehouses = Warehouse::all();
+        $warehouses = Warehouse::withCount('productStock as stock_count')->get();
         return response()->json($warehouses);
     }
 

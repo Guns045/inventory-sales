@@ -118,6 +118,40 @@ class ProductController extends Controller
             ], 422);
         }
     }
+
+    /**
+     * Remove multiple resources from storage.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:products,id'
+        ]);
+
+        try {
+            $results = $this->productService->bulkDeleteProducts($request->ids);
+
+            if ($results['failed'] > 0) {
+                return response()->json([
+                    'message' => 'Bulk delete completed with some errors',
+                    'results' => $results
+                ], 207); // 207 Multi-Status
+            }
+
+            return response()->json([
+                'message' => 'Products deleted successfully',
+                'results' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Product Bulk Delete Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete products',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     /**
      * Get product statistics
      */

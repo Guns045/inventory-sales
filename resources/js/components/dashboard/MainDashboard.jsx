@@ -6,14 +6,21 @@ import CriticalStockTable from "./CriticalStockTable";
 import ApprovalTable from "./ApprovalTable";
 import { DollarSign, ShoppingCart, Package, Activity } from "lucide-react";
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 const MainDashboard = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { token } = useAuth();
 
     const fetchData = async () => {
         try {
-            const response = await axios.get('/api/dashboard');
+            const response = await axios.get('/api/dashboard', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json'
+                }
+            });
             setData(response.data);
             setLoading(false);
         } catch (error) {
@@ -23,8 +30,10 @@ const MainDashboard = () => {
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (token) {
+            fetchData();
+        }
+    }, [token]);
 
     if (loading) {
         return <div className="p-8 text-center">Loading dashboard data...</div>;

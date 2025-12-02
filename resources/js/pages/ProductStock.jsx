@@ -136,14 +136,39 @@ const ProductStock = () => {
     }
   };
 
-  const handleAdjustStock = (stock) => {
-    // TODO: Implement adjust stock modal
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedStock, setSelectedStock] = useState(null);
 
+  const handleAdjustStock = (stock) => {
+    setSelectedStock(stock);
+    setFormData({
+      product_id: stock.product_id,
+      warehouse_id: stock.warehouse_id.toString(),
+      quantity: stock.quantity,
+      bin_location: stock.bin_location || ''
+    });
+    setProductSearch(`${stock.product.name} (${stock.product.sku})`);
+    setIsEditOpen(true);
   };
 
   const handleViewHistory = (stock) => {
-    // TODO: Implement view history modal
+    setSelectedStock(stock);
+    setIsViewOpen(true);
+  };
 
+  const handleSubmitEdit = async () => {
+    if (!selectedStock) return;
+
+    try {
+      await api.put(`/product-stock/${selectedStock.id}`, formData);
+      showSuccess('Stock updated successfully');
+      setIsEditOpen(false);
+      fetchProductStock(pagination.current_page);
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      showError(error.response?.data?.message || 'Failed to update stock');
+    }
   };
 
   const handleCreateStock = () => {
@@ -296,8 +321,8 @@ const ProductStock = () => {
               onViewHistory={handleViewHistory}
               onDelete={handleDeleteStock}
               userRole={user?.role?.name}
-              canUpdate={canCreate('product-stock')} // Assuming create implies update for now, or use specific permission
-              canDelete={canCreate('product-stock')} // Assuming create implies delete for now
+              canUpdate={canCreate('product-stock')}
+              canDelete={canCreate('product-stock')}
               warehouses={warehouses}
               viewMode={selectedWarehouse === 'all' ? 'all-warehouses' : 'per-warehouse'}
             />
@@ -392,6 +417,113 @@ const ProductStock = () => {
             />
           </div>
         </div>
+      </FormDialog>
+
+      <FormDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Adjust Stock"
+        description="Update stock quantity and location"
+        onSubmit={handleSubmitEdit}
+        submitText="Update"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Product</Label>
+            <Input
+              value={productSearch}
+              disabled
+              className="bg-gray-100"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Warehouse</Label>
+            <Select
+              value={formData.warehouse_id}
+              onValueChange={(value) => setFormData({ ...formData, warehouse_id: value })}
+              disabled
+            >
+              <SelectTrigger className="bg-gray-100">
+                <SelectValue placeholder="Select Warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                {warehouses.map((w) => (
+                  <SelectItem key={w.id} value={w.id.toString()}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Quantity</Label>
+            <Input
+              type="number"
+              value={formData.quantity}
+              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              placeholder="Enter quantity"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Bin Location</Label>
+            <Input
+              value={formData.bin_location}
+              onChange={(e) => setFormData({ ...formData, bin_location: e.target.value })}
+              placeholder="Enter bin location"
+            />
+          </div>
+        </div>
+      </FormDialog>
+
+      <FormDialog
+        open={isViewOpen}
+        onOpenChange={setIsViewOpen}
+        title="Stock Details"
+        description="View stock information"
+        onSubmit={() => setIsViewOpen(false)}
+        submitText="Close"
+        cancelText=""
+      >
+        {selectedStock && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-muted-foreground">Product</Label>
+                <div className="font-medium">{selectedStock.product?.name}</div>
+                <div className="text-sm text-muted-foreground">{selectedStock.product?.sku}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Warehouse</Label>
+                <div className="font-medium">{selectedStock.warehouse?.name}</div>
+                <div className="text-sm text-muted-foreground">{selectedStock.warehouse?.code}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Quantity</Label>
+                <div className="font-medium text-lg">{selectedStock.quantity}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Reserved</Label>
+                <div className="font-medium text-lg text-orange-600">{selectedStock.reserved_quantity}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Available</Label>
+                <div className="font-medium text-lg text-green-600">
+                  {selectedStock.quantity - selectedStock.reserved_quantity}
+                </div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Bin Location</Label>
+                <div className="font-medium">{selectedStock.bin_location || '-'}</div>
+              </div>
+              <div className="col-span-2">
+                <Label className="text-muted-foreground">Last Updated</Label>
+                <div className="font-medium">
+                  {new Date(selectedStock.updated_at).toLocaleString('id-ID')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </FormDialog>
 
       <ConfirmDialog

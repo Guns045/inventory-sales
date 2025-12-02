@@ -25,7 +25,10 @@ class ProductService
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -127,6 +130,36 @@ class ProductService
 
             return true;
         });
+    }
+
+    /**
+     * Bulk delete products
+     *
+     * @param array $ids
+     * @return array
+     */
+    public function bulkDeleteProducts(array $ids): array
+    {
+        $results = [
+            'success' => 0,
+            'failed' => 0,
+            'errors' => []
+        ];
+
+        foreach ($ids as $id) {
+            try {
+                $product = Product::find($id);
+                if ($product) {
+                    $this->deleteProduct($product);
+                    $results['success']++;
+                }
+            } catch (\Exception $e) {
+                $results['failed']++;
+                $results['errors'][] = "Product ID {$id}: " . $e->getMessage();
+            }
+        }
+
+        return $results;
     }
 
     /**

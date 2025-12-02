@@ -14,6 +14,7 @@ import { useModal } from "@/hooks/useModal"
 import { useToast } from "@/hooks/useToast"
 import { useAPI } from '@/contexts/APIContext';
 import { Package, TrendingUp, AlertTriangle, Archive } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 const Products = () => {
   const { api } = useAPI();
@@ -58,6 +59,9 @@ const Products = () => {
     outOfStock: 0,
     totalValue: 0
   });
+
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
   // Fetch categories, suppliers, and stats
   useEffect(() => {
@@ -156,15 +160,40 @@ const Products = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      await api.post('/products/bulk-delete', { ids: selectedIds });
+      showSuccess(`${selectedIds.length} products deleted successfully`);
+      setSelectedIds([]);
+      setIsBulkDeleteOpen(false);
+      refresh();
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      showError('Failed to delete selected products');
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Page Header */}
-      <PageHeader
-        title="Products"
-        description="Manage your product inventory"
-        onAdd={handleAdd}
-        addButtonText="Add Product"
-      />
+      <div className="flex justify-between items-center">
+        <PageHeader
+          title="Products"
+          description="Manage your product inventory"
+          onAdd={handleAdd}
+          addButtonText="Add Product"
+        />
+        {selectedIds.length > 0 && (
+          <Button
+            variant="destructive"
+            onClick={() => setIsBulkDeleteOpen(true)}
+            className="ml-4"
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            Delete Selected ({selectedIds.length})
+          </Button>
+        )}
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -220,6 +249,8 @@ const Products = () => {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
 
         {/* Pagination */}
@@ -263,6 +294,17 @@ const Products = () => {
         message={`Are you sure you want to delete "${deletingProduct?.name}"? This action cannot be undone.`}
         variant="destructive"
         confirmText="Delete"
+      />
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        open={isBulkDeleteOpen}
+        onOpenChange={setIsBulkDeleteOpen}
+        onConfirm={handleBulkDelete}
+        title="Delete Selected Products"
+        message={`Are you sure you want to delete ${selectedIds.length} selected products? This action cannot be undone.`}
+        variant="destructive"
+        confirmText="Delete Selected"
       />
     </div>
   );
