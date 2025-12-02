@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SalesDashboard from '../components/dashboard/SalesDashboard';
 import WarehouseDashboard from '../components/dashboard/WarehouseDashboard';
 import FinanceDashboard from '../components/dashboard/FinanceDashboard';
+import MainDashboard from '../components/dashboard/MainDashboard';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ const Dashboard = () => {
     switch (role) {
       case 'Super Admin':
       case 'Admin':
+        return <MainDashboard />;
       case 'manager':
       case 'Sales':
       case 'Sales Team':
