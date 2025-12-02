@@ -28,7 +28,7 @@ class QuotationTransformer
 
             $items[] = [
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                'description' => $item->product->description ?? $item->description ?? 'No description',
+                'description' => $item->product->name ?? $item->product->description ?? $item->description ?? 'No description',
                 'qty' => $item->quantity,
                 'unit_price' => $item->unit_price,
                 'disc' => $item->discount_percentage,
