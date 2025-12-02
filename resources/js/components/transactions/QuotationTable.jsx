@@ -29,10 +29,148 @@ export function QuotationTable({
     const { user } = useAuth();
 
     const getAvailableActions = (quotation) => {
-        // ... (existing logic) ...
-        // Always allow view
-        return { ...actions, canView: true };
+        const userRole = user?.role?.name || user?.role || '';
+        const isSalesTeam = userRole.toLowerCase().includes('sales');
+        const isAdmin = userRole.toLowerCase().includes('admin') || userRole.toLowerCase().includes('manager');
+        const isSuperAdmin = userRole === 'Super Admin';
+
+        const actions = {
+            canEdit: false,
+            canDelete: false,
+            canSubmit: false,
+            canApprove: false,
+            canReject: false,
+            canConvertToSO: false,
+            viewOnly: false,
+            canView: true
+        };
+
+        // Sales Team specific logic
+        if (isSalesTeam) {
+            switch (quotation.status) {
+                case 'DRAFT':
+                    actions.canEdit = true;
+                    actions.canDelete = true;
+                    actions.canSubmit = true;
+                    break;
+                case 'SUBMITTED':
+                    actions.viewOnly = true;
+                    break;
+                case 'APPROVED':
+                    actions.canConvertToSO = true;
+                    break;
+                case 'REJECTED':
+                    actions.canEdit = true;
+                    actions.canSubmit = true;
+                    break;
+                case 'CONVERTED':
+                    actions.viewOnly = true;
+                    break;
+            }
+        }
+
+        // Admin/Manager logic
+        if (isAdmin) {
+            switch (quotation.status) {
+                case 'DRAFT':
+                    actions.canEdit = true;
+                    actions.canDelete = true;
+                    actions.canSubmit = true;
+                    break;
+                case 'SUBMITTED':
+                    actions.canApprove = true;
+                    actions.canReject = true;
+                    break;
+                case 'APPROVED':
+                    actions.canConvertToSO = true;
+                    break;
+                case 'REJECTED':
+                    actions.canEdit = true;
+                    actions.canDelete = true;
+                    actions.canSubmit = true;
+                    break;
+                case 'CONVERTED':
+                    actions.viewOnly = true;
+                    break;
+            }
+        }
+
+        // Super Admin logic
+        if (isSuperAdmin) {
+            actions.canDelete = true;
+            switch (quotation.status) {
+                case 'DRAFT':
+                    actions.canEdit = true;
+                    actions.canSubmit = true;
+                    break;
+                case 'SUBMITTED':
+                    actions.canApprove = true;
+                    actions.canReject = true;
+                    break;
+                case 'APPROVED':
+                    actions.canConvertToSO = true;
+                    break;
+                case 'REJECTED':
+                    actions.canEdit = true;
+                    actions.canSubmit = true;
+                    break;
+                case 'CONVERTED':
+                    actions.viewOnly = true;
+                    break;
+            }
+        }
+
+        return actions;
     };
+
+    const columns = [
+        {
+            header: "Quotation Number",
+            accessorKey: "quotation_number",
+            cell: (row) => <span className="font-mono text-sm">{row.quotation_number}</span>
+        },
+        {
+            header: "Customer",
+            accessorKey: "customer.company_name",
+            cell: (row) => (
+                <div>
+                    <div className="font-medium">{row.customer?.company_name || 'N/A'}</div>
+                    <div className="text-xs text-muted-foreground">{row.customer?.contact_person}</div>
+                </div>
+            )
+        },
+        {
+            header: "Status",
+            accessorKey: "status",
+            cell: (row) => (
+                <div className="flex flex-col gap-1">
+                    <StatusBadge status={row.status} config={{
+                        'SUBMITTED': { variant: 'warning', label: 'Submitted' },
+                        'CONVERTED': { variant: 'secondary', label: 'Converted' }
+                    }} />
+                    {row.status === 'SUBMITTED' && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            Pending Approval
+                        </span>
+                    )}
+                </div>
+            )
+        },
+        {
+            header: "Valid Until",
+            accessorKey: "valid_until",
+            cell: (row) => row.valid_until ? new Date(row.valid_until).toLocaleDateString() : '-'
+        },
+        {
+            header: "Total Amount",
+            accessorKey: "total_amount",
+            cell: (row) => (
+                <span className="font-medium text-blue-600">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(row.total_amount)}
+                </span>
+            )
+        }
+    ];
 
     // ... (existing columns) ...
 
