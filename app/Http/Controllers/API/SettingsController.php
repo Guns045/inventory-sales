@@ -118,7 +118,7 @@ class SettingsController extends Controller
                 $fullPath = storage_path('app/' . $filePath);
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
-                    Log::info('Temp file cleaned up on error:', $fullPath);
+                    Log::info('Temp file cleaned up on error:', ['path' => $fullPath]);
                 }
             }
 
