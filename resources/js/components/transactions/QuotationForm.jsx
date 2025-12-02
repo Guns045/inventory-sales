@@ -176,7 +176,7 @@ export function QuotationForm({
                 <CardHeader>
                     <CardTitle>Line Items</CardTitle>
                 </CardHeader>
-                <CardContent className="min-h-[500px] flex flex-col">
+                <CardContent>
                     <LineItemsTable
                         items={items}
                         products={products}
@@ -185,7 +185,6 @@ export function QuotationForm({
                         onRemove={removeItem}
                         onSearch={onSearchProducts}
                         editable={true}
-                        className="flex-1"
                     />
                 </CardContent>
             </Card>
