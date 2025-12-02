@@ -151,6 +151,6 @@ export function useCRUD(endpoint, options = {}) {
         remove,
         getById,
         setPage,
-        refresh: () => fetchItems(pagination.current_page)
+        refresh: (params = {}) => fetchItems(pagination.current_page, params)
     };
 }

@@ -175,25 +175,22 @@ const Products = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex justify-between items-center">
-        <PageHeader
-          title="Products"
-          description="Manage your product inventory"
-          onAdd={handleAdd}
-          addButtonText="Add Product"
-        />
-        {selectedIds.length > 0 && (
+      {/* PageHeader */}
+      <PageHeader
+        title="Products"
+        description="Manage your product inventory"
+        onAdd={handleAdd}
+        addButtonText="Add Product"
+        actions={selectedIds.length > 0 && (
           <Button
             variant="destructive"
             onClick={() => setIsBulkDeleteOpen(true)}
-            className="ml-4"
           >
             <Archive className="mr-2 h-4 w-4" />
             Delete Selected ({selectedIds.length})
           </Button>
         )}
-      </div>
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
