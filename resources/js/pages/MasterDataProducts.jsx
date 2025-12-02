@@ -52,7 +52,7 @@ const MasterDataProducts = () => {
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
-    per_page: 20,
+    per_page: 100,
     total: 0
   });
 

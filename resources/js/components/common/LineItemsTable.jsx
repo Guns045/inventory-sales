@@ -44,7 +44,7 @@ export function LineItemsTable({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Product</TableHead>
+                        <TableHead className="min-w-[350px]">Product</TableHead>
                         <TableHead className="w-24">Quantity</TableHead>
                         <TableHead className="w-32">Unit Price</TableHead>
                         <TableHead className="w-24">Discount %</TableHead>
