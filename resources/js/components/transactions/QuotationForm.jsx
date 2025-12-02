@@ -176,7 +176,7 @@ export function QuotationForm({
                 <CardHeader>
                     <CardTitle>Line Items</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="min-h-[500px]">
                     <LineItemsTable
                         items={items}
                         products={products}

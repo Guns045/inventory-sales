@@ -16,7 +16,7 @@ export function ProductCombobox({
     value,
     onChange,
     onSearch,
-    placeholder = "Select product..."
+    placeholder = "Search product by name or SKU..."
 }) {
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -41,13 +41,17 @@ export function ProductCombobox({
 
     useEffect(() => {
         if (value) {
-            // Try to find in current list, or maybe we need a way to fetch the selected product details if not in list
             const product = products.find(p => p.id.toString() === value?.toString());
             if (product) {
                 setSelectedProduct(product);
+                // Only set search term if it's not already set (to avoid overwriting user typing)
+                if (!searchTerm) {
+                    setSearchTerm(`${product.name} (${product.sku})`);
+                }
             }
         } else {
             setSelectedProduct(null);
+            setSearchTerm("");
         }
     }, [value, products]);
 
@@ -62,8 +66,6 @@ export function ProductCombobox({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef]);
 
-    // If onSearch is provided, we assume 'products' is the search result
-    // Otherwise, we filter locally
     const filteredProducts = onSearch ? products : products.filter(product => {
         const searchLower = searchTerm.toLowerCase();
         return (
@@ -72,35 +74,41 @@ export function ProductCombobox({
         );
     });
 
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+        setSearchTerm(val);
+        setOpen(true);
+
+        // If user clears input, clear selection
+        if (val === '') {
+            onChange(null);
+        }
+    };
+
+    const handleSelect = (product) => {
+        onChange(product.id.toString());
+        setSearchTerm(`${product.name} (${product.sku})`);
+        setOpen(false);
+    };
+
     return (
         <div className="relative w-full" ref={wrapperRef}>
-            <div
-                className={cn(
-                    "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer",
-                    !selectedProduct && "text-muted-foreground"
-                )}
-                onClick={() => setOpen(!open)}
-            >
-                <span className="truncate">
-                    {selectedProduct
-                        ? `${selectedProduct.sku ? selectedProduct.sku + ' - ' : ''}${selectedProduct.name}`
-                        : placeholder}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </div>
+            <Input
+                placeholder={placeholder}
+                value={searchTerm}
+                onChange={handleInputChange}
+                onFocus={() => setOpen(true)}
+                className="w-full"
+            />
 
-            {open && (
+            {loading && (
+                <div className="absolute right-3 top-2.5">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+            )}
+
+            {open && (searchTerm.length > 0 || filteredProducts.length > 0) && (
                 <div className="absolute z-50 mt-1 max-h-96 min-w-[400px] w-auto overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
-                    <div className="flex items-center border-b px-3" onClick={(e) => e.stopPropagation()}>
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <input
-                            className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                            placeholder="Search by name or SKU..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            autoFocus
-                        />
-                    </div>
                     <div className="p-1">
                         {loading ? (
                             <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
@@ -111,16 +119,10 @@ export function ProductCombobox({
                                 <div
                                     key={product.id}
                                     className={cn(
-                                        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                                        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
                                         value?.toString() === product.id.toString() && "bg-accent text-accent-foreground"
                                     )}
-                                    onClick={() => {
-                                        onChange(product.id.toString());
-                                        setOpen(false);
-                                        setSearchTerm("");
-                                        // If using async search, we might want to keep the selected product in the list or handle it
-                                        setSelectedProduct(product);
-                                    }}
+                                    onClick={() => handleSelect(product)}
                                 >
                                     <Check
                                         className={cn(
