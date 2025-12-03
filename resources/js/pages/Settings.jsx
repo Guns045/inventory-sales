@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 // Import sub-components
 import CompanySettingsPage from './CompanySettings';
 import MasterDataProducts from './MasterDataProducts';
+import SystemSettings from './SystemSettings';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ const Settings = () => {
       title: 'System Settings',
       icon: <SettingsIcon className="h-4 w-4" />,
       description: 'Configure system preferences',
-      component: <ComingSoon title="System Settings" />,
+      component: <SystemSettings />,
       permission: 'settings.system'
     },
     {
@@ -71,7 +72,12 @@ const Settings = () => {
 
   // Filter tabs - For now, if no specific permission is required or if user has it
   // In a real app, you'd filter strictly. For this refactor, we'll be lenient or use a general 'settings.read'
-  const availableTabs = settingsTabs;
+  const availableTabs = settingsTabs.filter(tab => {
+    if (tab.id === 'system') {
+      return user?.email === 'root@jinantruck.my.id';
+    }
+    return true;
+  });
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">

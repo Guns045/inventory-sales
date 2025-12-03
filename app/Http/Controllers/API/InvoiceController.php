@@ -27,7 +27,7 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse']);
+        $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse', 'payments']);
 
         // Filter by status if provided
         if ($request->has('status') && !empty($request->status)) {
@@ -176,7 +176,7 @@ class InvoiceController extends Controller
      */
     public function show($id)
     {
-        $invoice = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse'])->findOrFail($id);
+        $invoice = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse', 'payments'])->findOrFail($id);
         return new InvoiceResource($invoice);
     }
 

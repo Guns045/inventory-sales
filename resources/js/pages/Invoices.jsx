@@ -119,7 +119,7 @@ const Invoices = () => {
   const handleViewDetail = async (invoice) => {
     try {
       const response = await api.get(`/invoices/${invoice.id}`);
-      setSelectedInvoice(response.data);
+      setSelectedInvoice(response.data.data || response.data);
       await fetchPaymentHistory(invoice.id);
       setShowDetailModal(true);
     } catch (err) {
@@ -139,7 +139,7 @@ const Invoices = () => {
   const handleAddPayment = (invoice) => {
     setSelectedInvoice(invoice);
     setPaymentData({
-      amount: invoice.total_amount - (invoice.paid_amount || 0),
+      amount: invoice.total_amount - (invoice.total_paid || 0),
       payment_date: new Date().toISOString().split('T')[0],
       payment_method: 'Bank Transfer',
       notes: ''
@@ -449,7 +449,7 @@ const Invoices = () => {
               </div>
               <div>
                 <Label className="text-muted-foreground">Balance Due</Label>
-                <div className="font-bold text-red-600">{formatCurrency((selectedInvoice?.total_amount || 0) - (selectedInvoice?.paid_amount || 0))}</div>
+                <div className="font-bold text-red-600">{formatCurrency((selectedInvoice?.total_amount || 0) - (selectedInvoice?.total_paid || 0))}</div>
               </div>
             </div>
 

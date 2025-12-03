@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InternalTransferTable } from '@/components/warehouse/InternalTransferTable';
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw, Loader2, CheckCircle } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ProductCombobox } from "@/components/common/ProductCombobox";
 
 const InternalTransfers = () => {
   const { api } = useAPI();
@@ -18,7 +17,6 @@ const InternalTransfers = () => {
   const { showSuccess, showError } = useToast();
 
   const [transfers, setTransfers] = useState([]);
-  const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,6 +38,25 @@ const InternalTransfers = () => {
     notes: ''
   });
 
+  // Auto-suggest state
+  const [productSearch, setProductSearch] = useState('');
+  const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const wrapperRef = React.useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [wrapperRef]);
+
   useEffect(() => {
     fetchData();
   }, [filter]);
@@ -53,18 +70,15 @@ const InternalTransfers = () => {
       if (filter.warehouse_to !== 'all') params.append('warehouse_to', filter.warehouse_to);
       if (filter.search) params.append('search', filter.search);
 
-      const [transfersResponse, productsResponse, warehousesResponse] = await Promise.allSettled([
+      const [transfersResponse, warehousesResponse] = await Promise.allSettled([
         api.get(`/warehouse-transfers?${params.toString()}`),
-        api.get('/products'),
         api.get('/warehouses')
       ]);
 
       if (transfersResponse.status === 'fulfilled') {
         setTransfers(transfersResponse.value.data.data || transfersResponse.value.data || []);
       }
-      if (productsResponse.status === 'fulfilled') {
-        setProducts(productsResponse.value.data.data || productsResponse.value.data || []);
-      }
+
       if (warehousesResponse.status === 'fulfilled') {
         setWarehouses(warehousesResponse.value.data.data || warehousesResponse.value.data || []);
       }
@@ -88,6 +102,7 @@ const InternalTransfers = () => {
         quantity_requested: 1,
         notes: ''
       });
+      setProductSearch('');
       fetchData();
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to create transfer');
@@ -218,6 +233,38 @@ const InternalTransfers = () => {
     }
   };
 
+  const handleProductSearchChange = async (e) => {
+    const value = e.target.value;
+    setProductSearch(value);
+    // Clear selected product when user types
+    if (formData.product_id) {
+      setFormData(prev => ({ ...prev, product_id: '' }));
+    }
+
+    if (value.length < 2) {
+      setSuggestedProducts([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setLoadingSuggestions(true);
+      const response = await api.get(`/products?search=${value}&per_page=10`);
+      setSuggestedProducts(response.data.data || []);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Error searching products:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleSelectProduct = (product) => {
+    setFormData({ ...formData, product_id: product.id });
+    setProductSearch(`${product.sku} - ${product.name}`);
+    setShowSuggestions(false);
+  };
+
   // Permission checks
   // Permission checks
   const getRoleName = (user) => {
@@ -329,12 +376,45 @@ const InternalTransfers = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Product</Label>
-                <ProductCombobox
-                  products={products}
-                  value={formData.product_id}
-                  onChange={(v) => setFormData({ ...formData, product_id: v })}
-                  placeholder="Select Product"
-                />
+                <div className="relative" ref={wrapperRef}>
+                  <Input
+                    placeholder="Search product by name or SKU..."
+                    value={productSearch}
+                    onChange={handleProductSearchChange}
+                    onFocus={() => {
+                      if (productSearch.length >= 2) setShowSuggestions(true);
+                    }}
+                  />
+                  {loadingSuggestions && (
+                    <div className="absolute right-3 top-2.5">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {showSuggestions && suggestedProducts.length > 0 && (
+                    <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                      {suggestedProducts.map((product) => (
+                        <div
+                          key={product.id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                          onClick={() => handleSelectProduct(product)}
+                        >
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-xs text-gray-500">{product.sku}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {!formData.product_id && productSearch.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Please select a product from the dropdown list
+                  </p>
+                )}
+                {formData.product_id && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" /> Product selected
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Quantity</Label>

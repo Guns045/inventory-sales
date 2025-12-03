@@ -212,7 +212,9 @@ export function Sidebar({ className }) {
                             )}
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate text-white">{user?.name}</p>
-                                <p className="text-xs text-indigo-300 truncate">{user?.role?.name}</p>
+                                <p className="text-xs text-indigo-300 truncate">
+                                    {typeof user?.role === 'string' ? user.role : user?.role?.name}
+                                </p>
                             </div>
                         </Link>
                         <Button
@@ -251,7 +253,7 @@ export function Sidebar({ className }) {
                     ) : (
                         <div className="p-4 text-indigo-200 text-sm">
                             <p>No menu items available.</p>
-                            <p className="mt-2 text-xs">Role: {user?.role?.name || 'None'}</p>
+                            <p className="mt-2 text-xs">Role: {typeof user?.role === 'string' ? user.role : (user?.role?.name || 'None')}</p>
                         </div>
                     )}
                 </ScrollArea>
@@ -273,7 +275,9 @@ export function Sidebar({ className }) {
                         )}
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate text-white">{user?.name}</p>
-                            <p className="text-xs text-indigo-300 truncate">{user?.role?.name}</p>
+                            <p className="text-xs text-indigo-300 truncate">
+                                {typeof user?.role === 'string' ? user.role : user?.role?.name}
+                            </p>
                         </div>
                     </Link>
                     <Button

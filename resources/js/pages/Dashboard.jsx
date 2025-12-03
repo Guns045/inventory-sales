@@ -82,7 +82,7 @@ const Dashboard = () => {
           <p>Your role has not been configured with a specific dashboard. Please contact the administrator to set up your role.</p>
           <hr />
           <p className="mb-0">
-            Your Role: {user?.role?.name || 'Unknown'}
+            Your Role: {(typeof user?.role === 'string' ? user.role : user?.role?.name) || 'Unknown'}
           </p>
         </Alert>
       </div>

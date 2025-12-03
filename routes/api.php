@@ -39,6 +39,9 @@ Route::get('/company-settings/public', [CompanySettingsController::class, 'index
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // System Management (Root Only)
+    Route::post('/system/reset-data', [App\Http\Controllers\API\SystemController::class, 'resetData']);
+
     // User and Role Management
     Route::get('/user/permissions', [RoleController::class, 'getUserPermissions']);
     Route::post('/check-permission/{permission}', [RoleController::class, 'checkPermission']);

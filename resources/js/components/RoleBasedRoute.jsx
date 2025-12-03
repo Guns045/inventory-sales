@@ -14,7 +14,9 @@ const RoleBasedRoute = ({ children }) => {
   }
 
   // Redirect based on user role
-  switch (user?.role?.name) {
+  const roleName = typeof user?.role === 'string' ? user.role : user?.role?.name;
+
+  switch (roleName) {
     case 'Super Admin':
     case 'Admin':
 
