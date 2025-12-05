@@ -66,6 +66,9 @@ class DeliveryOrderService
                 'shipping_city' => $data['shipping_city'] ?? $salesOrder->customer->city,
                 'driver_name' => $data['driver_name'] ?? null,
                 'vehicle_plate_number' => $data['vehicle_plate_number'] ?? null,
+                'delivery_method' => $data['delivery_method'] ?? 'Truck',
+                'delivery_vendor' => $data['delivery_vendor'] ?? null,
+                'tracking_number' => $data['tracking_number'] ?? null,
                 'notes' => isset($data['kurir']) ? 'Kurir: ' . $data['kurir'] : null,
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
@@ -140,6 +143,9 @@ class DeliveryOrderService
                 'shipping_city' => $data['shipping_city'] ?? $pickingList->salesOrder->customer->city,
                 'driver_name' => $data['driver_name'] ?? null,
                 'vehicle_plate_number' => $data['vehicle_plate_number'] ?? null,
+                'delivery_method' => $data['delivery_method'] ?? 'Truck',
+                'delivery_vendor' => $data['delivery_vendor'] ?? null,
+                'tracking_number' => $data['tracking_number'] ?? null,
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
                 'total_amount' => $totalAmount,
@@ -416,7 +422,7 @@ class DeliveryOrderService
                 foreach ($deliveryOrder->salesOrder->salesOrderItems as $soItem) {
                     $salesOrderItems[] = [
                         'part_number' => $soItem->product->sku ?? $soItem->product_code ?? 'N/A',
-                        'description' => $soItem->product->description ?? $soItem->description ?? 'No description',
+                        'description' => $soItem->product->name ?? $soItem->product->description ?? $soItem->description ?? 'No description',
                         'quantity' => $soItem->quantity,
                         'po_number' => 'N/A',
                         'delivery_method' => 'Truck',

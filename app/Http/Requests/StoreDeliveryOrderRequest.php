@@ -23,6 +23,9 @@ class StoreDeliveryOrderRequest extends FormRequest
             'driver_name' => 'nullable|string|max:255',
             'vehicle_plate_number' => 'nullable|string|max:20',
             'status' => 'required|in:PREPARING,SHIPPED,DELIVERED',
+            'delivery_method' => 'nullable|string|max:50',
+            'delivery_vendor' => 'nullable|string|max:255',
+            'tracking_number' => 'nullable|string|max:255',
         ];
     }
 }

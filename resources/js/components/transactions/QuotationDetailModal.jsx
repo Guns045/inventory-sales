@@ -82,6 +82,10 @@ export function QuotationDetailModal({ open, onOpenChange, quotation }) {
                         </div>
                         <div className="space-y-1">
                             <div className="grid grid-cols-[120px_1fr]">
+                                <span className="font-medium">PO Customer</span>
+                                <span>: {quotation.po_number || '-'}</span>
+                            </div>
+                            <div className="grid grid-cols-[120px_1fr]">
                                 <span className="font-medium">Customer</span>
                                 <span>: {quotation.customer?.company_name || quotation.customer?.name}</span>
                             </div>

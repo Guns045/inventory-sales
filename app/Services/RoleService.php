@@ -69,6 +69,12 @@ class RoleService
                     'permission' => 'sales-orders.read',
                 ],
                 [
+                    'title' => 'Sales Return',
+                    'path' => '/sales-returns',
+                    'icon' => 'bi-arrow-return-left',
+                    'permission' => 'sales-returns.read',
+                ],
+                [
                     'title' => 'On Hands Stock',
                     'path' => '/product-stock',
                     'icon' => 'bi-box-seam',
@@ -124,6 +130,12 @@ class RoleService
                     'permission' => 'delivery-orders.read',
                 ],
                 [
+                    'title' => 'Sales Returns',
+                    'path' => '/sales-returns',
+                    'icon' => 'bi-arrow-return-left',
+                    'permission' => 'sales-returns.read',
+                ],
+                [
                     'title' => 'Goods Receipt',
                     'path' => '/goods-receipts',
                     'icon' => 'bi-clipboard-data',
@@ -177,6 +189,18 @@ class RoleService
                     'path' => '/sales-orders',
                     'icon' => 'bi-cart',
                     'permission' => 'sales-orders.read',
+                ],
+                [
+                    'title' => 'Sales Returns',
+                    'path' => '/sales-returns',
+                    'icon' => 'bi-arrow-return-left',
+                    'permission' => 'sales-returns.read',
+                ],
+                [
+                    'title' => 'Credit Notes',
+                    'path' => '/credit-notes',
+                    'icon' => 'bi-file-earmark-minus',
+                    'permission' => 'sales-returns.read',
                 ],
                 [
                     'title' => 'Logout',

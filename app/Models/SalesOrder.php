@@ -15,6 +15,7 @@ class SalesOrder extends Model
         'status',
         'total_amount',
         'notes',
+        'po_number',
     ];
 
     public function quotation()

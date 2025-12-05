@@ -43,6 +43,7 @@ class QuotationService
                 'warehouse_id' => $warehouseId,
                 'status' => $data['status'],
                 'valid_until' => $data['valid_until'],
+                'po_number' => $data['po_number'] ?? null,
             ]);
 
             $this->createQuotationItems($quotation, $data['items']);
@@ -82,6 +83,7 @@ class QuotationService
                 'warehouse_id' => $data['warehouse_id'],
                 'status' => $data['status'],
                 'valid_until' => $data['valid_until'],
+                'po_number' => $data['po_number'] ?? null,
             ]);
 
             // Replace items
@@ -222,6 +224,7 @@ class QuotationService
                 'status' => 'PENDING',
                 'total_amount' => $quotation->total_amount,
                 'notes' => $notes,
+                'po_number' => $quotation->po_number,
             ]);
 
             // Copy items and reserve stock

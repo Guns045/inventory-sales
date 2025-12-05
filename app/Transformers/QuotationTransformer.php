@@ -62,7 +62,8 @@ class QuotationTransformer
             'tax' => $taxAmount,
             'grand_total' => $grandTotal,
             'valid_until' => \Carbon\Carbon::parse($quotation->valid_until ?? $quotation->created_at)->format('d M Y'),
-            'sales_person' => $quotation->user->name ?? 'Sales'
+            'sales_person' => $quotation->user->name ?? 'Sales',
+            'po_number' => $quotation->po_number,
         ];
     }
 

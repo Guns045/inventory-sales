@@ -15,6 +15,7 @@ import { useAPI } from '@/contexts/APIContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
 import { FileText, Clock, AlertCircle, CheckCircle, Search, Download } from "lucide-react";
+import CreateInvoiceModal from '../components/finance/CreateInvoiceModal';
 
 const Invoices = () => {
   const { api } = useAPI();
@@ -44,6 +45,9 @@ const Invoices = () => {
   });
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [createLoading, setCreateLoading] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [availableCreditNotes, setAvailableCreditNotes] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -82,31 +86,32 @@ const Invoices = () => {
     }
   };
 
-  const handleCreateInvoice = async (salesOrderId) => {
+  const handleCreateInvoiceClick = (order) => {
+    setSelectedOrder(order);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateInvoice = async (order, poNumber) => {
     try {
       setCreateLoading(true);
-      const salesOrderRes = await api.get(`/sales-orders/${salesOrderId}`);
-      const salesOrder = salesOrderRes.data.data || salesOrderRes.data;
-
-      if (!window.confirm(`Create invoice for SO: ${salesOrder.sales_order_number}?`)) {
-        return;
-      }
 
       const today = new Date().toISOString().split('T')[0];
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
 
       const invoiceData = {
-        sales_order_id: salesOrderId,
-        customer_id: salesOrder.customer_id,
+        sales_order_id: order.id,
+        customer_id: order.customer_id,
         issue_date: today,
         due_date: dueDate.toISOString().split('T')[0],
-        status: 'UNPAID'
+        status: 'UNPAID',
+        po_number: poNumber
       };
 
       const response = await api.post('/invoices', invoiceData);
       if (response.data) {
         showSuccess(`Invoice ${response.data.invoice_number} created successfully`);
+        setIsCreateModalOpen(false);
         fetchData();
       }
     } catch (error) {
@@ -120,10 +125,35 @@ const Invoices = () => {
     try {
       const response = await api.get(`/invoices/${invoice.id}`);
       setSelectedInvoice(response.data.data || response.data);
+      setAvailableCreditNotes(response.data.available_credit_notes || []);
       await fetchPaymentHistory(invoice.id);
       setShowDetailModal(true);
     } catch (err) {
       showError('Failed to fetch invoice details');
+    }
+  };
+
+  const handleClaimCreditNote = async (creditNote) => {
+    if (!selectedInvoice) return;
+
+    try {
+      const remainingBalance = selectedInvoice.total_amount - (selectedInvoice.total_paid || 0);
+      const amountToUse = Math.min(creditNote.total_amount, remainingBalance);
+
+      await api.post('/payments', {
+        invoice_id: selectedInvoice.id,
+        payment_date: new Date().toISOString().split('T')[0],
+        amount_paid: amountToUse,
+        payment_method: 'Credit Note',
+        reference_number: creditNote.credit_note_number,
+        credit_note_id: creditNote.id
+      });
+
+      showSuccess(`Credit Note ${creditNote.credit_note_number} applied successfully`);
+      handleViewDetail(selectedInvoice);
+      fetchData();
+    } catch (error) {
+      showError(error.response?.data?.message || 'Failed to apply Credit Note');
     }
   };
 
@@ -136,14 +166,27 @@ const Invoices = () => {
     }
   };
 
-  const handleAddPayment = (invoice) => {
+  const fetchAvailableCreditNotes = async (customerId) => {
+    try {
+      // Fetch ISSUED credit notes for this customer
+      const response = await api.get(`/credit-notes?customer_id=${customerId}&status=ISSUED`);
+      setAvailableCreditNotes(response.data.data || response.data || []);
+    } catch (err) {
+      console.error('Error fetching credit notes:', err);
+      setAvailableCreditNotes([]);
+    }
+  };
+
+  const handleAddPayment = async (invoice) => {
     setSelectedInvoice(invoice);
     setPaymentData({
       amount: invoice.total_amount - (invoice.total_paid || 0),
       payment_date: new Date().toISOString().split('T')[0],
       payment_method: 'Bank Transfer',
-      notes: ''
+      notes: '',
+      credit_note_id: ''
     });
+
     setShowPaymentModal(true);
   };
 
@@ -268,7 +311,7 @@ const Invoices = () => {
       cell: (row) => (
         <Button
           size="sm"
-          onClick={() => handleCreateInvoice(row.id)}
+          onClick={() => handleCreateInvoiceClick(row)}
           disabled={createLoading}
         >
           Create Invoice
@@ -378,6 +421,30 @@ const Invoices = () => {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Select
+                value={paymentData.payment_method}
+                onValueChange={(v) => {
+                  setPaymentData({
+                    ...paymentData,
+                    payment_method: v
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Check">Check</SelectItem>
+                  <SelectItem value="Credit Card">Credit Card</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Amount</Label>
               <Input
                 type="number"
@@ -393,24 +460,7 @@ const Invoices = () => {
                 onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <Select
-                value={paymentData.payment_method}
-                onValueChange={(v) => setPaymentData({ ...paymentData, payment_method: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Check">Check</SelectItem>
-                  <SelectItem value="Credit Card">Credit Card</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             <div className="space-y-2">
               <Label>Notes</Label>
               <Input
@@ -429,48 +479,150 @@ const Invoices = () => {
 
       {/* Detail Modal */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Invoice Details - {selectedInvoice?.invoice_number}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            {/* Header Info */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
               <div>
-                <Label className="text-muted-foreground">Customer</Label>
+                <Label className="text-muted-foreground text-xs">Customer</Label>
                 <div className="font-medium">{selectedInvoice?.customer?.company_name}</div>
               </div>
               <div>
-                <Label className="text-muted-foreground">Status</Label>
-                <div><Badge>{selectedInvoice?.status}</Badge></div>
+                <Label className="text-muted-foreground text-xs">Status</Label>
+                <div className="mt-1"><Badge>{selectedInvoice?.status}</Badge></div>
               </div>
               <div>
-                <Label className="text-muted-foreground">Total Amount</Label>
+                <Label className="text-muted-foreground text-xs">Issue Date</Label>
+                <div className="font-medium">{selectedInvoice?.issue_date ? new Date(selectedInvoice.issue_date).toLocaleDateString() : '-'}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs">Due Date</Label>
+                <div className="font-medium">{selectedInvoice?.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : '-'}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs">Sales Order</Label>
+                <div className="font-medium">{selectedInvoice?.sales_order?.sales_order_number || '-'}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs">PO Number</Label>
+                <div className="font-medium">{selectedInvoice?.po_number || '-'}</div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs">Total Amount</Label>
                 <div className="font-bold text-lg text-blue-600">{formatCurrency(selectedInvoice?.total_amount || 0)}</div>
               </div>
               <div>
-                <Label className="text-muted-foreground">Balance Due</Label>
-                <div className="font-bold text-red-600">{formatCurrency((selectedInvoice?.total_amount || 0) - (selectedInvoice?.total_paid || 0))}</div>
+                <Label className="text-muted-foreground text-xs">Balance Due</Label>
+                <div className="font-bold text-lg text-red-600">{formatCurrency((selectedInvoice?.total_amount || 0) - (selectedInvoice?.total_paid || 0))}</div>
               </div>
             </div>
 
+            {/* Items Table */}
             <div>
-              <h4 className="font-semibold mb-2">Payment History</h4>
+              <h4 className="font-semibold mb-2 text-sm">Invoice Items</h4>
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Product</th>
+                      <th className="px-4 py-2 text-center">Qty</th>
+                      <th className="px-4 py-2 text-right">Price</th>
+                      <th className="px-4 py-2 text-right">Disc %</th>
+                      <th className="px-4 py-2 text-right">Tax %</th>
+                      <th className="px-4 py-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(selectedInvoice?.items || selectedInvoice?.invoice_items || []).map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2">
+                          <div className="font-medium">{item.product?.name || item.description}</div>
+                          <div className="text-xs text-muted-foreground">{item.product?.sku}</div>
+                        </td>
+                        <td className="px-4 py-2 text-center">{item.quantity}</td>
+                        <td className="px-4 py-2 text-right">{formatCurrency(item.unit_price)}</td>
+                        <td className="px-4 py-2 text-right">{item.discount_percentage > 0 ? `${item.discount_percentage}%` : '-'}</td>
+                        <td className="px-4 py-2 text-right">{item.tax_rate > 0 ? `${item.tax_rate}%` : '-'}</td>
+                        <td className="px-4 py-2 text-right">{formatCurrency(item.total_price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Available Credit Notes */}
+            {availableCreditNotes.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-2 text-sm">Available Credit Notes</h4>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="px-4 py-2 text-left">CN Number</th>
+                        <th className="px-4 py-2 text-right">Amount</th>
+                        <th className="px-4 py-2 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {availableCreditNotes.map((cn) => (
+                        <tr key={cn.id}>
+                          <td className="px-4 py-2 font-medium">{cn.credit_note_number}</td>
+                          <td className="px-4 py-2 text-right">{formatCurrency(cn.total_amount)}</td>
+                          <td className="px-4 py-2 text-right">
+                            <Button size="sm" onClick={() => handleClaimCreditNote(cn)}>
+                              Claim
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Payment History */}
+            <div>
+              <h4 className="font-semibold mb-2 text-sm">Payment History</h4>
               {paymentHistory.length > 0 ? (
-                <div className="border rounded-md p-2">
-                  {paymentHistory.map((payment, i) => (
-                    <div key={i} className="flex justify-between items-center py-2 border-b last:border-0">
-                      <div>
-                        <div className="font-medium">{formatCurrency(payment.amount_paid)}</div>
-                        <div className="text-xs text-muted-foreground">{new Date(payment.payment_date).toLocaleDateString()}</div>
-                      </div>
-                      <div className="text-sm">{payment.payment_method}</div>
-                    </div>
-                  ))}
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Date</th>
+                        <th className="px-4 py-2 text-left">Method</th>
+                        <th className="px-4 py-2 text-left">Reference</th>
+                        <th className="px-4 py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paymentHistory.map((payment, i) => (
+                        <tr key={i}>
+                          <td className="px-4 py-2">{new Date(payment.payment_date).toLocaleDateString()}</td>
+                          <td className="px-4 py-2">{payment.payment_method}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{payment.reference_number || '-'}</td>
+                          <td className="px-4 py-2 text-right font-medium">{formatCurrency(payment.amount_paid)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">No payments recorded</div>
+                <div className="text-sm text-muted-foreground italic">No payments recorded</div>
               )}
             </div>
+
+            {/* Notes */}
+            {selectedInvoice?.notes && (
+              <div>
+                <h4 className="font-semibold mb-1 text-sm">Notes</h4>
+                <div className="p-3 bg-muted/30 rounded-md text-sm">{selectedInvoice.notes}</div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => handlePrint(selectedInvoice)}>Print</Button>
@@ -478,6 +630,13 @@ const Invoices = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <CreateInvoiceModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onConfirm={handleCreateInvoice}
+        order={selectedOrder}
+        loading={createLoading}
+      />
     </div>
   );
 };

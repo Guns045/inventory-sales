@@ -435,7 +435,9 @@ class ProductStockService
 
             if (!$productStock) {
                 // Treat missing record as 0 quantity
-                throw new \Exception("Insufficient physical stock (Record not found). Quantity: 0, Requested: {$quantity}");
+                $product = \App\Models\Product::find($productId);
+                $productName = $product ? $product->name : "Product ID $productId";
+                throw new \Exception("Insufficient physical stock for '{$productName}' (Record not found). Quantity: 0, Requested: {$quantity}");
             }
 
             // We assume the stock was already reserved, so we deduct from both.
@@ -447,7 +449,7 @@ class ProductStockService
                 // Fallback: If not enough reserved, check if we have enough physical stock at least
                 // This handles cases where reservation might have been skipped or data is out of sync
                 if ($productStock->quantity < $quantity) {
-                    throw new \Exception("Insufficient physical stock. Quantity: {$productStock->quantity}, Requested: {$quantity}");
+                    throw new \Exception("Insufficient physical stock for '{$productStock->product->name}'. Quantity: {$productStock->quantity}, Requested: {$quantity}");
                 }
                 // If we have physical stock but not reserved, we just deduct what we can from reserved
                 // and the rest from available (implicitly). 

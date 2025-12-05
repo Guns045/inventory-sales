@@ -90,6 +90,8 @@ class DocumentCounter extends Model
             'PURCHASE_ORDER' => 'PO',
             'GOODS_RECEIPT' => 'GR',
             'WAREHOUSE_TRANSFER' => 'IT',
+            'SALES_RETURN' => 'SR',
+            'CREDIT_NOTE' => 'CN',
         ];
 
         return $prefixes[$documentType] ?? 'DOC';

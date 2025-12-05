@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -8,22 +8,67 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // 1. Use sessionStorage instead of localStorage for "Logout on Close"
   const [token, setToken] = useState(() => {
-    const storedToken = localStorage.getItem('token');
-    // Validate token format
+    const storedToken = sessionStorage.getItem('token');
     if (storedToken && typeof storedToken === 'string' && storedToken.length > 10) {
       return storedToken;
     }
     return null;
   });
+
   const [user, setUser] = useState(() => {
     try {
-      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+      const storedUser = JSON.parse(sessionStorage.getItem('user') || 'null');
       return storedUser;
     } catch {
       return null;
     }
   });
+
+  // Logout function
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    window.location.href = '/login';
+  }, []);
+
+  // 2. Idle Timer Logic (1 Hour = 3600000 ms)
+  useEffect(() => {
+    if (!token) return; // Only run if logged in
+
+    const TIMEOUT_DURATION = 3600000; // 1 Hour
+    let timeoutId;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        console.log("User inactive for 1 hour. Logging out...");
+        logout();
+      }, TIMEOUT_DURATION);
+    };
+
+    // Events to detect activity
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+    // Attach listeners
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Initialize timer
+    resetTimer();
+
+    // Cleanup
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [token, logout]);
 
   // Refresh user data on mount if token exists
   useEffect(() => {
@@ -38,10 +83,12 @@ export const AuthProvider = ({ children }) => {
           });
 
           if (response.data && response.data.user) {
-
-            const updatedUser = response.data.user;
+            const updatedUser = {
+              ...response.data.user,
+              permissions: response.data.permissions || []
+            };
             setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            sessionStorage.setItem('user', JSON.stringify(updatedUser));
           }
         } catch (error) {
           console.error('Failed to refresh user data:', error);
@@ -53,21 +100,13 @@ export const AuthProvider = ({ children }) => {
     };
 
     refreshUserData();
-  }, [token]);
+  }, [token, logout]);
 
   const login = (token, userData) => {
     setToken(token);
     setUser(userData);
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('user', JSON.stringify(userData));
   };
 
   // Validate token format
@@ -75,7 +114,6 @@ export const AuthProvider = ({ children }) => {
     return token && typeof token === 'string' && token.length > 10;
   };
 
-  // Check if current token is valid
   const isValidToken = validateToken(token);
 
   const value = {

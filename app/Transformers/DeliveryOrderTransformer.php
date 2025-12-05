@@ -19,11 +19,11 @@ class DeliveryOrderTransformer
         foreach ($deliveryOrder->deliveryOrderItems as $item) {
             $items[] = [
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                'description' => $item->product->description ?? $item->description ?? 'No description',
+                'description' => $item->product->name ?? $item->product->description ?? $item->description ?? 'No description',
                 'quantity' => $item->quantity_shipped,
-                'po_number' => 'N/A', // Default since po_number removed
-                'delivery_method' => 'Truck', // Default internal delivery
-                'delivery_vendor' => 'Internal' // Default internal vendor
+                'po_number' => $deliveryOrder->salesOrder->po_number ?? '-',
+                'delivery_method' => $deliveryOrder->delivery_method ?? 'Truck',
+                'delivery_vendor' => $deliveryOrder->delivery_vendor ?? 'Internal'
             ];
         }
 
@@ -44,10 +44,14 @@ class DeliveryOrderTransformer
             'sales_order_no' => $deliveryOrder->salesOrder ? $deliveryOrder->salesOrder->sales_order_number : 'N/A',
             'customer_name' => $customerName,
             'customer_id' => $customerId,
+            'po_number' => $deliveryOrder->salesOrder->po_number ?? null,
             'customer_address' => $customerAddress,
             'date' => \Carbon\Carbon::parse($deliveryOrder->shipping_date ?? $deliveryOrder->created_at)->format('d M Y'),
             'driver_name' => $deliveryOrder->driver_name ?? 'N/A',
             'vehicle_plate' => $deliveryOrder->vehicle_plate_number ?? 'N/A',
+            'delivery_method' => $deliveryOrder->delivery_method ?? 'Truck',
+            'delivery_vendor' => $deliveryOrder->delivery_vendor ?? 'Internal',
+            'tracking_number' => $deliveryOrder->tracking_number ?? '-',
             'contact_person' => $contactPerson,
             'recipient_name' => $deliveryOrder->recipient_name ?? '_____________________',
             'recipient_title' => $deliveryOrder->recipient_title ?? '_____________________',
@@ -68,7 +72,7 @@ class DeliveryOrderTransformer
         $items = [];
         $items[] = [
             'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
-            'description' => $transfer->product->description ?? '-',
+            'description' => $transfer->product->name ?? $transfer->product->description ?? '-',
             'quantity' => $transfer->quantity_delivered ?? $transfer->quantity_requested,
             'from_location' => $transfer->product->location ?? $transfer->warehouseFrom->name ?? '-',
             'to_location' => $transfer->product->location ?? $transfer->warehouseTo->name ?? '-'

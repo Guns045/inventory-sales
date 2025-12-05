@@ -65,6 +65,8 @@ class RoleSeeder extends Seeder
             'quotations.submit',
             'quotations.convert',
             'sales-orders.read',
+            'sales-returns.read',
+            'sales-returns.create',
             'products.read',
             'product-stock.read',
             'invoices.read',
@@ -96,6 +98,7 @@ class RoleSeeder extends Seeder
             'delivery-orders.read',
             'delivery-orders.create',
             'delivery-orders.update',
+            'sales-returns.read', // To see returns coming in
             'warehouse-transfers.read',
             'warehouse-transfers.create',
             'warehouse-transfers.update',
@@ -112,6 +115,8 @@ class RoleSeeder extends Seeder
             'customers.read',
             'customers.update',
             'sales-orders.read',
+            'sales-returns.read',
+            'sales-returns.approve', // Finance might need to approve for refund
             'purchase-orders.read',
             'invoices.read',
             'invoices.create',
@@ -138,7 +143,7 @@ class RoleSeeder extends Seeder
 
         // Add CRUD variations for common resources if not explicitly in menu
         // This is a simplification; in a real app, we might define these more explicitly
-        $resources = ['users', 'roles', 'products', 'product-stock', 'customers', 'suppliers', 'quotations', 'sales-orders', 'purchase-orders', 'goods-receipts', 'delivery-orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists'];
+        $resources = ['users', 'roles', 'products', 'product-stock', 'customers', 'suppliers', 'quotations', 'sales-orders', 'sales-returns', 'purchase-orders', 'goods-receipts', 'delivery-orders', 'invoices', 'payments', 'warehouses', 'warehouse-transfers', 'picking-lists'];
         foreach ($resources as $resource) {
             $permissions[] = "{$resource}.create";
             $permissions[] = "{$resource}.update";
@@ -153,6 +158,10 @@ class RoleSeeder extends Seeder
             }
             if ($resource === 'picking-lists') {
                 $permissions[] = 'picking-lists.complete';
+            }
+            if ($resource === 'sales-returns') {
+                $permissions[] = 'sales-returns.approve';
+                $permissions[] = 'sales-returns.reject';
             }
         }
 

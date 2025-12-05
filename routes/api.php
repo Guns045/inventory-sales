@@ -111,6 +111,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales-orders/{id}/update-status', [SalesOrderController::class, 'updateStatus']);
     Route::post('/sales-orders/{id}/create-picking-list', [SalesOrderController::class, 'createPickingList']);
 
+    // Sales Returns
+    Route::get('/sales-returns', [App\Http\Controllers\API\SalesReturnController::class, 'index']);
+    Route::post('/sales-returns', [App\Http\Controllers\API\SalesReturnController::class, 'store']);
+    Route::get('/sales-returns/{id}', [App\Http\Controllers\API\SalesReturnController::class, 'show']);
+    Route::post('/sales-returns/{id}/approve', [App\Http\Controllers\API\SalesReturnController::class, 'approve']);
+    Route::post('/sales-returns/{id}/reject', [App\Http\Controllers\API\SalesReturnController::class, 'reject']);
+
+    // Credit Notes
+    Route::get('/credit-notes', [App\Http\Controllers\API\CreditNoteController::class, 'index']);
+    Route::post('/credit-notes', [App\Http\Controllers\API\CreditNoteController::class, 'store']);
+    Route::get('/credit-notes/{id}', [App\Http\Controllers\API\CreditNoteController::class, 'show']);
+
     // Picking List management
     Route::get('/picking-lists', [PickingListController::class, 'index'])->middleware('permission:picking-lists.read');
     Route::post('/picking-lists', [PickingListController::class, 'store'])->middleware('permission:picking-lists.create');

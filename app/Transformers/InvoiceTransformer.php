@@ -20,7 +20,7 @@ class InvoiceTransformer
         foreach ($invoice->invoiceItems as $item) {
             $items[] = [
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                'description' => $item->product->description ?? $item->description ?? 'No description',
+                'description' => $item->product->name ?? $item->product->description ?? $item->description ?? 'No description',
                 'qty' => $item->quantity,
                 'unit_price' => $item->unit_price,
                 'disc' => $item->discount_percentage ?? 0,
@@ -31,6 +31,7 @@ class InvoiceTransformer
         return [
             'invoice_no' => $invoice->invoice_number,
             'quotation_no' => $invoice->salesOrder->quotation->quotation_number ?? 'N/A',
+            'po_number' => $invoice->salesOrder->po_number ?? '-',
             'date' => \Carbon\Carbon::parse($invoice->issue_date)->format('d M Y'),
             'customer_name' => $invoice->customer->company_name ?? $invoice->customer->name ?? 'N/A',
             'customer_address' => $invoice->customer->address ?? 'N/A',

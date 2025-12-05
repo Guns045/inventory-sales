@@ -8,6 +8,7 @@ import { RefreshCw } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 
 import DeliveryOrderDetailsModal from '@/components/warehouse/DeliveryOrderDetailsModal';
+import ShippingDetailsModal from '@/components/warehouse/ShippingDetailsModal';
 
 const DeliveryOrders = () => {
   const { api } = useAPI();
@@ -19,6 +20,8 @@ const DeliveryOrders = () => {
   // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
+  const [targetStatus, setTargetStatus] = useState('SHIPPED');
 
   // Pagination state
   const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
@@ -47,16 +50,35 @@ const DeliveryOrders = () => {
   };
 
   const handleUpdateStatus = async (order, status) => {
+    if (status === 'READY_TO_SHIP') {
+      setSelectedOrder(order);
+      setTargetStatus('READY_TO_SHIP');
+      setIsShippingModalOpen(true);
+      return;
+    }
+    if (status === 'SHIPPED') {
+      if (window.confirm('Are you sure you want to mark this order as SHIPPED? Stock will be deducted.')) {
+        await processStatusUpdate(order, 'SHIPPED');
+      }
+      return;
+    }
+    await processStatusUpdate(order, status);
+  };
+
+  const processStatusUpdate = async (order, status, additionalData = {}) => {
     try {
       let orderId = order.id;
 
       // If it's a pending SO, create DO first
       if (order.is_pending_so) {
         const createResponse = await api.post('/delivery-orders/from-sales-order', {
-          sales_order_id: order.sales_order_id
+          sales_order_id: order.sales_order_id,
+          ...additionalData // Pass shipping details if creating directly
         });
-        // Handle response structure (resource might be wrapped in data)
         orderId = createResponse.data.data?.id || createResponse.data.id;
+      } else if (Object.keys(additionalData).length > 0) {
+        // Update DO details first if we have additional data
+        await api.put(`/delivery-orders/${orderId}`, additionalData);
       }
 
       await api.put(`/delivery-orders/${orderId}/status`, { status });
@@ -69,10 +91,15 @@ const DeliveryOrders = () => {
       showSuccess(successMessages[status] || 'Status updated successfully!');
 
       fetchSalesDeliveryOrders(salesPagination.current_page);
+      setIsShippingModalOpen(false);
 
     } catch (error) {
       showError(error.response?.data?.message || 'Failed to update status');
     }
+  };
+
+  const handleShipOrder = async (order, formData) => {
+    await processStatusUpdate(order, targetStatus, formData);
   };
 
   const handleCreatePickingList = async (order) => {
@@ -182,6 +209,15 @@ const DeliveryOrders = () => {
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         order={selectedOrder}
+      />
+
+      <ShippingDetailsModal
+        isOpen={isShippingModalOpen}
+        onClose={() => setIsShippingModalOpen(false)}
+        onSave={handleShipOrder}
+        order={selectedOrder}
+        loading={loading}
+        submitLabel={targetStatus === 'READY_TO_SHIP' ? 'Save & Ready' : 'Save & Ship'}
       />
     </div>
   );

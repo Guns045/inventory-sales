@@ -24,11 +24,7 @@ class PermissionController extends Controller
                 'roles.create',
                 'roles.update',
                 'roles.delete',
-                'manage_roles', // Legacy
-                'view_users',
-                'create_users',
-                'edit_users',
-                'delete_users' // Legacy
+                'manage_roles'
             ],
             'Dashboard' => [
                 'dashboard.read',
@@ -44,11 +40,7 @@ class PermissionController extends Controller
                 'categories.read',
                 'categories.create',
                 'categories.update',
-                'categories.delete',
-                'view_products',
-                'create_products',
-                'edit_products',
-                'delete_products' // Legacy
+                'categories.delete'
             ],
             'Inventory Management' => [
                 'product-stock.read',
@@ -62,13 +54,7 @@ class PermissionController extends Controller
                 'warehouse-transfers.read',
                 'warehouse-transfers.create',
                 'warehouse-transfers.update',
-                'warehouse-transfers.delete',
-                'view_stock',
-                'adjust_stock',
-                'view_stock_movements', // Legacy
-                'view_warehouses',
-                'create_warehouses',
-                'edit_warehouses' // Legacy
+                'warehouse-transfers.delete'
             ],
             'Sales' => [
                 'customers.read',
@@ -86,14 +72,15 @@ class PermissionController extends Controller
                 'sales-orders.read',
                 'sales-orders.create',
                 'sales-orders.update',
-                'sales-orders.delete',
-                'view_quotations',
-                'create_quotations',
-                'edit_quotations',
-                'approve_quotations', // Legacy
-                'view_sales_orders',
-                'create_sales_orders',
-                'edit_sales_orders' // Legacy
+                'sales-orders.delete'
+            ],
+            'Sales Returns' => [
+                'sales-returns.read',
+                'sales-returns.create',
+                'sales-returns.update',
+                'sales-returns.delete',
+                'sales-returns.approve',
+                'sales-returns.reject'
             ],
             'Purchasing' => [
                 'suppliers.read',
@@ -107,13 +94,7 @@ class PermissionController extends Controller
                 'goods-receipts.read',
                 'goods-receipts.create',
                 'goods-receipts.update',
-                'goods-receipts.delete',
-                'view_purchase_orders',
-                'create_purchase_orders',
-                'edit_purchase_orders', // Legacy
-                'view_goods_receipts',
-                'create_goods_receipts',
-                'edit_goods_receipts' // Legacy
+                'goods-receipts.delete'
             ],
             'Fulfillment' => [
                 'picking-lists.read',
@@ -136,20 +117,12 @@ class PermissionController extends Controller
                 'payments.create',
                 'payments.update',
                 'payments.delete',
-                'view_invoices',
-                'create_invoices',
-                'edit_invoices', // Legacy
-                'view_payments',
-                'create_payments',
-                'edit_payments' // Legacy
+                'credit-notes.read',
+                'credit-notes.create'
             ],
             'Reports & Settings' => [
                 'reports.read',
-                'settings.read', // Added to match config/menu.php
-                'view_reports',
-                'export_reports', // Legacy
-                'view_company_settings',
-                'edit_company_settings' // Legacy
+                'settings.read'
             ]
         ];
 

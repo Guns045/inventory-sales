@@ -99,7 +99,9 @@ const Quotations = () => {
         // Transform data if needed to match form expectation
         const formData = {
           ...quotationData,
-          items: quotationData.quotation_items || []
+          customer_id: quotationData.customer?.id,
+          warehouse_id: quotationData.warehouse?.id,
+          items: quotationData.items || []
         };
         setSelectedQuotation(formData);
         openForm();

@@ -31,6 +31,9 @@ class DeliveryOrder extends Model
         'total_amount',
         'recipient_name',
         'recipient_title',
+        'delivery_method',
+        'delivery_vendor',
+        'tracking_number',
     ];
 
     protected $casts = [

@@ -144,7 +144,7 @@ class InvoiceController extends Controller
     public function getReadyToCreate()
     {
         $shippedSalesOrders = SalesOrder::with(['customer', 'salesOrderItems.product', 'user'])
-            ->where('status', 'SHIPPED')
+            ->whereIn('status', ['SHIPPED', 'COMPLETED'])
             ->whereDoesntHave('invoice')
             ->orderBy('updated_at', 'desc')
             ->paginate(10);
@@ -177,7 +177,17 @@ class InvoiceController extends Controller
     public function show($id)
     {
         $invoice = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse', 'payments'])->findOrFail($id);
-        return new InvoiceResource($invoice);
+
+        // Fetch available credit notes for this invoice's sales order
+        $availableCreditNotes = \App\Models\CreditNote::where('status', 'ISSUED')
+            ->whereHas('salesReturn', function ($query) use ($invoice) {
+                $query->where('sales_order_id', $invoice->sales_order_id);
+            })
+            ->get();
+
+        return (new InvoiceResource($invoice))->additional([
+            'available_credit_notes' => $availableCreditNotes
+        ]);
     }
 
     /**

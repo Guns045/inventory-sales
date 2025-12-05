@@ -30,6 +30,7 @@ class Quotation extends Model
         'payment_term', // Tambah field payment term
         'terms', // Tambah field terms
         'notes', // Tambah field notes
+        'po_number',
     ];
 
     protected $casts = [

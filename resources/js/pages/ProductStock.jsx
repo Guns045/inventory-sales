@@ -201,9 +201,9 @@ const ProductStock = () => {
       setFormData(prev => ({ ...prev, product_id: '' }));
     }
 
-    if (value.length < 2) {
-      setSuggestedProducts([]);
-      setShowSuggestions(false);
+    if (value.length === 0) {
+      setSuggestedProducts(products.slice(0, 10));
+      setShowSuggestions(true);
       return;
     }
 
@@ -303,7 +303,7 @@ const ProductStock = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          {canCreate('product-stock') && (
+          {(canCreate('product-stock') || (user?.role === 'Super Admin' || user?.role?.name === 'Super Admin')) && (
             <Button onClick={handleCreateStock}>
               <Plus className="mr-2 h-4 w-4" />
               Create Stock
@@ -356,9 +356,9 @@ const ProductStock = () => {
               onAdjust={handleAdjustStock}
               onViewHistory={handleViewHistory}
               onDelete={handleDeleteStock}
-              userRole={user?.role?.name}
-              canUpdate={canCreate('product-stock')}
-              canDelete={canCreate('product-stock')}
+              userRole={typeof user?.role === 'string' ? user.role : user?.role?.name}
+              canUpdate={canCreate('product-stock') || (user?.role === 'Super Admin' || user?.role?.name === 'Super Admin')}
+              canDelete={canCreate('product-stock') || (user?.role === 'Super Admin' || user?.role?.name === 'Super Admin')}
               warehouses={warehouses}
               viewMode={selectedWarehouse === 'all' ? 'all-warehouses' : 'per-warehouse'}
               selectedIds={selectedIds}
@@ -385,7 +385,12 @@ const ProductStock = () => {
                 value={productSearch}
                 onChange={handleProductSearchChange}
                 onFocus={() => {
-                  if (productSearch.length >= 2) setShowSuggestions(true);
+                  if (productSearch.length === 0) {
+                    setSuggestedProducts(products.slice(0, 10));
+                    setShowSuggestions(true);
+                  } else if (productSearch.length >= 1) {
+                    setShowSuggestions(true);
+                  }
                 }}
               />
               {loadingSuggestions && (

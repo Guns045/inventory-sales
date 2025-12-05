@@ -63,7 +63,9 @@ class PermissionSeeder extends Seeder
                 'edit_invoices',
                 'view_payments',
                 'create_payments',
-                'edit_payments'
+                'edit_payments',
+                'credit-notes.read',
+                'credit-notes.create'
             ],
             'Document Management' => [
                 'print_quotation',        // Print PQ
@@ -97,7 +99,7 @@ class PermissionSeeder extends Seeder
 
         // Assign all permissions to Super Admin
         $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']);
-        $superAdmin->syncPermissions(Permission::all());
+        $superAdmin->syncPermissions(Permission::where('guard_name', 'web')->get());
 
         $this->command->info('Permissions created and assigned to Super Admin successfully.');
     }

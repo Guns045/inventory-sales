@@ -21,7 +21,7 @@ class PickingListTransformer
             $items[] = [
                 'no' => $index + 1,
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                'description' => $item->product->description ?? $item->description ?? 'No description',
+                'description' => $item->product->name ?? $item->product->description ?? $item->description ?? 'No description',
                 'qty' => $item->quantity_required,
                 'location' => $item->location_code ?? $item->product->location ?? 'A-01-01',
                 'picked_qty' => $item->quantity_picked ?? $item->quantity_required,
@@ -82,7 +82,7 @@ class PickingListTransformer
             $items[] = [
                 'no' => $index + 1,
                 'part_number' => $item->product->part_number ?? $item->product->code ?? $item->product->sku ?? 'N/A',
-                'description' => $item->product->description ?? 'No Description',
+                'description' => $item->product->name ?? $item->product->description ?? 'No Description',
                 'qty' => $item->quantity,
                 'unit' => $item->product->unit ?? 'pcs',
                 'location' => $item->product->location ?? '-',
@@ -152,7 +152,7 @@ class PickingListTransformer
         $items[] = [
             'no' => 1,
             'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
-            'description' => $transfer->product->description ?? '-',
+            'description' => $transfer->product->name ?? $transfer->product->description ?? '-',
             'qty' => $transfer->quantity_requested,
             'unit' => $transfer->product->unit ?? 'pcs',
             'location' => $location,

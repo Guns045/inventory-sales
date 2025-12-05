@@ -36,7 +36,13 @@ class SalesOrderController extends Controller
         if ($request->has('status')) {
             $requestedStatus = $request->status;
             Log::info('SalesOrder index: Filtering by status: ' . $requestedStatus);
-            $query->where('status', $requestedStatus);
+            
+            if (str_contains($requestedStatus, ',')) {
+                $statuses = explode(',', $requestedStatus);
+                $query->whereIn('status', $statuses);
+            } else {
+                $query->where('status', $requestedStatus);
+            }
         }
 
         // Filter by user warehouse access

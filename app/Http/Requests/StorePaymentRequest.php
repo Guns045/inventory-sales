@@ -19,6 +19,7 @@ class StorePaymentRequest extends FormRequest
             'amount_paid' => 'required|numeric|min:0.01',
             'payment_method' => 'required|string|max:50',
             'reference_number' => 'nullable|string|max:100',
+            'credit_note_id' => 'nullable|exists:credit_notes,id',
         ];
     }
 

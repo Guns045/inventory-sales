@@ -37,6 +37,11 @@ class InvoiceService
                 $totalAmount += $totalPrice;
             }
 
+            // Update PO Number if provided
+            if (isset($data['po_number']) && !empty($data['po_number'])) {
+                $salesOrder->update(['po_number' => $data['po_number']]);
+            }
+
             // Get warehouse ID from sales order
             $warehouseId = $salesOrder->warehouse_id;
             if (!$warehouseId) {

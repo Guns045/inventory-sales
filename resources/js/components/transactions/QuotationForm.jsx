@@ -15,6 +15,7 @@ const schema = z.object({
     warehouse_id: z.string().min(1, "Warehouse is required"),
     status: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CONVERTED']),
     valid_until: z.string().min(1, "Valid until date is required"),
+    po_number: z.string().optional(),
 });
 
 export function QuotationForm({
@@ -33,6 +34,7 @@ export function QuotationForm({
             warehouse_id: initialData?.warehouse_id?.toString() || '',
             status: initialData?.status || 'DRAFT',
             valid_until: initialData?.valid_until ? initialData.valid_until.split('T')[0] : '',
+            po_number: initialData?.po_number || '',
         }
     });
 
@@ -57,7 +59,7 @@ export function QuotationForm({
         if (initialData?.items && initialData.items.length > 0) {
             const mappedItems = initialData.items.map(item => ({
                 ...item,
-                product_id: item.product_id,
+                product_id: item.product_id || item.product?.id,
                 quantity: Number(item.quantity),
                 unit_price: Number(item.unit_price),
                 discount_percentage: Number(item.discount_percentage || 0),
@@ -142,22 +144,12 @@ export function QuotationForm({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="status">Status</Label>
-                            <Select
-                                value={status}
-                                onValueChange={(value) => setValue('status', value, { shouldValidate: true })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="DRAFT">Draft</SelectItem>
-                                    <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                                    <SelectItem value="APPROVED">Approved</SelectItem>
-                                    <SelectItem value="REJECTED">Rejected</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.status && <p className="text-sm text-red-500">{errors.status.message}</p>}
+                            <Label htmlFor="po_number">PO Customer (Optional)</Label>
+                            <Input
+                                id="po_number"
+                                placeholder="Enter PO Number"
+                                {...register('po_number')}
+                            />
                         </div>
 
                         <div className="space-y-2">

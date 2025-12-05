@@ -72,6 +72,7 @@ export function LineItemsTable({
                                         <ProductCombobox
                                             products={products}
                                             value={item.product_id}
+                                            initialProduct={item.product}
                                             onSearch={onSearch}
                                             onChange={(value) => {
                                                 const selectedProduct = products.find(p => p.id.toString() === value.toString());

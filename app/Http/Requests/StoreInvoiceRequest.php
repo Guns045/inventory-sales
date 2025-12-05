@@ -19,6 +19,7 @@ class StoreInvoiceRequest extends FormRequest
             'issue_date' => 'required|date',
             'due_date' => 'required|date',
             'status' => 'required|in:UNPAID,PAID,PARTIAL,OVERDUE',
+            'po_number' => 'nullable|string|max:255',
         ];
     }
 }

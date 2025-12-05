@@ -27,6 +27,32 @@ class PaymentService
                 throw new \Exception("Payment amount ({$data['amount_paid']}) exceeds remaining balance ({$remainingBalance})");
             }
 
+            // Handle Credit Note
+            if (isset($data['credit_note_id']) && $data['credit_note_id']) {
+                $creditNote = \App\Models\CreditNote::findOrFail($data['credit_note_id']);
+
+                if ($creditNote->customer_id !== $invoice->customer_id) {
+                    throw new \Exception("Credit Note belongs to a different customer.");
+                }
+
+                if ($creditNote->status !== 'ISSUED') {
+                    throw new \Exception("Credit Note is not in ISSUED status.");
+                }
+
+                if ($data['amount_paid'] > $creditNote->total_amount) {
+                    throw new \Exception("Payment amount cannot exceed Credit Note amount.");
+                }
+
+                // Mark Credit Note as USED and link to Invoice
+                $creditNote->update([
+                    'status' => 'USED',
+                    'invoice_id' => $invoice->id
+                ]);
+
+                $data['payment_method'] = 'Credit Note';
+                $data['reference_number'] = $creditNote->credit_note_number;
+            }
+
             // Create payment
             $payment = Payment::create([
                 'invoice_id' => $invoice->id,

@@ -18,6 +18,7 @@ class StoreQuotationRequest extends FormRequest
             'warehouse_id' => 'required|exists:warehouses,id',
             'valid_until' => 'required|date',
             'status' => 'required|in:DRAFT,SUBMITTED,APPROVED,REJECTED',
+            'po_number' => 'nullable|string|max:255',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',

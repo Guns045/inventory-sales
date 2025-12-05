@@ -189,9 +189,9 @@ class DeliveryOrderController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to update delivery order status: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Failed to update delivery order status',
+                'message' => $e->getMessage(), // Return the specific error message
                 'error' => $e->getMessage()
-            ], 500);
+            ], 422); // Use 422 for validation/logic errors
         }
     }
 

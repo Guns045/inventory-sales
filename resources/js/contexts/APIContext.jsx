@@ -28,8 +28,8 @@ export const APIProvider = ({ children }) => {
   // Add request interceptor to include token
   api.interceptors.request.use(
     (config) => {
-      // Get fresh token from localStorage for each request
-      const freshToken = localStorage.getItem('token');
+      // Get fresh token from sessionStorage for each request
+      const freshToken = sessionStorage.getItem('token');
       if (freshToken && typeof freshToken === 'string' && freshToken.length > 10) {
         config.headers.Authorization = `Bearer ${freshToken}`;
       }
@@ -46,8 +46,8 @@ export const APIProvider = ({ children }) => {
     (error) => {
       if (error.response?.status === 401) {
         // Clear stored auth data and redirect to login
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         window.location.href = '/login';
       }
       return Promise.reject(error);

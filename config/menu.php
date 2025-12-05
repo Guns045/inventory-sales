@@ -31,6 +31,12 @@ return [
                 'icon' => 'bi-cart-check',
                 'permission' => 'sales-orders.read'
             ],
+            [
+                'title' => 'Sales Return',
+                'path' => '/sales-returns',
+                'icon' => 'bi-arrow-return-left',
+                'permission' => 'sales-returns.read'
+            ],
         ]
     ],
     [
@@ -122,6 +128,12 @@ return [
                 'path' => '/payments',
                 'icon' => 'bi-credit-card',
                 'permission' => 'payments.read'
+            ],
+            [
+                'title' => 'Credit Notes',
+                'path' => '/credit-notes',
+                'icon' => 'bi-file-earmark-minus',
+                'permission' => 'sales-returns.read' // Using same permission for now
             ],
             [
                 'title' => 'Report',

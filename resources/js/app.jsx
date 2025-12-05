@@ -40,6 +40,11 @@ const Settings = React.lazy(() => import('@/pages/Settings'));
 const CompanySettings = React.lazy(() => import('@/pages/CompanySettings'));
 const ProfileSettings = React.lazy(() => import('@/pages/ProfileSettings'));
 const MasterDataProducts = React.lazy(() => import('@/pages/MasterDataProducts'));
+const SalesReturns = React.lazy(() => import('@/pages/SalesReturns'));
+const CreateSalesReturn = React.lazy(() => import('@/pages/CreateSalesReturn'));
+const SalesReturnDetail = React.lazy(() => import('@/pages/SalesReturnDetail'));
+const CreditNotes = React.lazy(() => import('@/pages/CreditNotes'));
+const CreditNoteDetail = React.lazy(() => import('@/pages/CreditNoteDetail'));
 
 // Import CSS
 import './index.css';
@@ -96,6 +101,11 @@ function App() {
                                                 <Route path="profile" element={<ProfileSettings />} />
                                                 <Route path="company-settings" element={<CompanySettings />} />
                                                 <Route path="master-data-products" element={<MasterDataProducts />} />
+                                                <Route path="sales-returns" element={<SalesReturns />} />
+                                                <Route path="sales-returns/create" element={<CreateSalesReturn />} />
+                                                <Route path="sales-returns/:id" element={<SalesReturnDetail />} />
+                                                <Route path="credit-notes" element={<CreditNotes />} />
+                                                <Route path="credit-notes/:id" element={<CreditNoteDetail />} />
                                             </Route>
                                         </Routes>
                                     </Suspense>

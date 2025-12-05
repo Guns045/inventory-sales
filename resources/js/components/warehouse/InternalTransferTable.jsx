@@ -133,7 +133,7 @@ export function InternalTransferTable({
                 )}
 
                 {(row.status === 'REQUESTED' || row.status === 'APPROVED') &&
-                    (row.requested_by === user?.id || user?.role?.name === 'Admin') && (
+                    (row.requested_by === user?.id || (user?.role === 'Admin' || user?.role?.name === 'Admin')) && (
                         <Button variant="ghost" size="icon" onClick={() => onCancel(row.id)} title="Cancel">
                             <XCircle className="h-4 w-4 text-red-500" />
                         </Button>

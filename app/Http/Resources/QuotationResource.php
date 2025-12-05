@@ -11,6 +11,7 @@ class QuotationResource extends JsonResource
         return [
             'id' => $this->id,
             'quotation_number' => $this->quotation_number,
+            'po_number' => $this->po_number,
             'customer' => $this->whenLoaded('customer'),
             'user' => $this->whenLoaded('user'),
             'warehouse' => $this->whenLoaded('warehouse'),

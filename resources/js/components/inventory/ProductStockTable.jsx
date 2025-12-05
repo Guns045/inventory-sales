@@ -102,15 +102,37 @@ export function ProductStockTable({
     if (isAllWarehousesView && warehouses) {
         // Add columns for each warehouse
         warehouses.forEach(warehouse => {
+            // Reserved Column
             columns.push({
-                header: `Warehouse ${warehouse.code}`, // e.g. Warehouse JKT
-                id: `warehouse_${warehouse.id}`,
+                header: `${warehouse.code} Res`,
+                id: `warehouse_${warehouse.id}_res`,
+                headerClassName: "text-center",
+                cellClassName: "text-center",
                 cell: (row) => {
                     const stock = row.stocks?.find(s => s.warehouse_id === warehouse.id);
-                    return stock ? (
-                        <span className="font-semibold">{stock.quantity}</span>
+                    return stock && stock.reserved_quantity > 0 ? (
+                        <span className="text-orange-600 font-medium">{stock.reserved_quantity}</span>
                     ) : (
                         <span className="text-muted-foreground">-</span>
+                    );
+                }
+            });
+
+            // Available Column
+            columns.push({
+                header: `${warehouse.code} Avail`,
+                id: `warehouse_${warehouse.id}_avail`,
+                headerClassName: "text-center",
+                cellClassName: "text-center",
+                cell: (row) => {
+                    const stock = row.stocks?.find(s => s.warehouse_id === warehouse.id);
+                    if (!stock) return <span className="text-muted-foreground">-</span>;
+
+                    const available = stock.quantity - stock.reserved_quantity;
+                    return (
+                        <span className={`font-medium ${available > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                            {available}
+                        </span>
                     );
                 }
             });
@@ -120,6 +142,8 @@ export function ProductStockTable({
         columns.push({
             header: "Total Stock",
             accessorKey: "quantity",
+            headerClassName: "text-center",
+            cellClassName: "text-center",
             cell: (row) => <span className="font-bold text-blue-600">{row.quantity}</span>
         });
 

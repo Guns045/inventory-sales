@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 export function ProductCombobox({
     products = [],
     value,
+    initialProduct,
     onChange,
     onSearch,
     placeholder = "Search product by name or SKU..."
@@ -42,14 +43,16 @@ export function ProductCombobox({
 
     useEffect(() => {
         if (value) {
-            const product = products.find(p => p.id.toString() === value?.toString());
+            const product = products.find(p => p.id.toString() === value?.toString())
+                || (initialProduct?.id?.toString() === value?.toString() ? initialProduct : null);
+
             if (product) {
                 setSelectedProduct(product);
                 // Always update search term to match selected product
                 setSearchTerm(`${product.sku} - ${product.name}`);
             }
         }
-    }, [value, products]);
+    }, [value, products, initialProduct]);
 
     useEffect(() => {
         if (!value) {
