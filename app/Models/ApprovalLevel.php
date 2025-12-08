@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Spatie\Permission\Models\Role;
 
 class ApprovalLevel extends Model
 {
@@ -48,7 +50,7 @@ class ApprovalLevel extends Model
     public function appliesToAmount($amount): bool
     {
         return $amount >= $this->min_amount &&
-               ($this->max_amount === null || $amount <= $this->max_amount);
+            ($this->max_amount === null || $amount <= $this->max_amount);
     }
 
     /**
@@ -57,7 +59,11 @@ class ApprovalLevel extends Model
     public function getApprovers()
     {
         if ($this->role_id) {
-            return User::where('role_id', $this->role_id)->get();
+            // Fix: User model uses Spatie permissions, so no role_id column.
+            // Use whereHas to filter by role ID
+            return User::whereHas('roles', function ($q) {
+                $q->where('id', $this->role_id);
+            })->get();
         }
 
         return collect();

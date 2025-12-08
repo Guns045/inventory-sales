@@ -100,15 +100,16 @@ class Quotation extends Model
         $this->update(['status' => 'SUBMITTED']);
 
         // Check if multi-level approval is needed
-        $approvalLevels = $this->getRequiredApprovalLevels();
+        // $approvalLevels = $this->getRequiredApprovalLevels();
 
-        if ($approvalLevels->count() > 1) {
-            // Multi-level approval
-            return Approval::createMultiLevelRequest($this, $approvalLevels, $notes);
-        } else {
-            // Single-level approval (legacy)
-            return Approval::createRequest($this, $notes);
-        }
+        // TEMPORARY: Disable multi-level approval as per user request
+        // if ($approvalLevels->count() > 1) {
+        //     // Multi-level approval
+        //     return Approval::createMultiLevelRequest($this, $approvalLevels, $notes);
+        // } else {
+        // Single-level approval (legacy)
+        return Approval::createRequest($this, $notes);
+        // }
     }
 
     /**

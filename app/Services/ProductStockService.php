@@ -399,13 +399,13 @@ class ProductStockService
             }
 
             if ($productStock->reserved_quantity < $quantity) {
-                // This might happen if data is inconsistent, but we should handle it gracefully or throw error
-                // For safety, we just set it to 0 if it goes negative, or throw exception.
-                // Let's throw exception to catch logic errors.
-                throw new \Exception("Cannot release more stock than reserved. Reserved: {$productStock->reserved_quantity}, Requested release: {$quantity}");
+                // Instead of throwing exception, we log a warning and reset to 0
+                // This ensures "Safe Cancel" works even if data is slightly out of sync
+                Log::warning("Attempting to release more stock than reserved. Reserved: {$productStock->reserved_quantity}, Requested: {$quantity}. Resetting to 0.");
+                $productStock->reserved_quantity = 0;
+            } else {
+                $productStock->reserved_quantity -= $quantity;
             }
-
-            $productStock->reserved_quantity -= $quantity;
             $productStock->save();
 
             return $productStock;

@@ -226,6 +226,12 @@ class QuotationController extends Controller
                 'status' => 'APPROVED'
             ]);
 
+            // Update approval record if exists (for simple flow)
+            $approval = $quotation->latestApproval();
+            if ($approval && $approval->status === 'PENDING') {
+                $approval->approve($request->notes);
+            }
+
             // Log activity
             \App\Models\ActivityLog::log(
                 'APPROVE_QUOTATION',
@@ -275,15 +281,42 @@ class QuotationController extends Controller
                 ], 422);
             }
 
+            // Try multi-level rejection first (if applicable)
             $currentApproval = $quotation->getCurrentPendingApproval();
-            if ($currentApproval && $currentApproval->isRejected()) {
-                return response()->json([
-                    'message' => 'This approval level is already completed'
-                ], 422);
-            }
+            if ($currentApproval) {
+                if ($currentApproval->isRejected()) {
+                    return response()->json([
+                        'message' => 'This approval level is already completed'
+                    ], 422);
+                }
 
-            // Process rejection using the multi-level approval system
-            if ($quotation->rejectCurrentLevel($request->notes, $request->reason_type)) {
+                // Process rejection using the multi-level approval system
+                if ($quotation->rejectCurrentLevel($request->notes, $request->reason_type)) {
+                    // Send notification to sales user
+                    if ($quotation->user_id) {
+                        \App\Models\Notification::createForUser(
+                            $quotation->user_id,
+                            "Your quotation {$quotation->quotation_number} has been rejected",
+                            'warning',
+                            '/quotations'
+                        );
+                    }
+
+                    return response()->json([
+                        'message' => 'Quotation rejected successfully',
+                        'quotation' => new QuotationResource($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals.approvalLevel'])),
+                        'workflow_status' => $quotation->getApprovalWorkflowStatus()
+                    ]);
+                }
+            } else {
+                // Fallback for simple rejection (no multi-level workflow found)
+                $approval = $quotation->latestApproval();
+                if ($approval && $approval->status === 'PENDING') {
+                    $approval->reject($request->notes);
+                }
+
+                $quotation->update(['status' => 'REJECTED']);
+
                 // Send notification to sales user
                 if ($quotation->user_id) {
                     \App\Models\Notification::createForUser(
@@ -296,8 +329,7 @@ class QuotationController extends Controller
 
                 return response()->json([
                     'message' => 'Quotation rejected successfully',
-                    'quotation' => new QuotationResource($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals.approvalLevel'])),
-                    'workflow_status' => $quotation->getApprovalWorkflowStatus()
+                    'quotation' => new QuotationResource($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product'])),
                 ]);
             }
 

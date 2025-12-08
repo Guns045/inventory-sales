@@ -160,4 +160,56 @@ class SuperAdminController extends Controller
             return response()->json(['message' => 'Failed to revert stock', 'error' => $e->getMessage()], 500);
         }
     }
+    /**
+     * Recalculate reserved stock for all active orders
+     */
+    public function recalculateStock()
+    {
+        try {
+            DB::beginTransaction();
+
+            // 1. Reset all reserved quantities to 0
+            ProductStock::query()->update(['reserved_quantity' => 0]);
+
+            // 2. Get all active Sales Orders
+            $activeStatuses = ['PENDING', 'PROCESSING', 'READY_TO_SHIP'];
+            $orders = SalesOrder::whereIn('status', $activeStatuses)->with('items')->get();
+
+            $count = 0;
+
+            foreach ($orders as $order) {
+                foreach ($order->items as $item) {
+                    $stock = ProductStock::where('product_id', $item->product_id)
+                        ->where('warehouse_id', $order->warehouse_id)
+                        ->first();
+
+                    if ($stock) {
+                        $stock->increment('reserved_quantity', $item->quantity);
+                        $count++;
+                    }
+                }
+            }
+
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'RECALCULATE STOCK',
+                'description' => "Recalculated reserved stock for {$orders->count()} orders.",
+                'reference_type' => 'System',
+                'reference_id' => 0,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Stock recalculation complete',
+                'orders_processed' => $orders->count(),
+                'items_updated' => $count
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Recalculate Stock Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to recalculate stock', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

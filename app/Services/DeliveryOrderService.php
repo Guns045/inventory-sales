@@ -88,8 +88,11 @@ class DeliveryOrderService
                 ]);
             }
 
-            // Update sales order status
-            $salesOrder->update(['status' => 'PROCESSING']);
+            // Update sales order status only if it's not already READY_TO_SHIP
+            // If it's READY_TO_SHIP, we assume it should stay there (e.g. auto-created from SO status change)
+            if ($salesOrder->status !== 'READY_TO_SHIP') {
+                $salesOrder->update(['status' => 'PROCESSING']);
+            }
 
             $this->logCreation($deliveryOrder, "from sales order {$salesOrder->sales_order_number}");
 

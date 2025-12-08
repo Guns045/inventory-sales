@@ -9,16 +9,19 @@ use App\Models\Quotation;
 use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
 use App\Models\ActivityLog;
+use App\Services\DeliveryOrderService; // Added this line
 
 class SalesOrderService
 {
     use DocumentNumberHelper;
 
     protected $productStockService;
+    protected $deliveryOrderService; // Added this line
 
-    public function __construct(ProductStockService $productStockService)
+    public function __construct(ProductStockService $productStockService, DeliveryOrderService $deliveryOrderService) // Modified this line
     {
         $this->productStockService = $productStockService;
+        $this->deliveryOrderService = $deliveryOrderService; // Added this line
     }
 
     /**
@@ -183,10 +186,53 @@ class SalesOrderService
                             $item->quantity
                         );
                     }
+
+                    // Check for associated Delivery Order and cancel it if possible
+                    if ($salesOrder->deliveryOrder) {
+                        $do = $salesOrder->deliveryOrder;
+                        if (in_array($do->status, ['PREPARING', 'READY_TO_SHIP'])) {
+                            $do->update(['status' => 'CANCELLED']);
+
+                            ActivityLog::create([
+                                'user_id' => auth()->id(),
+                                'action' => 'Auto-Cancelled Delivery Order',
+                                'description' => "Auto-cancelled DO {$do->delivery_order_number} because SO {$salesOrder->sales_order_number} was cancelled.",
+                                'reference_type' => 'DeliveryOrder',
+                                'reference_id' => $do->id,
+                            ]);
+                        }
+                    }
                 }
             }
 
             $salesOrder->update(['status' => $status]);
+
+            // Auto-create Delivery Order if status becomes READY_TO_SHIP
+            if ($status === 'READY_TO_SHIP' && $oldStatus !== 'READY_TO_SHIP') {
+                // Check if DO already exists to prevent duplicates
+                if (!$salesOrder->deliveryOrder) {
+                    try {
+                        $this->deliveryOrderService->createFromSalesOrder($salesOrder->id, [
+                            'shipping_date' => now(), // Default to today
+                            // Other fields will use defaults from SO/Customer
+                        ]);
+
+                        ActivityLog::create([
+                            'user_id' => auth()->id(),
+                            'action' => 'Auto-Created Delivery Order',
+                            'description' => "Auto-created DO for SO {$salesOrder->sales_order_number} upon status change to READY_TO_SHIP.",
+                            'reference_type' => 'SalesOrder',
+                            'reference_id' => $salesOrder->id,
+                        ]);
+                    } catch (\Exception $e) {
+                        // Log error but don't fail the status update?
+                        // Or fail it? Better to fail so user knows DO wasn't created.
+                        // But let's log and continue for now, or maybe throw?
+                        // If we throw, the transaction rolls back, which is good.
+                        throw $e;
+                    }
+                }
+            }
 
             ActivityLog::create([
                 'user_id' => auth()->id(),

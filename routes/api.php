@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/system/reset-data', [App\Http\Controllers\API\SystemController::class, 'resetData']);
     Route::post('/admin/force-status', [App\Http\Controllers\API\SuperAdminController::class, 'forceStatus']);
     Route::post('/admin/revert-stock', [App\Http\Controllers\API\SuperAdminController::class, 'revertStock']);
+    Route::post('/admin/recalculate-stock', [App\Http\Controllers\API\SuperAdminController::class, 'recalculateStock']);
 
     // User and Role Management
     Route::get('/user/permissions', [RoleController::class, 'getUserPermissions']);

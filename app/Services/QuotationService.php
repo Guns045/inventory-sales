@@ -210,6 +210,12 @@ class QuotationService
         }
 
         return DB::transaction(function () use ($quotation, $notes) {
+            // Lock the quotation row to prevent race conditions (double click)
+            $quotation = Quotation::where('id', $quotation->id)->lockForUpdate()->first();
+
+            if ($quotation->salesOrder) {
+                throw new \Exception('Quotation already converted to Sales Order');
+            }
             // Use the quotation's warehouse_id for consistent warehouse assignment
             $warehouseId = $quotation->warehouse_id;
             $salesOrderNumber = $this->generateSalesOrderNumber($warehouseId);
