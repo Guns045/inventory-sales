@@ -174,12 +174,15 @@ class SalesOrderService
 
             // If cancelling, release stock
             if ($status === 'CANCELLED' && $oldStatus !== 'CANCELLED') {
-                foreach ($salesOrder->items as $item) {
-                    $this->productStockService->releaseStock(
-                        $item->product_id,
-                        $salesOrder->warehouse_id,
-                        $item->quantity
-                    );
+                // Only release stock if it was reserved (not yet shipped/deducted)
+                if (in_array($oldStatus, ['PENDING', 'PROCESSING', 'READY_TO_SHIP'])) {
+                    foreach ($salesOrder->items as $item) {
+                        $this->productStockService->releaseStock(
+                            $item->product_id,
+                            $salesOrder->warehouse_id,
+                            $item->quantity
+                        );
+                    }
                 }
             }
 

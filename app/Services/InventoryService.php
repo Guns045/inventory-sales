@@ -249,6 +249,49 @@ class InventoryService
             }
         }
     }
+
+    /**
+     * Release reserved stock for a Sales Order (e.g. when cancelled)
+     *
+     * @param SalesOrder $salesOrder
+     * @param int $userId
+     * @return void
+     * @throws \Exception
+     */
+    public function releaseReservedStockForSalesOrder(SalesOrder $salesOrder, int $userId): void
+    {
+        foreach ($salesOrder->items as $item) {
+            $productStock = ProductStock::where('product_id', $item->product_id)->first();
+
+            if (!$productStock) {
+                // If stock record is missing, we just log and continue, as we can't release what's not there
+                Log::warning("No stock record found for product ID: {$item->product_id} when releasing reservation.");
+                continue;
+            }
+
+            // Calculate quantity to release (can't release more than reserved)
+            $releaseQuantity = min($item->quantity, $productStock->reserved_quantity);
+
+            if ($releaseQuantity > 0) {
+                $productStock->decrement('reserved_quantity', $releaseQuantity);
+
+                // Log stock movement
+                StockMovement::create([
+                    'product_id' => $item->product_id,
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'type' => 'RELEASE_RESERVATION', // Custom type for releasing reservation
+                    'quantity_change' => $releaseQuantity, // Positive change to availability (technically just un-reserving)
+                    'previous_quantity' => $productStock->reserved_quantity + $releaseQuantity,
+                    'new_quantity' => $productStock->reserved_quantity,
+                    'reference_type' => 'SalesOrder',
+                    'reference_id' => $salesOrder->id,
+                    'reference_number' => $salesOrder->sales_order_number,
+                    'created_by' => $userId,
+                    'notes' => "Stock reservation released for Cancelled Sales Order {$salesOrder->sales_order_number}",
+                ]);
+            }
+        }
+    }
     /**
      * Get available stock for a product in a specific warehouse
      *

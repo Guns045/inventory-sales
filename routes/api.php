@@ -41,6 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // System Management (Root Only)
     Route::post('/system/reset-data', [App\Http\Controllers\API\SystemController::class, 'resetData']);
+    Route::post('/admin/force-status', [App\Http\Controllers\API\SuperAdminController::class, 'forceStatus']);
+    Route::post('/admin/revert-stock', [App\Http\Controllers\API\SuperAdminController::class, 'revertStock']);
 
     // User and Role Management
     Route::get('/user/permissions', [RoleController::class, 'getUserPermissions']);
@@ -109,6 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/sales-orders/{sales_order}', [SalesOrderController::class, 'destroy']);
     Route::get('/sales-orders/{id}/items', [SalesOrderController::class, 'getSalesOrderItems']);
     Route::post('/sales-orders/{id}/update-status', [SalesOrderController::class, 'updateStatus']);
+    Route::post('/sales-orders/{id}/cancel', [SalesOrderController::class, 'cancel']);
     Route::post('/sales-orders/{id}/create-picking-list', [SalesOrderController::class, 'createPickingList']);
 
     // Sales Returns

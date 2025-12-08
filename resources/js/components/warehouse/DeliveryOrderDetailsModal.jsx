@@ -5,6 +5,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogDescription,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
@@ -17,6 +18,7 @@ import {
     TableRow
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import SuperAdminActions from '@/components/admin/SuperAdminActions';
 
 const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
     if (!order) return null;
@@ -158,7 +160,22 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                         </TableBody>
                     </Table>
                 </div>
-            </DialogContent >
+            </div>
+
+            <DialogFooter>
+                <SuperAdminActions
+                    type="delivery_order"
+                    id={order.id}
+                    currentStatus={order.status}
+                    onSuccess={() => {
+                        onClose();
+                        // Ideally trigger refresh in parent, but onClose is enough for now
+                        // The parent might need to pass a refresh callback
+                        window.location.reload(); // Simple brute force refresh for admin action
+                    }}
+                />
+            </DialogFooter>
+        </DialogContent >
         </Dialog >
     );
 };

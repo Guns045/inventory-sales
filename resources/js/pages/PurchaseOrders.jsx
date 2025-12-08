@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PurchaseOrderTable } from '@/components/purchasing/PurchaseOrderTable';
 import { Plus, RefreshCw, Trash2, Printer, Send, Eye, Loader2, Search } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
+import SuperAdminActions from '@/components/admin/SuperAdminActions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -693,10 +694,20 @@ const PurchaseOrders = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSendModal(false)}>Cancel</Button>
-            <Button onClick={handleSendPOSubmit}>
-              <Send className="mr-2 h-4 w-4" />
-              Send Email
-            </Button>
+            {selectedOrder?.status === 'APPROVED' && (
+              <Button onClick={() => handleStatusUpdate(selectedOrder, 'ORDERED')}>
+                Mark as Ordered
+              </Button>
+            )}
+            <SuperAdminActions
+              type="purchase_order"
+              id={selectedOrder?.id}
+              currentStatus={selectedOrder?.status}
+              onSuccess={() => {
+                fetchPurchaseOrders(pagination.current_page);
+                setShowItemsModal(false);
+              }}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

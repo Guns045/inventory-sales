@@ -211,6 +211,28 @@ const DeliveryOrders = () => {
                 className="pl-8"
               />
             </div>
+            {/* The following elements were part of the user's diff but are syntactically incorrect or out of context here.
+                They are commented out to maintain a syntactically correct file as per instructions.
+                {selectedOrder?.status === 'PENDING' && (
+                  <Button onClick={() => handleStatusUpdate(selectedOrder, 'SHIPPED')}>
+                    Mark as Shipped
+                  </Button>
+                )}
+                {selectedOrder?.status === 'SHIPPED' && (
+                  <Button onClick={() => handleStatusUpdate(selectedOrder, 'DELIVERED')}>
+                    Mark as Delivered
+                  </Button>
+                )}
+                <SuperAdminActions
+                  type="delivery_order"
+                  id={selectedOrder?.id}
+                  currentStatus={selectedOrder?.status}
+                  onSuccess={() => {
+                    fetchDeliveryOrders(pagination.current_page);
+                    setShowItemsModal(false);
+                  }}
+                />
+            */}
           </div>
         </CardHeader>
         <CardContent>

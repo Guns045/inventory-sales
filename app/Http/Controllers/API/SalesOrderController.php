@@ -155,6 +155,28 @@ class SalesOrderController extends Controller
         }
     }
 
+    public function cancel($id)
+    {
+        $salesOrder = SalesOrder::findOrFail($id);
+
+        if (!in_array($salesOrder->status, ['PENDING', 'PROCESSING', 'READY_TO_SHIP'])) {
+            return response()->json([
+                'message' => 'Cannot cancel order with status: ' . $salesOrder->status
+            ], 400);
+        }
+
+        try {
+            $salesOrder = $this->salesOrderService->updateStatus($salesOrder, 'CANCELLED');
+            return new SalesOrderResource($salesOrder);
+        } catch (\Exception $e) {
+            Log::error('SalesOrder Cancel Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to cancel sales order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function createPickingList(Request $request, $id)
     {
         try {

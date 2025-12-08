@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, CheckCircle, Clock, XCircle, Search } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
+import SuperAdminActions from '@/components/admin/SuperAdminActions';
 
 const SalesOrders = () => {
   const { get, post, delete: deleteRequest } = useAPI();
@@ -113,6 +114,19 @@ const SalesOrders = () => {
         await fetchSalesOrders(pagination.current_page);
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to delete sales order');
+      }
+    }
+  };
+
+  const handleCancel = async (order) => {
+    if (window.confirm('Are you sure you want to CANCEL this order? Reserved stock will be released.')) {
+      try {
+        await post(`/sales-orders/${order.id}/cancel`);
+        showSuccess('Sales order cancelled successfully');
+        await fetchSalesOrders(pagination.current_page);
+        setShowItemsModal(false);
+      } catch (err) {
+        showError(err.response?.data?.message || 'Failed to cancel sales order');
       }
     }
   };
@@ -307,6 +321,20 @@ const SalesOrders = () => {
                 Ready to Ship
               </Button>
             )}
+            {['PENDING', 'PROCESSING', 'READY_TO_SHIP'].includes(selectedOrder?.status) && (
+              <Button variant="destructive" onClick={() => handleCancel(selectedOrder)}>
+                Cancel Order
+              </Button>
+            )}
+            <SuperAdminActions
+              type="sales_order"
+              id={selectedOrder?.id}
+              currentStatus={selectedOrder?.status}
+              onSuccess={() => {
+                fetchSalesOrders(pagination.current_page);
+                setShowItemsModal(false);
+              }}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>
