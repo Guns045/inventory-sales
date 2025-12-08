@@ -16,7 +16,13 @@ class RoleService
         try {
             $role = Role::findByName($roleName, 'sanctum');
         } catch (\Exception $e) {
-            $role = Role::findByName($roleName, 'web');
+            try {
+                $role = Role::findByName($roleName, 'web');
+            } catch (\Exception $e2) {
+                // Log error if role not found in either guard
+                \Illuminate\Support\Facades\Log::error("Role not found: {$roleName}");
+                throw $e2;
+            }
         }
 
         if ($roleName === 'Super Admin') {

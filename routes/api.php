@@ -93,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/product-stock/{id}', [ProductStockController::class, 'update'])->middleware('permission:product-stock.update');
     Route::delete('/product-stock/{id}', [ProductStockController::class, 'destroy'])->middleware('permission:product-stock.delete');
     Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
+    Route::post('/product-stock/{id}/toggle-visibility', [ProductStockController::class, 'toggleVisibility'])->middleware('permission:product-stock.update');
     Route::get('/product-stock/{id}/movements', [ProductStockController::class, 'getMovementHistory'])->middleware('permission:product-stock.read');
 
     // Sales management

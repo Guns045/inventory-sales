@@ -14,6 +14,11 @@ class ProductStock extends Model
         'quantity',
         'reserved_quantity',
         'bin_location',
+        'is_hidden',
+    ];
+
+    protected $casts = [
+        'is_hidden' => 'boolean',
     ];
 
     public function product()

@@ -191,4 +191,38 @@ class ProductStockController extends Controller
             ], 500);
         }
     }
+    /**
+     * Toggle stock visibility (Hide/Unhide).
+     */
+    public function toggleVisibility($id)
+    {
+        try {
+            $productStock = ProductStock::findOrFail($id);
+
+            // Only Super Admin can toggle visibility
+            $user = request()->user();
+            if (!($user->role === 'Super Admin' || ($user->role && $user->role->name === 'Super Admin'))) {
+                return response()->json([
+                    'message' => 'Unauthorized. Only Super Admin can hide/unhide stock.'
+                ], 403);
+            }
+
+            $productStock->is_hidden = !$productStock->is_hidden;
+            $productStock->save();
+
+            $status = $productStock->is_hidden ? 'hidden' : 'visible';
+
+            return response()->json([
+                'message' => "Stock is now {$status}",
+                'data' => new ProductStockResource($productStock)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Toggle Visibility Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to toggle visibility',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

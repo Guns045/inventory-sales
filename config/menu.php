@@ -5,7 +5,7 @@ return [
         'title' => 'Dashboard',
         'path' => '/dashboard',
         'icon' => 'bi-speedometer2',
-        'permission' => 'dashboard.read',
+        'permission' => 'view_dashboard',
     ],
     [
         'title' => 'Sales',
@@ -17,25 +17,25 @@ return [
                 'title' => 'Customer',
                 'path' => '/customers',
                 'icon' => 'bi-people',
-                'permission' => 'customers.read'
+                'permission' => 'view_customers'
             ],
             [
                 'title' => 'Quotation',
                 'path' => '/quotations',
                 'icon' => 'bi-file-text',
-                'permission' => 'quotations.read'
+                'permission' => 'view_quotations'
             ],
             [
                 'title' => 'Sales Order',
                 'path' => '/sales-orders',
                 'icon' => 'bi-cart-check',
-                'permission' => 'sales-orders.read'
+                'permission' => 'view_sales_orders'
             ],
             [
                 'title' => 'Sales Return',
                 'path' => '/sales-returns',
                 'icon' => 'bi-arrow-return-left',
-                'permission' => 'sales-returns.read'
+                'permission' => 'view_sales_returns'
             ],
         ]
     ],
@@ -49,13 +49,13 @@ return [
                 'title' => 'Purchase Order',
                 'path' => '/purchase-orders',
                 'icon' => 'bi-cart',
-                'permission' => 'purchase-orders.read'
+                'permission' => 'view_purchase_orders'
             ],
             [
                 'title' => 'Goods Receipt',
                 'path' => '/goods-receipts',
                 'icon' => 'bi-box-seam',
-                'permission' => 'goods-receipts.read'
+                'permission' => 'view_goods_receipts'
             ]
         ]
     ],
@@ -69,25 +69,25 @@ return [
                 'title' => 'Product',
                 'path' => '/products',
                 'icon' => 'bi-box',
-                'permission' => 'products.read'
+                'permission' => 'view_products'
             ],
             [
                 'title' => 'On Hands Stock',
                 'path' => '/product-stock',
                 'icon' => 'bi-archive',
-                'permission' => 'product-stock.read'
+                'permission' => 'view_stock'
             ],
             [
                 'title' => 'Warehouse',
                 'path' => '/warehouses',
                 'icon' => 'bi-building',
-                'permission' => 'warehouses.read'
+                'permission' => 'view_warehouses'
             ],
             [
                 'title' => 'Supplier',
                 'path' => '/suppliers',
                 'icon' => 'bi-truck',
-                'permission' => 'suppliers.read'
+                'permission' => 'view_suppliers'
             ]
         ]
     ],
@@ -101,13 +101,13 @@ return [
                 'title' => 'Warehouse Transfer',
                 'path' => '/internal-transfers',
                 'icon' => 'bi-arrow-left-right',
-                'permission' => 'warehouse-transfers.read'
+                'permission' => 'view_transfers'
             ],
             [
                 'title' => 'Delivery Order',
                 'path' => '/delivery-orders',
                 'icon' => 'bi-truck',
-                'permission' => 'delivery-orders.read'
+                'permission' => 'view_delivery_orders'
             ]
         ]
     ],
@@ -121,25 +121,25 @@ return [
                 'title' => 'Invoice',
                 'path' => '/invoices',
                 'icon' => 'bi-receipt',
-                'permission' => 'invoices.read'
+                'permission' => 'view_invoices'
             ],
             [
                 'title' => 'Payment',
                 'path' => '/payments',
                 'icon' => 'bi-credit-card',
-                'permission' => 'payments.read'
+                'permission' => 'view_payments'
             ],
             [
                 'title' => 'Credit Notes',
                 'path' => '/credit-notes',
                 'icon' => 'bi-file-earmark-minus',
-                'permission' => 'sales-returns.read' // Using same permission for now
+                'permission' => 'view_sales_returns' // Using same permission for now
             ],
             [
                 'title' => 'Report',
                 'path' => '/reports',
                 'icon' => 'bi-graph-up',
-                'permission' => 'reports.read'
+                'permission' => 'view_reports'
             ]
         ]
     ],
@@ -153,19 +153,19 @@ return [
                 'title' => 'User Management',
                 'path' => '/users',
                 'icon' => 'bi-people',
-                'permission' => 'users.read'
+                'permission' => 'view_users'
             ],
             [
                 'title' => 'Role Management',
                 'path' => '/roles',
                 'icon' => 'bi-shield-lock',
-                'permission' => 'roles.read'
+                'permission' => 'manage_roles'
             ],
             [
                 'title' => 'Settings',
                 'path' => '/settings',
                 'icon' => 'bi-gear',
-                'permission' => 'settings.read'
+                'permission' => 'view_company_settings'
             ]
         ]
     ],

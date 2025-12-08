@@ -62,7 +62,7 @@ export function ProductStockTable({
     if (!isAllWarehousesView) {
         columns.push({
             id: "select",
-            header: () => (
+            header: (
                 <Checkbox
                     checked={data.length > 0 && selectedIds.length === data.length}
                     onCheckedChange={handleSelectAll}
@@ -99,7 +99,7 @@ export function ProductStockTable({
         }
     );
 
-    if (isAllWarehousesView && warehouses) {
+    if (isAllWarehousesView && Array.isArray(warehouses)) {
         // Add columns for each warehouse
         warehouses.forEach(warehouse => {
             // Reserved Column
@@ -109,7 +109,8 @@ export function ProductStockTable({
                 headerClassName: "text-center",
                 cellClassName: "text-center",
                 cell: (row) => {
-                    const stock = row.stocks?.find(s => s.warehouse_id === warehouse.id);
+                    const stock = Array.isArray(row.stocks) ? row.stocks.find(s => s.warehouse_id === warehouse.id) : null;
+                    if (stock && stock.reserved_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
                     return stock && stock.reserved_quantity > 0 ? (
                         <span className="text-orange-600 font-medium">{stock.reserved_quantity}</span>
                     ) : (
@@ -125,8 +126,9 @@ export function ProductStockTable({
                 headerClassName: "text-center",
                 cellClassName: "text-center",
                 cell: (row) => {
-                    const stock = row.stocks?.find(s => s.warehouse_id === warehouse.id);
+                    const stock = Array.isArray(row.stocks) ? row.stocks.find(s => s.warehouse_id === warehouse.id) : null;
                     if (!stock) return <span className="text-muted-foreground">-</span>;
+                    if (stock.available_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
 
                     const available = stock.quantity - stock.reserved_quantity;
                     return (
@@ -144,7 +146,10 @@ export function ProductStockTable({
             accessorKey: "quantity",
             headerClassName: "text-center",
             cellClassName: "text-center",
-            cell: (row) => <span className="font-bold text-blue-600">{row.quantity}</span>
+            cell: (row) => {
+                if (row.quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
+                return <span className="font-bold text-blue-600">{row.quantity}</span>;
+            }
         });
 
     } else {
@@ -153,17 +158,29 @@ export function ProductStockTable({
             {
                 header: "Total Stock",
                 accessorKey: "quantity",
-                cell: (row) => <span className="font-semibold text-blue-600">{row.quantity}</span>
+                cell: (row) => {
+                    if (row.quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
+                    return (
+                        <div className="flex items-center gap-1">
+                            <span className="font-semibold text-blue-600">{row.quantity}</span>
+                            {row.is_hidden && <Eye className="h-3 w-3 text-gray-400" />}
+                        </div>
+                    );
+                }
             },
             {
                 header: "Reserved",
                 accessorKey: "reserved_quantity",
-                cell: (row) => <span className="text-orange-500">{row.reserved_quantity}</span>
+                cell: (row) => {
+                    if (row.reserved_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
+                    return <span className="text-orange-500">{row.reserved_quantity}</span>;
+                }
             },
             {
                 header: "Available",
                 accessorKey: "available_quantity",
                 cell: (row) => {
+                    if (row.available_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
                     const available = row.quantity - row.reserved_quantity;
                     return (
                         <span className={`font-bold ${available > 0 ? 'text-green-600' : 'text-red-600'}`}>
