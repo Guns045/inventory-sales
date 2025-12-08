@@ -40,11 +40,7 @@ class InvoiceController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                        $customerQuery->where('company_name', 'like', "%{$search}%")
-                            ->orWhere('name', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('salesOrder', function ($salesOrderQuery) use ($search) {
-                        $salesOrderQuery->where('sales_order_number', 'like', "%{$search}%");
+                        $customerQuery->where('company_name', 'like', "%{$search}%");
                     });
             });
         }
@@ -61,8 +57,7 @@ class InvoiceController extends Controller
         if ($request->has('customer') && !empty($request->customer)) {
             $customer = $request->customer;
             $query->whereHas('customer', function ($customerQuery) use ($customer) {
-                $customerQuery->where('company_name', 'like', "%{$customer}%")
-                    ->orWhere('name', 'like', "%{$customer}%");
+                $customerQuery->where('company_name', 'like', "%{$customer}%");
             });
         }
 
@@ -95,11 +90,7 @@ class InvoiceController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                        $customerQuery->where('company_name', 'like', "%{$search}%")
-                            ->orWhere('name', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('salesOrder', function ($salesOrderQuery) use ($search) {
-                        $salesOrderQuery->where('sales_order_number', 'like', "%{$search}%");
+                        $customerQuery->where('company_name', 'like', "%{$search}%");
                     });
             });
         }
@@ -114,8 +105,7 @@ class InvoiceController extends Controller
         if ($request->has('customer') && !empty($request->customer)) {
             $customer = $request->customer;
             $query->whereHas('customer', function ($customerQuery) use ($customer) {
-                $customerQuery->where('company_name', 'like', "%{$customer}%")
-                    ->orWhere('name', 'like', "%{$customer}%");
+                $customerQuery->where('company_name', 'like', "%{$customer}%");
             });
         }
 
