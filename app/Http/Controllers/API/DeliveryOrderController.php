@@ -52,7 +52,7 @@ class DeliveryOrderController extends Controller
         $pendingSalesOrders = collect([]);
         if ($request->input('page', 1) == 1 && $request->input('source_type') == 'SO') {
             $pendingSalesOrders = SalesOrder::with(['customer', 'user', 'pickingList', 'warehouse', 'salesOrderItems.product'])
-                ->where('status', 'PROCESSING')
+                ->whereIn('status', ['PROCESSING', 'READY_TO_SHIP'])
                 ->doesntHave('deliveryOrder')
                 ->orderBy('created_at', 'desc')
                 ->get();
