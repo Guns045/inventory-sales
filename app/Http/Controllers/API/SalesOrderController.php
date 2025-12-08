@@ -45,6 +45,17 @@ class SalesOrderController extends Controller
             }
         }
 
+        // Search functionality
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('sales_order_number', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
         // Filter by user warehouse access
         $user = $request->user();
         if ($user && !$user->canAccessAllWarehouses() && $user->warehouse_id) {

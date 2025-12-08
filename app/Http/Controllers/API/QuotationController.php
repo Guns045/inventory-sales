@@ -49,6 +49,17 @@ class QuotationController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Search functionality
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('quotation_number', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
         $quotations = $query->paginate(2000);
         return QuotationResource::collection($quotations);
     }

@@ -46,6 +46,17 @@ class DeliveryOrderController extends Controller
             $query->where('source_type', $request->source_type);
         }
 
+        // Search functionality
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('delivery_order_number', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
         $deliveryOrders = $query->paginate($limit);
 
         // 2. Get Pending Sales Orders (only for page 1 and if source_type is SO)
