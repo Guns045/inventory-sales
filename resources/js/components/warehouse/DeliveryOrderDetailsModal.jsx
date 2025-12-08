@@ -160,22 +160,22 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                         </TableBody>
                     </Table>
                 </div>
-            </div>
 
-            <DialogFooter>
-                <SuperAdminActions
-                    type="delivery_order"
-                    id={order.id}
-                    currentStatus={order.status}
-                    onSuccess={() => {
-                        onClose();
-                        // Ideally trigger refresh in parent, but onClose is enough for now
-                        // The parent might need to pass a refresh callback
-                        window.location.reload(); // Simple brute force refresh for admin action
-                    }}
-                />
-            </DialogFooter>
-        </DialogContent >
+
+                <DialogFooter>
+                    <SuperAdminActions
+                        type="delivery_order"
+                        id={order.id}
+                        currentStatus={order.status}
+                        onSuccess={() => {
+                            onClose();
+                            // Ideally trigger refresh in parent, but onClose is enough for now
+                            // The parent might need to pass a refresh callback
+                            window.location.reload(); // Simple brute force refresh for admin action
+                        }}
+                    />
+                </DialogFooter>
+            </DialogContent >
         </Dialog >
     );
 };

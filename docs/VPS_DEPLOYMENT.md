@@ -168,4 +168,29 @@ chmod +x deploy.sh
 ```
 
 This script will pull the latest code, install dependencies, build assets, and clear caches automatically.
-103.94.239.168 
+
+## 7. Troubleshooting
+
+### Build Errors (esbuild/vite OOM)
+If you encounter `failureErrorWithLog` or "Out of Memory" errors during `npm run build`:
+
+1.  **Increase Node Memory Limit**:
+    ```bash
+    export NODE_OPTIONS="--max-old-space-size=4096"
+    npm run build
+    ```
+
+2.  **Clean Reinstall**:
+    Sometimes `esbuild` binaries get corrupted.
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm install
+    npm run build
+    ```
+
+3.  **Build Locally (Fallback)**:
+    If the VPS is too weak, build on your local machine:
+    -   Run `npm run build` locally.
+    -   Zip the `public/build` folder.
+    -   Upload to VPS: `scp -r public/build.zip user@vps:/var/www/inventory-app/public/`
+    -   Unzip on VPS: `unzip build.zip` 

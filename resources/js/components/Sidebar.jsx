@@ -68,7 +68,7 @@ const SidebarContent = ({ menuItems, pathname, onNavigate }) => {
             'bi-arrow-left-right': ArrowLeftRight,
             'bi-credit-card': CreditCard,
             'bi-receipt': Receipt,
-            'bi-receipt': Receipt,
+
             'bi-graph-up': BarChart3,
             'bi-arrow-return-left': Undo2
         };
