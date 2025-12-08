@@ -49,7 +49,7 @@ class QuotationController extends Controller
             $query->where('status', $request->status);
         }
 
-        $quotations = $query->paginate(10);
+        $quotations = $query->paginate(2000);
         return QuotationResource::collection($quotations);
     }
 
