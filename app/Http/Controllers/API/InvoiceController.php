@@ -74,7 +74,7 @@ class InvoiceController extends Controller
             $query->where('total_amount', '<=', floatval($request->max_amount));
         }
 
-        $invoices = $query->orderBy('created_at', 'desc')->paginate(10);
+        $invoices = $query->orderBy('created_at', 'desc')->paginate(2000);
         return InvoiceResource::collection($invoices);
     }
 

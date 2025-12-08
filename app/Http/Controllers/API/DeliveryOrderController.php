@@ -29,7 +29,7 @@ class DeliveryOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $limit = 10;
+        $limit = 2000;
 
         // 1. Get Delivery Orders
         $query = DeliveryOrder::with([

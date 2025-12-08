@@ -54,7 +54,7 @@ class SalesOrderController extends Controller
             Log::info('SalesOrder index: Filtering by warehouse: ' . $user->warehouse_id);
         }
 
-        $salesOrders = $query->paginate(10);
+        $salesOrders = $query->paginate(2000);
 
         return SalesOrderResource::collection($salesOrders);
     }

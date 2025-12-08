@@ -64,7 +64,7 @@ class PurchaseOrderController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $purchaseOrders = $query->orderBy('created_at', 'desc')->paginate(20);
+        $purchaseOrders = $query->orderBy('created_at', 'desc')->paginate(2000);
         return PurchaseOrderResource::collection($purchaseOrders);
     }
 
