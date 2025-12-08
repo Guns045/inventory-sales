@@ -539,8 +539,8 @@ const Invoices = () => {
                     {(selectedInvoice?.items || selectedInvoice?.invoice_items || []).map((item, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2">
-                          <div className="font-medium">{item.product?.name || item.description}</div>
-                          <div className="text-xs text-muted-foreground">{item.product?.sku}</div>
+                          <div className="font-medium">{item.product?.sku || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground">{item.product?.name || item.description || 'N/A'}</div>
                         </td>
                         <td className="px-4 py-2 text-center">{item.quantity}</td>
                         <td className="px-4 py-2 text-right">{formatCurrency(item.unit_price)}</td>

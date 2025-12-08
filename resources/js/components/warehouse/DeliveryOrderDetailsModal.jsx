@@ -124,8 +124,8 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead>SKU</TableHead>
+                                <TableHead>Part Number</TableHead>
+                                <TableHead>Description</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
                                 {!isPendingSO && <TableHead className="text-right">Shipped</TableHead>}
                                 <TableHead>Location</TableHead>
@@ -135,10 +135,14 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                             {items.map((item, index) => (
                                 <TableRow key={item.id || index}>
                                     <TableCell>
-                                        <div className="font-medium">{item.product?.name || item.product_name}</div>
-                                        <div className="text-xs text-muted-foreground">{item.product?.description}</div>
+                                        <div className="font-medium">{item.product?.sku || item.product_code || 'N/A'}</div>
                                     </TableCell>
-                                    <TableCell>{item.product?.sku || item.product_code || 'N/A'}</TableCell>
+                                    <TableCell>
+                                        <div className="font-medium">{item.product?.name || item.product_name || 'N/A'}</div>
+                                        {item.product?.description && (
+                                            <div className="text-xs text-muted-foreground">{item.product.description}</div>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         {isPendingSO ? item.quantity : (item.quantity_ordered || item.quantity)}
                                     </TableCell>

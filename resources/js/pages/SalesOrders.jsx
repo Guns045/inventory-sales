@@ -286,7 +286,10 @@ const SalesOrders = () => {
                     <TableBody>
                       {orderItems.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{item.product?.name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <div className="font-medium">{item.product?.sku || 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">{item.product?.name || 'N/A'}</div>
+                          </TableCell>
                           <TableCell className="text-center">{item.quantity}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
                           <TableCell className="text-center">{item.discount_percentage}%</TableCell>
