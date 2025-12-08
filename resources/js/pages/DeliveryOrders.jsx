@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeliveryOrderTable } from '@/components/warehouse/DeliveryOrderTable';
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
+import { Input } from "@/components/ui/input";
 
 import DeliveryOrderDetailsModal from '@/components/warehouse/DeliveryOrderDetailsModal';
 import ShippingDetailsModal from '@/components/warehouse/ShippingDetailsModal';
@@ -25,15 +26,25 @@ const DeliveryOrders = () => {
 
   // Pagination state
   const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchSalesDeliveryOrders();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchSalesDeliveryOrders(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchSalesDeliveryOrders = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await api.get(`/delivery-orders?source_type=SO&page=${page}`);
+      const params = new URLSearchParams({
+        source_type: 'SO',
+        page: page
+      });
+      if (search) params.append('search', search);
+
+      const response = await api.get(`/delivery-orders?${params.toString()}`);
       const data = response.data.data || response.data || [];
       setSalesOrders(data);
       setSalesPagination({
@@ -189,7 +200,18 @@ const DeliveryOrders = () => {
       <Card>
         <CardHeader>
           <CardTitle>Sales Orders Delivery</CardTitle>
-          <CardDescription>Manage deliveries for customer sales orders</CardDescription>
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <CardDescription>Manage deliveries for customer sales orders</CardDescription>
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search delivery orders..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <DeliveryOrderTable

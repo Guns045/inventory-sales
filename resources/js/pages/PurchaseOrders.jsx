@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PurchaseOrderTable } from '@/components/purchasing/PurchaseOrderTable';
-import { Plus, RefreshCw, Trash2, Printer, Send, Eye, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Printer, Send, Eye, Loader2, Search } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -67,6 +67,7 @@ const PurchaseOrders = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const wrapperRef = React.useRef(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -81,7 +82,14 @@ const PurchaseOrders = () => {
   }, [wrapperRef]);
 
   useEffect(() => {
-    fetchPurchaseOrders();
+    const timer = setTimeout(() => {
+      fetchPurchaseOrders(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    // fetchPurchaseOrders is called by the search effect
     fetchSuppliers();
     fetchWarehouses();
     fetchProducts();
@@ -90,7 +98,10 @@ const PurchaseOrders = () => {
   const fetchPurchaseOrders = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await api.get(`/purchase-orders?page=${page}`);
+      const params = new URLSearchParams({ page });
+      if (search) params.append('search', search);
+
+      const response = await api.get(`/purchase-orders?${params.toString()}`);
       setPurchaseOrders(response.data.data || response.data || []);
     } catch (err) {
       console.error('Error fetching purchase orders:', err);
@@ -414,7 +425,18 @@ const PurchaseOrders = () => {
       <Card>
         <CardHeader>
           <CardTitle>Orders List</CardTitle>
-          <CardDescription>View and manage all purchase orders</CardDescription>
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <CardDescription>View and manage all purchase orders</CardDescription>
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search purchase orders..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <PurchaseOrderTable

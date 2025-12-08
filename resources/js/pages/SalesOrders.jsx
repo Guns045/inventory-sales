@@ -6,9 +6,10 @@ import { SalesOrderTable } from '@/components/transactions/SalesOrderTable';
 import { StatsCard } from '@/components/common/StatsCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ShoppingCart, CheckCircle, Clock, XCircle, Search } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 
 const SalesOrders = () => {
@@ -27,15 +28,22 @@ const SalesOrders = () => {
     per_page: 10,
     total: 0
   });
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchSalesOrders();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchSalesOrders(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchSalesOrders = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await get(`/sales-orders?page=${page}`);
+      const params = new URLSearchParams({ page });
+      if (search) params.append('search', search);
+
+      const response = await get(`/sales-orders?${params.toString()}`);
       if (response && response.data) {
         if (response.data.data) {
           setSalesOrders(response.data.data);
@@ -185,6 +193,18 @@ const SalesOrders = () => {
           icon={<CheckCircle className="h-4 w-4" />}
           variant="success"
         />
+      </div>
+
+      <div className="flex justify-end">
+        <div className="relative w-full md:w-64">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search sales orders..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border shadow-sm">

@@ -12,7 +12,8 @@ import { QuotationDetailModal } from '@/components/transactions/QuotationDetailM
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Search } from "lucide-react";
 
 const Quotations = () => {
   const { api } = useAPI();
@@ -43,6 +44,15 @@ const Quotations = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [dependenciesLoading, setDependenciesLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [search, setSearch] = useState('');
+
+  // Search handler
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchItems(1, { search });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Fetch dependencies
   useEffect(() => {
@@ -295,9 +305,20 @@ const Quotations = () => {
         <Card>
           <CardHeader>
             <CardTitle>Manage Quotations</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Create, view, and manage customer quotations.
-            </p>
+            <div className="flex flex-col md:flex-row justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                Create, view, and manage customer quotations.
+              </p>
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search quotations..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <QuotationTable
