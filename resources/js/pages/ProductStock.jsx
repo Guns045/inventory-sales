@@ -210,7 +210,7 @@ const ProductStock = () => {
 
     try {
       setLoadingSuggestions(true);
-      const response = await api.get(`/products?search=${value}&per_page=10`);
+      const response = await api.get(`/products?search=${encodeURIComponent(value)}&per_page=10`);
       setSuggestedProducts(response.data.data || []);
       setShowSuggestions(true);
     } catch (error) {

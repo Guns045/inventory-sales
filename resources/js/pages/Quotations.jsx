@@ -271,7 +271,7 @@ const Quotations = () => {
 
   const handleSearchProducts = React.useCallback(async (query) => {
     try {
-      const response = await api.get(`/products?search=${query}&per_page=20`);
+      const response = await api.get(`/products?search=${encodeURIComponent(query)}&per_page=20`);
       setProducts(response.data.data || []);
     } catch (err) {
       console.error('Failed to search products:', err);
