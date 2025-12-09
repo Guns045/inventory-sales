@@ -109,7 +109,7 @@ export function ProductStockTable({
                 headerClassName: "text-center",
                 cellClassName: "text-center",
                 cell: (row) => {
-                    const stock = Array.isArray(row.stocks) ? row.stocks.find(s => s.warehouse_id === warehouse.id) : null;
+                    const stock = Array.isArray(row.stocks) ? row.stocks.find(s => s.warehouse_id == warehouse.id) : null;
                     if (stock && stock.reserved_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
                     return stock && stock.reserved_quantity > 0 ? (
                         <span className="text-orange-600 font-medium">{stock.reserved_quantity}</span>
@@ -126,11 +126,24 @@ export function ProductStockTable({
                 headerClassName: "text-center",
                 cellClassName: "text-center",
                 cell: (row) => {
-                    const stock = Array.isArray(row.stocks) ? row.stocks.find(s => s.warehouse_id === warehouse.id) : null;
-                    if (!stock) return <span className="text-muted-foreground">-</span>;
-                    if (stock.available_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
+                    const stock = Array.isArray(row.stocks) ? row.stocks.find(s => s.warehouse_id == warehouse.id) : null;
 
-                    const available = stock.quantity - stock.reserved_quantity;
+                    if (stock && stock.available_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
+
+                    // If stock record exists, calculate available. If not, assume 0.
+                    const quantity = stock ? stock.quantity : 0;
+                    const reserved = stock ? stock.reserved_quantity : 0;
+                    const available = quantity - reserved;
+
+                    // Only show - if truly no record AND we want to distinguish "no record" from "0 stock"
+                    // But for "All Warehouses" view, showing 0 is often clearer if we are comparing across columns.
+                    // However, to match previous style, let's keep - if stock is null, UNLESS the user specifically wants 0.
+                    // The user said "data belum benar", implying missing data.
+                    // Let's try to show 0 if stock is null but we are in all-warehouses view?
+                    // Actually, if stock is null, it means 0.
+
+                    if (!stock) return <span className="text-muted-foreground">-</span>;
+
                     return (
                         <span className={`font-medium ${available > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
                             {available}

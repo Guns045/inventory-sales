@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Input } from "@/components/ui/input";
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,6 +17,7 @@ export function ProductCombobox({
     initialProduct,
     onChange,
     onSearch,
+    onCreate,
     placeholder = "Search product by name or SKU..."
 }) {
     const [open, setOpen] = useState(false);
@@ -160,7 +161,22 @@ export function ProductCombobox({
                         {loading ? (
                             <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
                         ) : filteredProducts.length === 0 ? (
-                            <div className="py-6 text-center text-sm">No product found.</div>
+                            <div className="py-2 px-2">
+                                <div className="text-sm text-muted-foreground mb-2 text-center">No product found.</div>
+                                {onCreate && searchTerm && (
+                                    <button
+                                        type="button"
+                                        className="w-full flex items-center justify-center rounded-sm bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                                        onClick={() => {
+                                            onCreate(searchTerm);
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Create "{searchTerm}"
+                                    </button>
+                                )}
+                            </div>
                         ) : (
                             filteredProducts.map((product) => (
                                 <div

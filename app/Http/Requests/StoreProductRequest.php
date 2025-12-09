@@ -19,8 +19,8 @@ class StoreProductRequest extends FormRequest
             'description' => 'nullable|string',
             'category_id' => 'nullable|exists:categories,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
-            'buy_price' => 'required|numeric|min:0',
-            'sell_price' => 'required|numeric|min:0',
+            'buy_price' => 'nullable|numeric|min:0',
+            'sell_price' => 'nullable|numeric|min:0',
             'min_stock_level' => 'nullable|integer|min:0',
         ];
     }

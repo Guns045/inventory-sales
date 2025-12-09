@@ -42,6 +42,8 @@ const Quotations = () => {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [dependenciesLoading, setDependenciesLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -59,14 +61,18 @@ const Quotations = () => {
     const fetchDependencies = async () => {
       try {
         setDependenciesLoading(true);
-        const [custRes, prodRes, whRes] = await Promise.all([
+        const [custRes, prodRes, whRes, catRes, supRes] = await Promise.all([
           api.get('/customers'),
           api.get('/products'),
-          api.get('/warehouses')
+          api.get('/warehouses'),
+          api.get('/categories'),
+          api.get('/suppliers')
         ]);
         setCustomers(custRes.data || []);
         setProducts(prodRes.data.data || []);
         setWarehouses(whRes.data || []);
+        setCategories(catRes.data || []);
+        setSuppliers(supRes.data || []);
       } catch (err) {
         console.error('Failed to fetch dependencies:', err);
         showError('Failed to load necessary data');
@@ -280,6 +286,8 @@ const Quotations = () => {
           customers={customers}
           warehouses={warehouses}
           products={products}
+          categories={categories}
+          suppliers={suppliers}
           onSubmit={handleFormSubmit}
           onCancel={closeForm}
           onSearchProducts={handleSearchProducts}

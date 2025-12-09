@@ -50,7 +50,9 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request)
     {
         try {
-            $product = $this->productService->createProduct($request->validated());
+            $data = $request->validated();
+            $data['min_stock_level'] = $data['min_stock_level'] ?? 0;
+            $product = $this->productService->createProduct($data);
             return new ProductResource($product);
 
         } catch (\Exception $e) {

@@ -25,6 +25,7 @@ export function LineItemsTable({
     onUpdate,
     onRemove,
     onSearch,
+    onCreateProduct,
     editable = true
 }) {
     const formatCurrency = (value) => {
@@ -74,6 +75,7 @@ export function LineItemsTable({
                                             value={item.product_id}
                                             initialProduct={item.product}
                                             onSearch={onSearch}
+                                            onCreate={(searchTerm) => onCreateProduct && onCreateProduct(index, searchTerm)}
                                             onChange={(value) => {
                                                 const selectedProduct = products.find(p => p.id.toString() === value.toString());
                                                 onUpdate(index, {
