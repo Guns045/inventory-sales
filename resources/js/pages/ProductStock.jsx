@@ -185,6 +185,7 @@ const ProductStock = () => {
       bin_location: ''
     });
     setProductSearch('');
+    setShowSuggestions(false);
     setIsCreateOpen(true);
   };
 
@@ -385,9 +386,10 @@ const ProductStock = () => {
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         title="Create Stock"
-        description="Add new stock to inventory"
+        description="Add new stock entry"
         onSubmit={handleSubmitCreate}
-        submitText="Create Stock"
+        submitText="Create"
+        cancelText="Cancel"
       >
         <div className="space-y-4">
           <div className="space-y-2" ref={wrapperRef}>
@@ -395,10 +397,10 @@ const ProductStock = () => {
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search product by SKU or Name..."
+                placeholder="Search product by name or SKU..."
                 value={productSearch}
                 onChange={handleProductSearchChange}
-                onFocus={() => {
+                onClick={() => {
                   if (productSearch.length === 0) {
                     setSuggestedProducts(products.slice(0, 10));
                     setShowSuggestions(true);
@@ -448,25 +450,24 @@ const ProductStock = () => {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Quantity</Label>
-              <Input
-                type="number"
-                min="0"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Bin Location</Label>
-              <Input
-                value={formData.bin_location}
-                onChange={(e) => setFormData({ ...formData, bin_location: e.target.value })}
-                placeholder="e.g. A-01-01"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Quantity</Label>
+            <Input
+              type="number"
+              min="0"
+              value={formData.quantity}
+              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              placeholder="Enter quantity"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Bin Location</Label>
+            <Input
+              value={formData.bin_location}
+              onChange={(e) => setFormData({ ...formData, bin_location: e.target.value })}
+              placeholder="Enter bin location"
+            />
           </div>
         </div>
       </FormDialog>
