@@ -114,7 +114,7 @@ const ProductStock = () => {
 
       const params = new URLSearchParams({
         page: page,
-        per_page: 10
+        per_page: 20
       });
 
       if (searchTerm) params.append('search', searchTerm);
@@ -377,6 +377,8 @@ const ProductStock = () => {
             viewMode={selectedWarehouse === 'all' ? 'all-warehouses' : 'per-warehouse'}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
+            pagination={pagination}
+            onPageChange={(page) => fetchProductStock(page)}
           />
         </CardContent>
       </Card>

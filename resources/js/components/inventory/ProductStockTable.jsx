@@ -11,6 +11,7 @@ import {
     XCircle,
     Trash2
 } from 'lucide-react';
+import { Pagination } from '@/components/common/Pagination';
 
 export function ProductStockTable({
     data,
@@ -24,7 +25,9 @@ export function ProductStockTable({
     warehouses = [],
     viewMode = 'per-warehouse',
     selectedIds = [],
-    onSelectionChange = () => { }
+    onSelectionChange = () => { },
+    pagination,
+    onPageChange
 }) {
     const getStockStatus = (stock) => {
         const available = stock.quantity - stock.reserved_quantity;
@@ -277,13 +280,25 @@ export function ProductStockTable({
     };
 
     return (
-        <DataTable
-            columns={columns}
-            data={data}
-            loading={loading}
-            actions={viewMode === 'all-warehouses' ? null : renderActions}
-            emptyMessage="No stock records found"
-            emptyDescription="Try adjusting your search or filters"
-        />
+        <div className="space-y-4">
+            <DataTable
+                columns={columns}
+                data={data}
+                loading={loading}
+                actions={viewMode === 'all-warehouses' ? null : renderActions}
+                emptyMessage="No stock records found"
+                emptyDescription="Try adjusting your search or filters"
+            />
+            {pagination && pagination.total > 0 && (
+                <Pagination
+                    currentPage={pagination.current_page}
+                    totalPages={pagination.last_page}
+                    onPageChange={onPageChange}
+                    from={(pagination.current_page - 1) * 20 + 1}
+                    to={Math.min(pagination.current_page * 20, pagination.total)}
+                    total={pagination.total}
+                />
+            )}
+        </div>
     );
 }
