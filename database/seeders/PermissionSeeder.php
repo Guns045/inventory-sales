@@ -87,6 +87,12 @@ class PermissionSeeder extends Seeder
                 'view_company_settings',
                 'edit_company_settings',
                 'manage_roles'
+            ],
+            'Dashboard' => [
+                'view_dashboard',
+                'dashboard.sales',
+                'dashboard.warehouse',
+                'dashboard.finance'
             ]
         ];
 

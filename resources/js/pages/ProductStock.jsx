@@ -380,6 +380,153 @@ const ProductStock = () => {
         </CardContent>
       </Card>
 
+      {/* Create Stock Dialog */}
+      <FormDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        title="Create Stock"
+        description="Add new stock to inventory"
+        onSubmit={handleSubmitCreate}
+        submitText="Create Stock"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2" ref={wrapperRef}>
+            <Label>Product</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search product by SKU or Name..."
+                value={productSearch}
+                onChange={handleProductSearchChange}
+                onFocus={() => {
+                  if (productSearch.length === 0) {
+                    setSuggestedProducts(products.slice(0, 10));
+                    setShowSuggestions(true);
+                  }
+                }}
+                className="pl-9"
+              />
+              {showSuggestions && (
+                <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {loadingSuggestions ? (
+                    <div className="p-2 text-center text-sm text-muted-foreground">Loading...</div>
+                  ) : suggestedProducts.length > 0 ? (
+                    suggestedProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        onClick={() => handleSelectProduct(product)}
+                      >
+                        <div className="font-medium">{product.sku}</div>
+                        <div className="text-muted-foreground">{product.name}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-2 text-center text-sm text-muted-foreground">No products found</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Warehouse</Label>
+            <Select
+              value={formData.warehouse_id}
+              onValueChange={(value) => setFormData({ ...formData, warehouse_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                {warehouses.map((w) => (
+                  <SelectItem key={w.id} value={w.id.toString()}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Bin Location</Label>
+              <Input
+                value={formData.bin_location}
+                onChange={(e) => setFormData({ ...formData, bin_location: e.target.value })}
+                placeholder="e.g. A-01-01"
+              />
+            </div>
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Edit Stock Dialog */}
+      <FormDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Adjust Stock"
+        description="Update stock quantity and location"
+        onSubmit={handleSubmitEdit}
+        submitText="Update Stock"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Product</Label>
+            <Input value={productSearch} disabled className="bg-gray-100" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Warehouse</Label>
+            <Select
+              value={formData.warehouse_id}
+              onValueChange={(value) => setFormData({ ...formData, warehouse_id: value })}
+              disabled
+            >
+              <SelectTrigger className="bg-gray-100">
+                <SelectValue placeholder="Select Warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                {warehouses.map((w) => (
+                  <SelectItem key={w.id} value={w.id.toString()}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Bin Location</Label>
+              <Input
+                value={formData.bin_location}
+                onChange={(e) => setFormData({ ...formData, bin_location: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      </FormDialog>
+
       <FormDialog
         open={isViewOpen}
         onOpenChange={setIsViewOpen}
