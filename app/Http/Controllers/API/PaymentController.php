@@ -26,43 +26,51 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Payment::with(['invoice', 'invoice.customer']);
+        try {
+            $query = Payment::select('payments.*')
+                ->join('invoices', 'payments.invoice_id', '=', 'invoices.id')
+                ->join('customers', 'invoices.customer_id', '=', 'customers.id')
+                ->with(['invoice', 'invoice.customer']);
 
-        // Filter by invoice_id if provided
-        if ($request->has('invoice_id') && !empty($request->invoice_id)) {
-            $query->where('invoice_id', $request->invoice_id);
-        }
+            // Filter by invoice_id if provided
+            if ($request->has('invoice_id') && !empty($request->invoice_id)) {
+                $query->where('payments.invoice_id', $request->invoice_id);
+            }
 
-        // Filter by payment method
-        if ($request->has('method') && !empty($request->method) && $request->method !== 'all') {
-            $query->where('payment_method', $request->method);
-        }
+            // Filter by payment method
+            if ($request->has('method') && !empty($request->method) && $request->method !== 'all') {
+                $query->where('payments.payment_method', $request->method);
+            }
 
-        // Filter by date range
-        if ($request->has('date_from') && !empty($request->date_from)) {
-            $query->whereDate('payment_date', '>=', $request->date_from);
-        }
-        if ($request->has('date_to') && !empty($request->date_to)) {
-            $query->whereDate('payment_date', '<=', $request->date_to);
-        }
+            // Filter by date range
+            if ($request->has('date_from') && !empty($request->date_from)) {
+                $query->whereDate('payments.payment_date', '>=', $request->date_from);
+            }
+            if ($request->has('date_to') && !empty($request->date_to)) {
+                $query->whereDate('payments.payment_date', '<=', $request->date_to);
+            }
 
-        // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('reference_number', 'like', "%{$search}%")
-                    ->orWhereHas('invoice', function ($iq) use ($search) {
-                        $iq->where('invoice_number', 'like', "%{$search}%")
-                            ->orWhereHas('customer', function ($cq) use ($search) {
-                                $cq->where('company_name', 'like', "%{$search}%")
-                                    ->orWhere('name', 'like', "%{$search}%");
-                            });
-                    });
-            });
-        }
+            // Search functionality
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('payments.reference_number', 'like', "%{$search}%")
+                        ->orWhere('invoices.invoice_number', 'like', "%{$search}%")
+                        ->orWhere('customers.company_name', 'like', "%{$search}%")
+                        ->orWhere('customers.contact_person', 'like', "%{$search}%");
+                });
+            }
 
-        $payments = $query->orderBy('payment_date', 'desc')->paginate(10);
-        return PaymentResource::collection($payments);
+            $payments = $query->orderBy('payments.payment_date', 'desc')->paginate(10);
+            return PaymentResource::collection($payments);
+
+        } catch (\Exception $e) {
+            Log::error('Payment Search Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred while fetching payments.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
