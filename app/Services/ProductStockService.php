@@ -386,7 +386,7 @@ class ProductStockService
      * @return ProductStock
      * @throws \Exception
      */
-    public function releaseStock(int $productId, int $warehouseId, int $quantity): ProductStock
+    public function releaseStock(int $productId, int $warehouseId, int $quantity): ?ProductStock
     {
         return DB::transaction(function () use ($productId, $warehouseId, $quantity) {
             $productStock = ProductStock::where('product_id', $productId)
@@ -395,7 +395,10 @@ class ProductStockService
                 ->first();
 
             if (!$productStock) {
-                throw new \Exception("Stock record not found for product ID {$productId} in warehouse ID {$warehouseId}");
+                // If stock record is missing during release (cancellation), it implies there was no reservation 
+                // or the record was deleted. We should log this but NOT fail the cancellation.
+                Log::warning("Stock record not found for product ID {$productId} in warehouse ID {$warehouseId} during release. Skipping.");
+                return null;
             }
 
             if ($productStock->reserved_quantity < $quantity) {

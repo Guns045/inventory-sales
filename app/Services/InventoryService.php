@@ -26,9 +26,15 @@ class InventoryService
         $stockReservations = [];
 
         // Get all warehouses with available stock for this product, ordered by available quantity
-        $productStocks = ProductStock::where('product_id', $productId)
-            ->whereRaw('(quantity - reserved_quantity) > 0')
-            ->orderByRaw('(quantity - reserved_quantity) DESC')
+        $query = ProductStock::where('product_id', $productId)
+            ->whereRaw('(quantity - reserved_quantity) > 0');
+
+        // If quotation has a specific warehouse, restrict reservation to that warehouse
+        if ($quotation->warehouse_id) {
+            $query->where('warehouse_id', $quotation->warehouse_id);
+        }
+
+        $productStocks = $query->orderByRaw('(quantity - reserved_quantity) DESC')
             ->get();
 
         // Calculate total available stock properly

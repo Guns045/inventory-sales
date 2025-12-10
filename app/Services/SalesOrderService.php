@@ -35,11 +35,21 @@ class SalesOrderService
     {
         return DB::transaction(function () use ($data) {
             // Determine warehouse ID
-            // Default to MKS (2) if not specified or logic needed
-            // Ideally should come from user or context
-            $warehouseId = config('inventory.warehouses.mks', 2);
-            if (auth()->check() && auth()->user()->warehouse_id) {
-                $warehouseId = auth()->user()->warehouse_id;
+            $warehouseId = $data['warehouse_id'] ?? null;
+
+            if (!$warehouseId && isset($data['quotation_id'])) {
+                $quotation = Quotation::find($data['quotation_id']);
+                if ($quotation) {
+                    $warehouseId = $quotation->warehouse_id;
+                }
+            }
+
+            if (!$warehouseId) {
+                if (auth()->check() && auth()->user()->warehouse_id) {
+                    $warehouseId = auth()->user()->warehouse_id;
+                } else {
+                    $warehouseId = config('inventory.warehouses.mks', 2);
+                }
             }
 
             $salesOrderNumber = $this->generateSalesOrderNumber($warehouseId);
@@ -180,9 +190,19 @@ class SalesOrderService
                 // Only release stock if it was reserved (not yet shipped/deducted)
                 if (in_array($oldStatus, ['PENDING', 'PROCESSING', 'READY_TO_SHIP'])) {
                     foreach ($salesOrder->items as $item) {
+                        // Determine correct warehouse for release
+                        // If SO has quotation, use quotation's warehouse (to fix anomalies)
+                        $releaseWarehouseId = $salesOrder->warehouse_id;
+                        if ($salesOrder->quotation_id) {
+                            $quotation = \App\Models\Quotation::find($salesOrder->quotation_id);
+                            if ($quotation && $quotation->warehouse_id) {
+                                $releaseWarehouseId = $quotation->warehouse_id;
+                            }
+                        }
+
                         $this->productStockService->releaseStock(
                             $item->product_id,
-                            $salesOrder->warehouse_id,
+                            $releaseWarehouseId,
                             $item->quantity
                         );
                     }
