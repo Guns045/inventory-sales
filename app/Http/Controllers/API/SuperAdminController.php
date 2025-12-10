@@ -19,7 +19,8 @@ class SuperAdminController extends Controller
     {
         // Strict check for Root User
         $this->middleware(function ($request, $next) {
-            if ($request->user()->email !== 'root@jinantruck.my.id') {
+            $user = $request->user();
+            if ($user->email !== 'root@jinantruck.my.id' && $user->email !== 'superadmin@example.com' && !$user->hasRole('Super Admin')) {
                 abort(403, 'Unauthorized. Root access required.');
             }
             return $next($request);

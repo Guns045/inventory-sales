@@ -191,9 +191,20 @@ class SalesOrderService
                 if (in_array($oldStatus, ['PENDING', 'PROCESSING', 'READY_TO_SHIP'])) {
                     foreach ($salesOrder->items as $item) {
                         // Determine correct warehouse for release
-                        // If SO has quotation, use quotation's warehouse (to fix anomalies)
+                        // 1. Try to find the actual reservation movement for this item
+                        $reservation = \App\Models\StockMovement::where('reference_type', \App\Models\Quotation::class)
+                            ->where('reference_id', $salesOrder->quotation_id)
+                            ->where('product_id', $item->product_id)
+                            ->where('type', 'RESERVATION')
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+
                         $releaseWarehouseId = $salesOrder->warehouse_id;
-                        if ($salesOrder->quotation_id) {
+
+                        if ($reservation) {
+                            $releaseWarehouseId = $reservation->warehouse_id;
+                        } elseif ($salesOrder->quotation_id) {
+                            // Fallback to quotation warehouse if no movement found (legacy)
                             $quotation = \App\Models\Quotation::find($salesOrder->quotation_id);
                             if ($quotation && $quotation->warehouse_id) {
                                 $releaseWarehouseId = $quotation->warehouse_id;
