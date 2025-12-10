@@ -233,6 +233,22 @@ class SalesOrderService
                             ]);
                         }
                     }
+
+                    // Revert Quotation status to APPROVED if linked
+                    if ($salesOrder->quotation_id) {
+                        $quotation = \App\Models\Quotation::find($salesOrder->quotation_id);
+                        if ($quotation && $quotation->status === 'CONVERTED') {
+                            $quotation->update(['status' => 'APPROVED']);
+
+                            ActivityLog::create([
+                                'user_id' => auth()->id(),
+                                'action' => 'Reverted Quotation Status',
+                                'description' => "Reverted Quotation {$quotation->quotation_number} status to APPROVED because SO {$salesOrder->sales_order_number} was cancelled.",
+                                'reference_type' => 'Quotation',
+                                'reference_id' => $quotation->id,
+                            ]);
+                        }
+                    }
                 }
             }
 

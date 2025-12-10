@@ -269,6 +269,22 @@ const Quotations = () => {
     }
   };
 
+  const handleCancelQuotation = async (quotation) => {
+    const notes = window.prompt('Enter cancellation reason (optional):');
+    if (notes === null) return; // User cancelled prompt
+
+    if (window.confirm('Are you sure you want to cancel this quotation?')) {
+      try {
+        await api.post(`/quotations/${quotation.id}/cancel`, { notes });
+        showSuccess('Quotation cancelled successfully');
+        closeDetail();
+        fetchItems(pagination.current_page);
+      } catch (err) {
+        showError(err.response?.data?.message || 'Failed to cancel quotation');
+      }
+    }
+  };
+
   const handleSearchProducts = React.useCallback(async (query) => {
     try {
       const response = await api.get(`/products?search=${encodeURIComponent(query)}&per_page=20`);
@@ -364,6 +380,7 @@ const Quotations = () => {
         open={isDetailOpen}
         onOpenChange={closeDetail}
         quotation={selectedQuotation}
+        onCancel={handleCancelQuotation}
       />
     </div>
   );

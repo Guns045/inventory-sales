@@ -98,7 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/product-stock/{id}/movements', [ProductStockController::class, 'getMovementHistory'])->middleware('permission:product-stock.read');
 
     // Sales management
-    Route::apiResource('quotations', QuotationController::class);
+    // Quotation specific routes (must be before apiResource)
     Route::get('/quotations/{id}/items', [QuotationController::class, 'getQuotationItems']);
     Route::post('/quotations/{id}/submit', [QuotationController::class, 'submit']);
     Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])->middleware('permission:quotations.approve');
@@ -106,6 +106,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/quotations/rejection-reasons', [QuotationController::class, 'getRejectionReasons']);
     Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
     Route::get('/quotations/{id}/check-convertibility', [QuotationController::class, 'checkConvertibility']);
+    Route::post('/quotations/{id}/cancel', [QuotationController::class, 'cancel']);
+
+    Route::apiResource('quotations', QuotationController::class);
 
     Route::get('/sales-orders', [SalesOrderController::class, 'index'])->middleware('permission:sales-orders.read');
     Route::post('/sales-orders', [SalesOrderController::class, 'store']);

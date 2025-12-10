@@ -344,6 +344,46 @@ class QuotationController extends Controller
         }
     }
 
+    public function cancel(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'notes' => 'nullable|string|max:500'
+            ]);
+
+            $quotation = Quotation::findOrFail($id);
+
+            if ($quotation->status !== 'APPROVED') {
+                return response()->json([
+                    'message' => 'Only approved quotations can be cancelled',
+                    'current_status' => $quotation->status
+                ], 422);
+            }
+
+            $quotation->update([
+                'status' => 'CANCELLED',
+                'notes' => $quotation->notes . "\n[Cancelled]: " . $request->notes
+            ]);
+
+            // Log activity
+            \App\Models\ActivityLog::log(
+                'CANCEL_QUOTATION',
+                "Cancelled quotation {$quotation->quotation_number}",
+                $quotation
+            );
+
+            return response()->json([
+                'message' => 'Quotation cancelled successfully',
+                'quotation' => new QuotationResource($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product']))
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to cancel quotation: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function createSalesOrder(Request $request, $id)
     {
         $quotation = Quotation::findOrFail($id);

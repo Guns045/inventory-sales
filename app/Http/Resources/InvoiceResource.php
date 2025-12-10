@@ -13,6 +13,7 @@ class InvoiceResource extends JsonResource
             'invoice_number' => $this->invoice_number,
             'sales_order_id' => $this->sales_order_id,
             'sales_order' => $this->whenLoaded('salesOrder'),
+            'po_number' => $this->salesOrder->po_number ?? null,
             'customer_id' => $this->customer_id,
             'customer' => $this->whenLoaded('customer'),
             'warehouse_id' => $this->warehouse_id,

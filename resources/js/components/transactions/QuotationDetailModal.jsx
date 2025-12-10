@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 
-export function QuotationDetailModal({ open, onOpenChange, quotation }) {
+export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }) {
     if (!quotation) return null;
 
     const formatCurrency = (value) => {
@@ -166,6 +166,18 @@ export function QuotationDetailModal({ open, onOpenChange, quotation }) {
                         </div>
                     )}
                 </div>
+
+                {/* Footer Actions */}
+                {quotation.status === 'APPROVED' && onCancel && (
+                    <div className="flex justify-end mt-6 pt-4 border-t">
+                        <button
+                            onClick={() => onCancel(quotation)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            Cancel Quotation
+                        </button>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );

@@ -83,7 +83,7 @@ export function LineItemsTable({
                                                     product_id: parseInt(value),
                                                     unit_price: selectedProduct ? parseFloat(selectedProduct.sell_price || 0) : (item.unit_price || 0),
                                                     // Optional: auto-fill other fields if product has them
-                                                    // tax_rate: selectedProduct?.tax_rate || 0 
+                                                    // tax_rate: selectedProduct?.tax_rate || 0
                                                 });
                                             }}
                                         />

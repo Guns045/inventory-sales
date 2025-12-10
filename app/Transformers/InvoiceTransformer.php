@@ -28,6 +28,23 @@ class InvoiceTransformer
             ];
         }
 
+        // Calculate totals
+        $totalTax = 0;
+        $subtotal = 0;
+
+        foreach ($invoice->invoiceItems as $item) {
+            if ($item->tax_rate > 0) {
+                // Calculate tax component from inclusive price
+                // Formula: Tax = Total - (Total / (1 + TaxRate/100))
+                $taxComponent = $item->total_price - ($item->total_price / (1 + ($item->tax_rate / 100)));
+                $totalTax += $taxComponent;
+            }
+        }
+
+        // Since total_amount in DB is already Grand Total (inclusive)
+        $grandTotal = $invoice->total_amount;
+        $subtotal = $grandTotal - $totalTax;
+
         return [
             'invoice_no' => $invoice->invoice_number,
             'quotation_no' => $invoice->salesOrder->quotation->quotation_number ?? 'N/A',
@@ -36,9 +53,9 @@ class InvoiceTransformer
             'customer_name' => $invoice->customer->company_name ?? $invoice->customer->name ?? 'N/A',
             'customer_address' => $invoice->customer->address ?? 'N/A',
             'items' => $items,
-            'total' => $invoice->total_amount,
-            'tax' => $invoice->tax_amount ?? ($invoice->total_amount * 0.11), // 11% tax default
-            'grand_total' => $invoice->grand_total ?? ($invoice->total_amount * 1.11), // Include tax
+            'total' => $subtotal, // Subtotal (Before Tax)
+            'tax' => $totalTax,
+            'grand_total' => $grandTotal, // Grand Total (Inclusive)
             'notes' => $invoice->notes ?? ''
         ];
     }
