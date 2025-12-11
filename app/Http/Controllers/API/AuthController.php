@@ -44,6 +44,13 @@ class AuthController extends Controller
             ]);
         }
 
+        if (!$user->is_active) {
+            \Log::info('Login failed for inactive user', ['email' => $request->email]);
+            throw ValidationException::withMessages([
+                'email' => ['Your account is inactive. Please contact administrator.'],
+            ]);
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         \Log::info('Login successful for user', ['email' => $request->email, 'user_id' => $user->id]);

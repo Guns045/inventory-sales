@@ -108,8 +108,9 @@ class QuotationService
         foreach ($items as $item) {
             $totalPrice = $item['quantity'] * $item['unit_price'];
             $discountAmount = $totalPrice * ($item['discount_percentage'] / 100);
-            $taxAmount = ($totalPrice - $discountAmount) * ($item['tax_rate'] / 100);
-            $totalPrice = $totalPrice - $discountAmount + $taxAmount;
+            // $taxAmount = ($totalPrice - $discountAmount) * ($item['tax_rate'] / 100);
+            // Total price for item should be before tax as per user request
+            $lineTotal = $totalPrice - $discountAmount;
 
             QuotationItem::create([
                 'quotation_id' => $quotation->id,
@@ -118,7 +119,7 @@ class QuotationService
                 'unit_price' => $item['unit_price'],
                 'discount_percentage' => $item['discount_percentage'],
                 'tax_rate' => $item['tax_rate'],
-                'total_price' => $totalPrice,
+                'total_price' => $lineTotal,
             ]);
         }
     }
@@ -130,13 +131,18 @@ class QuotationService
      */
     private function calculateTotals(Quotation $quotation)
     {
-        $subtotal = $quotation->quotationItems()->sum('total_price');
-        // In this implementation, subtotal and total are the same after tax logic in items
-        $totalAmount = $subtotal;
+        $items = $quotation->quotationItems;
+        $subtotal = 0;
+        $totalTax = 0;
+
+        foreach ($items as $item) {
+            $subtotal += $item->total_price;
+            $totalTax += $item->total_price * ($item->tax_rate / 100);
+        }
 
         $quotation->update([
             'subtotal' => $subtotal,
-            'total_amount' => $totalAmount,
+            'total_amount' => $subtotal + $totalTax,
         ]);
     }
 

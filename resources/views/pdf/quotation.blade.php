@@ -39,7 +39,7 @@
     </tr>
   </table>
 
-  <table class="data-table">
+  <table class="data-table" style="margin-bottom: 5px;">
     <thead>
       <tr>
         <th>Part Number</th>
@@ -64,20 +64,23 @@
     </tbody>
   </table>
 
-  <table class="summary">
-    <tr>
-      <td>Total</td>
-      <td>{{ number_format($quotation['total'], 0, ',', '.') }}</td>
-    </tr>
-    <tr>
-      <td>Tax</td>
-      <td>{{ number_format($quotation['tax'], 0, ',', '.') }}</td>
-    </tr>
-    <tr>
-      <td><strong>Grand Total</strong></td>
-      <td><strong>{{ number_format($quotation['grand_total'], 0, ',', '.') }}</strong></td>
-    </tr>
-  </table>
+  <div style="width: 100%; display: block; clear: both;">
+    <table class="summary" style="float: right; margin-top: 0px; width: auto;">
+      <tr>
+        <td style="text-align: left; padding-right: 10px;">Total</td>
+        <td style="text-align: right;">{{ number_format($quotation['total'], 0, ',', '.') }}</td>
+      </tr>
+      <tr>
+        <td style="text-align: left; padding-right: 10px;">Tax</td>
+        <td style="text-align: right;">{{ number_format($quotation['tax'], 0, ',', '.') }}</td>
+      </tr>
+      <tr>
+        <td style="text-align: left; padding-right: 10px;"><strong>Grand Total</strong></td>
+        <td style="text-align: right;"><strong>{{ number_format($quotation['grand_total'], 0, ',', '.') }}</strong></td>
+      </tr>
+    </table>
+    <div style="clear: both;"></div>
+  </div>
 
   <div class="sign-section">
     <table>

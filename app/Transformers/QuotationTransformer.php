@@ -21,7 +21,8 @@ class QuotationTransformer
             $discountAmount = ($item->discount_percentage / 100) * $itemTotal;
             $taxableAmount = $itemTotal - $discountAmount;
             $itemTaxAmount = ($item->tax_rate / 100) * $taxableAmount;
-            $finalTotal = $taxableAmount + $itemTaxAmount;
+            // $finalTotal = $taxableAmount + $itemTaxAmount;
+            $finalTotal = $taxableAmount; // Total price in PDF should be before tax
 
             $subtotal += $taxableAmount; // Subtotal excludes tax
             $taxAmount += $itemTaxAmount; // Accumulate tax

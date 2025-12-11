@@ -26,9 +26,7 @@ export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }
     const calculateItemTotal = (item) => {
         const subtotal = (item.quantity || 0) * (item.unit_price || 0);
         const discount = subtotal * ((item.discount_percentage || 0) / 100);
-        const afterDiscount = subtotal - discount;
-        const tax = afterDiscount * ((item.tax_rate || 0) / 100);
-        return afterDiscount + tax;
+        return subtotal - discount;
     };
 
     // Calculate totals manually to match transformer logic if needed, 
