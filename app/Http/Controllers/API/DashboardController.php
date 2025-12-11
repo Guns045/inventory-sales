@@ -519,7 +519,7 @@ class DashboardController extends Controller
     public function getDashboardData(Request $request)
     {
         $user = $request->user();
-        $roleName = strtolower($user->role->name);
+        $roleName = $user->role ? strtolower($user->role->name) : '';
 
         switch ($roleName) {
             case 'super admin':
