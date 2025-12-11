@@ -19,6 +19,7 @@ class UpdateProductStockRequest extends FormRequest
             'quantity' => 'required|integer|min:0',
             'reserved_quantity' => 'nullable|integer|min:0',
             'bin_location' => 'nullable|string|max:255',
+            'weight' => 'nullable|numeric|min:0',
         ];
     }
 }

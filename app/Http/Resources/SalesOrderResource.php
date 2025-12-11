@@ -22,6 +22,8 @@ class SalesOrderResource extends JsonResource
             'status' => $this->status,
             'total_amount' => $this->total_amount,
             'notes' => $this->notes,
+            'po_number' => $this->po_number,
+            'terms_of_payment' => $this->terms_of_payment,
             'items' => $this->whenLoaded('salesOrderItems', function () {
                 return $this->salesOrderItems->map(function ($item) {
                     return [

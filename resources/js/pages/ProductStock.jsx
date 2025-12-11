@@ -49,7 +49,8 @@ const ProductStock = () => {
     product_id: '',
     warehouse_id: '',
     quantity: '',
-    bin_location: ''
+    bin_location: '',
+    weight: ''
   });
 
   // Auto-suggest state
@@ -152,7 +153,8 @@ const ProductStock = () => {
       product_id: stock.product_id,
       warehouse_id: stock.warehouse_id.toString(),
       quantity: stock.quantity,
-      bin_location: stock.bin_location || ''
+      bin_location: stock.bin_location || '',
+      weight: stock.product.weight || ''
     });
     setProductSearch(`${stock.product.sku} - ${stock.product.name}`);
     setIsEditOpen(true);
@@ -182,7 +184,8 @@ const ProductStock = () => {
       product_id: '',
       warehouse_id: '',
       quantity: '',
-      bin_location: ''
+      bin_location: '',
+      weight: ''
     });
     setProductSearch('');
     setShowSuggestions(false);
@@ -221,7 +224,7 @@ const ProductStock = () => {
   };
 
   const handleSelectProduct = (product) => {
-    setFormData({ ...formData, product_id: product.id });
+    setFormData({ ...formData, product_id: product.id, weight: product.weight || '' });
     setProductSearch(`${product.sku} - ${product.name}`);
     setShowSuggestions(false);
   };
@@ -471,6 +474,18 @@ const ProductStock = () => {
               placeholder="Enter bin location"
             />
           </div>
+
+          <div className="space-y-2">
+            <Label>Weight (kg)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              placeholder="Enter weight per unit"
+            />
+          </div>
         </div>
       </FormDialog>
 
@@ -524,6 +539,16 @@ const ProductStock = () => {
               <Input
                 value={formData.bin_location}
                 onChange={(e) => setFormData({ ...formData, bin_location: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Weight (kg)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.weight}
+                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
               />
             </div>
           </div>

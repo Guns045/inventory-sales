@@ -107,6 +107,7 @@
                 <th>Part Number</th>
                 <th>Description</th>
                 <th>Quantity</th>
+                <th>Weight (kg)</th>
                 @if(isset($source_type) && $source_type === 'IT')
                     <th>From Location</th>
                     <th>To Location</th>
@@ -123,6 +124,13 @@
                     <td>{{ $item['part_number'] }}</td>
                     <td>{{ $item['description'] }}</td>
                     <td class="text-center">{{ $item['quantity'] }}</td>
+                    <td class="text-center">
+                        @if(isset($item['total_weight']) && $item['total_weight'] > 0)
+                            {{ number_format($item['total_weight'], 2) }}
+                        @else
+                            -
+                        @endif
+                    </td>
                     @if(isset($source_type) && $source_type === 'IT')
                         <td class="text-center">{{ $item['from_location'] ?? $item['location'] ?? '-' }}</td>
                         <td class="text-center">{{ $item['to_location'] ?? '-' }}</td>

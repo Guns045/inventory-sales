@@ -76,6 +76,11 @@ export function InternalTransferTable({
                     <div>Req: {row.quantity_requested}</div>
                     {row.quantity_delivered > 0 && <div className="text-xs text-orange-600">Del: {row.quantity_delivered}</div>}
                     {row.quantity_received > 0 && <div className="text-xs text-green-600">Rec: {row.quantity_received}</div>}
+                    {row.product?.weight > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                            {(row.quantity_requested * row.product.weight).toFixed(2)} kg
+                        </div>
+                    )}
                 </div>
             )
         },

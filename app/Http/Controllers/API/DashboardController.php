@@ -387,43 +387,68 @@ class DashboardController extends Controller
     public function warehouseDashboard(Request $request)
     {
         try {
-            // Get Pending Sales Orders
-            $pendingOrders = SalesOrder::with(['customer', 'user', 'items.product'])
+            // Get Pending Sales Orders (Limit 50)
+            $pendingOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])
                 ->where('status', 'PENDING')
                 ->orderBy('created_at', 'asc')
+                ->take(50)
                 ->get();
 
-            // Get Processing Sales Orders
-            $processingOrders = SalesOrder::with(['customer', 'user', 'items.product'])
+            // Get Processing Sales Orders (Limit 50)
+            $processingOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])
                 ->where('status', 'PROCESSING')
                 ->orderBy('updated_at', 'asc')
+                ->take(50)
                 ->get();
 
-            // Get Ready to Ship Orders
-            $readyToShipOrders = SalesOrder::with(['customer', 'user', 'items.product'])
+            // Get Ready to Ship Orders (Limit 50)
+            $readyToShipOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])
                 ->where('status', 'READY_TO_SHIP')
                 ->orderBy('updated_at', 'asc')
+                ->take(50)
                 ->get();
 
-            // Calculate Stats
+            // Transform orders to include 'items' alias for frontend compatibility
+            $transformOrders = function ($orders) {
+                return $orders->each(function ($order) {
+                    $order->setRelation('items', $order->salesOrderItems);
+                });
+            };
+
+            $transformOrders($pendingOrders);
+            $transformOrders($processingOrders);
+            $transformOrders($readyToShipOrders);
+
+            // Calculate Stats (Count all)
             $warehouseStats = [
-                'pending_processing' => $pendingOrders->count(),
-                'processing' => $processingOrders->count(),
-                'ready_to_ship' => $readyToShipOrders->count(),
+                'pending_processing' => SalesOrder::where('status', 'PENDING')->count(),
+                'processing' => SalesOrder::where('status', 'PROCESSING')->count(),
+                'ready_to_ship' => SalesOrder::where('status', 'READY_TO_SHIP')->count(),
                 'total_orders' => SalesOrder::count(),
             ];
 
-            return response()->json([
+            $data = [
                 'pending_sales_orders' => $pendingOrders,
                 'processing_sales_orders' => $processingOrders,
                 'ready_to_ship_orders' => $readyToShipOrders,
                 'warehouse_stats' => $warehouseStats,
-            ]);
+            ];
 
-        } catch (\Exception $e) {
+            // Explicitly encode to catch serialization errors
+            $json = json_encode($data);
+            if ($json === false) {
+                throw new \Exception('JSON Encode Error: ' . json_last_error_msg());
+            }
+
+            return response($json)->header('Content-Type', 'application/json');
+
+        } catch (\Throwable $e) {
             \Log::error('Warehouse Dashboard Error: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+
             // Return default data structure on error
             return response()->json([
+                'error' => $e->getMessage(),
                 'pending_sales_orders' => [],
                 'processing_sales_orders' => [],
                 'ready_to_ship_orders' => [],
@@ -433,7 +458,7 @@ class DashboardController extends Controller
                     'ready_to_ship' => 0,
                     'total_orders' => 0,
                 ],
-            ]);
+            ]); // Return 200 to avoid crashing frontend completely, but show empty state
         }
     }
 

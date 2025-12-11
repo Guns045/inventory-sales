@@ -79,6 +79,10 @@ export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }
                                 <span className="font-medium">Status</span>
                                 <span className="capitalize">: {quotation.status}</span>
                             </div>
+                            <div className="grid grid-cols-[120px_1fr]">
+                                <span className="font-medium">Terms of Payment</span>
+                                <span>: {quotation.terms_of_payment ? quotation.terms_of_payment.replace(/_/g, ' ') : '-'}</span>
+                            </div>
                         </div>
                         <div className="space-y-1">
                             <div className="grid grid-cols-[120px_1fr]">

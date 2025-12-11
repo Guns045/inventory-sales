@@ -62,6 +62,7 @@ class SalesOrderService
                 'warehouse_id' => $warehouseId,
                 'status' => $data['status'] ?? 'PENDING',
                 'notes' => $data['notes'] ?? null,
+                'terms_of_payment' => $data['terms_of_payment'] ?? null,
                 'total_amount' => 0, // Will be calculated
             ]);
 
@@ -155,6 +156,7 @@ class SalesOrderService
                 'customer_id' => $data['customer_id'] ?? $salesOrder->customer_id,
                 'status' => $data['status'] ?? $salesOrder->status,
                 'notes' => $data['notes'] ?? $salesOrder->notes,
+                'terms_of_payment' => $data['terms_of_payment'] ?? $salesOrder->terms_of_payment,
             ]);
 
             // Handle items update if provided (usually complex: delete/re-create or sync)

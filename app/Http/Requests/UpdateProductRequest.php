@@ -24,6 +24,7 @@ class UpdateProductRequest extends FormRequest
             'supplier_id' => 'nullable|exists:suppliers,id',
             'buy_price' => 'required|numeric|min:0',
             'sell_price' => 'required|numeric|min:0',
+            'weight' => 'nullable|numeric|min:0',
             'min_stock_level' => 'nullable|integer|min:0',
         ];
     }

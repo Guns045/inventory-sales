@@ -46,6 +46,7 @@ const Products = () => {
     supplier_id: '',
     buy_price: '',
     sell_price: '',
+    weight: '',
     min_stock_level: ''
   });
   const [editingProduct, setEditingProduct] = useState(null);
@@ -108,6 +109,7 @@ const Products = () => {
       supplier_id: '',
       buy_price: '',
       sell_price: '',
+      weight: '',
       min_stock_level: ''
     });
     openForm();
@@ -123,6 +125,7 @@ const Products = () => {
       supplier_id: product.supplier_id,
       buy_price: product.buy_price,
       sell_price: product.sell_price,
+      weight: product.weight || '',
       min_stock_level: product.min_stock_level
     });
     openForm();

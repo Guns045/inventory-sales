@@ -17,6 +17,7 @@ class QuotationResource extends JsonResource
             'warehouse' => $this->whenLoaded('warehouse'),
             'status' => $this->status,
             'valid_until' => $this->valid_until,
+            'terms_of_payment' => $this->terms_of_payment,
             'subtotal' => $this->subtotal,
             'discount' => $this->discount,
             'tax' => $this->tax,

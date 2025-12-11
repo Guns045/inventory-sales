@@ -19,6 +19,7 @@ const schema = z.object({
     warehouse_id: z.string().min(1, "Warehouse is required"),
     status: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CONVERTED']),
     valid_until: z.string().min(1, "Valid until date is required"),
+    terms_of_payment: z.string().optional(),
     po_number: z.string().optional(),
 });
 
@@ -42,6 +43,7 @@ export function QuotationForm({
             warehouse_id: initialData?.warehouse_id?.toString() || '',
             status: initialData?.status || 'DRAFT',
             valid_until: initialData?.valid_until ? initialData.valid_until.split('T')[0] : '',
+            terms_of_payment: initialData?.terms_of_payment || '',
             po_number: initialData?.po_number || '',
         }
     });
@@ -51,6 +53,7 @@ export function QuotationForm({
         register('customer_id');
         register('warehouse_id');
         register('status');
+        register('terms_of_payment');
     }, [register]);
 
     const {
@@ -111,6 +114,7 @@ export function QuotationForm({
     const status = watch('status');
     const customerId = watch('customer_id');
     const warehouseId = watch('warehouse_id');
+    const termsOfPayment = watch('terms_of_payment');
 
     // Handle Create Product
     const handleCreateProduct = (rowIndex, searchTerm) => {
@@ -205,6 +209,25 @@ export function QuotationForm({
                                     </SelectContent>
                                 </Select>
                                 {errors.warehouse_id && <p className="text-sm text-red-500">{errors.warehouse_id.message}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="terms_of_payment">Terms of Payment</Label>
+                                <Select
+                                    value={termsOfPayment}
+                                    onValueChange={(value) => setValue('terms_of_payment', value)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Terms" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="CASH">Cash</SelectItem>
+                                        <SelectItem value="NET_15">Net 15 Days</SelectItem>
+                                        <SelectItem value="NET_30">Net 30 Days</SelectItem>
+                                        <SelectItem value="NET_45">Net 45 Days</SelectItem>
+                                        <SelectItem value="NET_60">Net 60 Days</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-2">

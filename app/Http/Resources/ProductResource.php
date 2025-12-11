@@ -19,6 +19,7 @@ class ProductResource extends JsonResource
             'supplier' => $this->whenLoaded('supplier'),
             'buy_price' => $this->buy_price,
             'sell_price' => $this->sell_price,
+            'weight' => $this->weight,
             'min_stock_level' => $this->min_stock_level,
             'current_stock' => $this->current_stock ?? null,
             'total_stock' => $this->total_stock ?? null,

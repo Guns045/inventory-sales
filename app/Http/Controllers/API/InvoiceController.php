@@ -69,7 +69,26 @@ class InvoiceController extends Controller
             $query->where('total_amount', '<=', floatval($request->max_amount));
         }
 
-        $invoices = $query->orderBy('created_at', 'desc')->paginate(2000);
+        // Custom sorting: Overdue > Unpaid/Partial (by due date) > Others (by created_at)
+        $query->orderByRaw("
+            CASE
+                WHEN status = 'OVERDUE' THEN 1
+                WHEN status IN ('UNPAID', 'PARTIAL') THEN 2
+                ELSE 3
+            END ASC
+        ");
+
+        // Secondary sort: For Overdue and Unpaid, sort by due_date ASC (oldest/closest first)
+        $query->orderByRaw("
+            CASE
+                WHEN status IN ('OVERDUE', 'UNPAID', 'PARTIAL') THEN due_date
+            END ASC
+        ");
+
+        // Tertiary sort: For others (Paid/Cancelled), sort by created_at DESC (newest first)
+        $query->orderBy('created_at', 'desc');
+
+        $invoices = $query->paginate(2000);
         return InvoiceResource::collection($invoices);
     }
 

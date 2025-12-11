@@ -223,6 +223,13 @@ export function ProductStockTable({
         );
     }
 
+    // Add Weight column (common)
+    columns.push({
+        header: "Weight (kg)",
+        accessorKey: "product.weight",
+        cell: (row) => <span className="text-sm text-gray-600">{row.product?.weight ? `${parseFloat(row.product.weight)} kg` : '-'}</span>
+    });
+
     // Add Status and Actions columns (common)
     columns.push(
         {

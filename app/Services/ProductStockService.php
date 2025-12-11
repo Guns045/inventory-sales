@@ -186,6 +186,16 @@ class ProductStockService
             throw new \Exception('Product stock record already exists for this product and warehouse');
         }
 
+        // Update product weight if provided
+        if (isset($data['weight'])) {
+            $product = \App\Models\Product::find($data['product_id']);
+            if ($product) {
+                $product->weight = $data['weight'];
+                $product->save();
+            }
+            unset($data['weight']);
+        }
+
         return ProductStock::create($data);
     }
 
@@ -207,6 +217,16 @@ class ProductStockService
 
         if ($existing) {
             throw new \Exception('Product stock record already exists for this product and warehouse');
+        }
+
+        // Update product weight if provided
+        if (isset($data['weight'])) {
+            $product = $productStock->product;
+            if ($product) {
+                $product->weight = $data['weight'];
+                $product->save();
+            }
+            unset($data['weight']);
         }
 
         $productStock->update($data);

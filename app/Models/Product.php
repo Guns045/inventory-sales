@@ -17,6 +17,7 @@ class Product extends Model
         'supplier_id',
         'buy_price',
         'sell_price',
+        'weight',
         'min_stock_level',
     ];
 

@@ -18,6 +18,7 @@ class StoreSalesOrderRequest extends FormRequest
             'quotation_id' => 'nullable|exists:quotations,id',
             'customer_id' => 'required|exists:customers,id',
             'status' => 'required|in:PENDING,PROCESSING,READY_TO_SHIP,SHIPPED,COMPLETED,CANCELLED',
+            'terms_of_payment' => 'nullable|string|in:CASH,NET_15,NET_30,NET_45,NET_60',
             'notes' => 'nullable|string',
         ];
 

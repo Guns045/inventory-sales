@@ -42,6 +42,13 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
     // Determine items source
     const items = order.items || [];
 
+    // Calculate total weight
+    const totalWeight = items.reduce((sum, item) => {
+        const weight = item.product?.weight || 0;
+        const qty = isPendingSO ? item.quantity : (item.quantity_shipped || item.quantity_delivered || item.quantity_ordered || 0);
+        return sum + (weight * qty);
+    }, 0);
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -127,6 +134,7 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                                 <TableHead>Part Number</TableHead>
                                 <TableHead>Description</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
+                                <TableHead className="text-right">Weight (kg)</TableHead>
                                 {!isPendingSO && <TableHead className="text-right">Shipped</TableHead>}
                                 <TableHead>Location</TableHead>
                             </TableRow>
@@ -146,6 +154,14 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                                     <TableCell className="text-right">
                                         {isPendingSO ? item.quantity : (item.quantity_ordered || item.quantity)}
                                     </TableCell>
+                                    <TableCell className="text-right">
+                                        {item.product?.weight ? (
+                                            <span>
+                                                {(item.product.weight * (isPendingSO ? item.quantity : (item.quantity_shipped || item.quantity_delivered || item.quantity_ordered || 0))).toFixed(2)}
+                                                <span className="text-xs text-muted-foreground block">(@{item.product.weight})</span>
+                                            </span>
+                                        ) : '-'}
+                                    </TableCell>
                                     {!isPendingSO && (
                                         <TableCell className="text-right">
                                             {item.quantity_shipped || item.quantity_delivered || 0}
@@ -156,9 +172,16 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
                             ))}
                             {items.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                                         No items found
                                     </TableCell>
+                                </TableRow>
+                            )}
+                            {items.length > 0 && totalWeight > 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-right font-bold">Total Weight:</TableCell>
+                                    <TableCell className="text-right font-bold">{totalWeight.toFixed(2)} kg</TableCell>
+                                    <TableCell colSpan={2}></TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

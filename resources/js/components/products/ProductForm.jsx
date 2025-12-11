@@ -186,7 +186,7 @@ export function ProductForm({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="buy_price">Buy Price *</Label>
                     <Input
@@ -224,6 +224,19 @@ export function ProductForm({
                         onChange={(e) => handleChange('min_stock_level', e.target.value)}
                         placeholder="0"
                         min="0"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Input
+                        id="weight"
+                        type="number"
+                        value={formData.weight || ''}
+                        onChange={(e) => handleChange('weight', e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
                     />
                 </div>
             </div>

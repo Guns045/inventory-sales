@@ -62,7 +62,8 @@ class InvoiceService
                 'customer_id' => $data['customer_id'],
                 'warehouse_id' => $warehouseId,
                 'issue_date' => $data['issue_date'],
-                'due_date' => $data['due_date'],
+                'issue_date' => $data['issue_date'],
+                'due_date' => $this->calculateDueDate($data['issue_date'], $salesOrder->terms_of_payment),
                 'status' => $data['status'],
                 'total_amount' => $totalAmount,
             ]);
@@ -234,5 +235,31 @@ class InvoiceService
     private function generateInvoiceNumber(int $warehouseId): string
     {
         return DocumentCounter::getNextNumber('INVOICE', $warehouseId);
+    }
+
+    /**
+     * Calculate due date based on terms of payment
+     */
+    private function calculateDueDate($issueDate, $termsOfPayment)
+    {
+        $date = \Carbon\Carbon::parse($issueDate);
+
+        if (!$termsOfPayment) {
+            return $date->format('Y-m-d');
+        }
+
+        switch ($termsOfPayment) {
+            case 'NET_15':
+                return $date->addDays(15)->format('Y-m-d');
+            case 'NET_30':
+                return $date->addDays(30)->format('Y-m-d');
+            case 'NET_45':
+                return $date->addDays(45)->format('Y-m-d');
+            case 'NET_60':
+                return $date->addDays(60)->format('Y-m-d');
+            case 'CASH':
+            default:
+                return $date->format('Y-m-d');
+        }
     }
 }

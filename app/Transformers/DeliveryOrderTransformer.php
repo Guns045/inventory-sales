@@ -16,11 +16,18 @@ class DeliveryOrderTransformer
 
         // Prepare items data
         $items = [];
+        $totalWeight = 0;
         foreach ($deliveryOrder->deliveryOrderItems as $item) {
+            $weight = $item->product->weight ?? 0;
+            $itemTotalWeight = $weight * $item->quantity_shipped;
+            $totalWeight += $itemTotalWeight;
+
             $items[] = [
                 'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
                 'description' => $item->product->name ?? $item->product->description ?? $item->description ?? 'No description',
                 'quantity' => $item->quantity_shipped,
+                'weight' => $weight,
+                'total_weight' => $itemTotalWeight,
                 'po_number' => $deliveryOrder->salesOrder->po_number ?? '-',
                 'delivery_method' => $deliveryOrder->delivery_method ?? 'Truck',
                 'delivery_vendor' => $deliveryOrder->delivery_vendor ?? 'Internal'
@@ -56,6 +63,7 @@ class DeliveryOrderTransformer
             'recipient_name' => $deliveryOrder->recipient_name ?? '_____________________',
             'recipient_title' => $deliveryOrder->recipient_title ?? '_____________________',
             'items' => $items,
+            'total_weight' => $totalWeight,
             'notes' => $deliveryOrder->notes ?? '',
             'status' => $deliveryOrder->status ?? 'PREPARING'
         ];
@@ -70,10 +78,16 @@ class DeliveryOrderTransformer
 
         // Prepare items data
         $items = [];
+        $weight = $transfer->product->weight ?? 0;
+        $quantity = $transfer->quantity_delivered ?? $transfer->quantity_requested;
+        $totalWeight = $weight * $quantity;
+
         $items[] = [
             'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
             'description' => $transfer->product->name ?? $transfer->product->description ?? '-',
-            'quantity' => $transfer->quantity_delivered ?? $transfer->quantity_requested,
+            'quantity' => $quantity,
+            'weight' => $weight,
+            'total_weight' => $totalWeight,
             'from_location' => $transfer->product->location ?? $transfer->warehouseFrom->name ?? '-',
             'to_location' => $transfer->product->location ?? $transfer->warehouseTo->name ?? '-'
         ];
@@ -90,6 +104,7 @@ class DeliveryOrderTransformer
             'recipient_name' => $deliveryOrder->recipient_name ?? null,
             'recipient_title' => $deliveryOrder->recipient_title ?? null,
             'items' => $items,
+            'total_weight' => $totalWeight,
             'notes' => "Internal Transfer: " . $transfer->transfer_number,
             'status' => $deliveryOrder->status ?? 'IN_TRANSIT'
         ];

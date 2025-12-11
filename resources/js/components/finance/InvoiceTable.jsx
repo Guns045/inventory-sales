@@ -45,7 +45,7 @@ export function InvoiceTable({
     };
 
     const isOverdue = (invoice) => {
-        if (!invoice.due_date || invoice.status === 'PAID' || invoice.status === 'OVERDUE') {
+        if (!invoice.due_date || invoice.status === 'PAID' || invoice.status === 'OVERDUE' || invoice.status === 'CANCELLED') {
             return false;
         }
         const dueDate = new Date(invoice.due_date);
@@ -53,6 +53,22 @@ export function InvoiceTable({
         today.setHours(0, 0, 0, 0);
         dueDate.setHours(0, 0, 0, 0);
         return dueDate < today;
+    };
+
+    const isNearDue = (invoice) => {
+        if (!invoice.due_date || invoice.status === 'PAID' || invoice.status === 'OVERDUE' || invoice.status === 'CANCELLED') {
+            return false;
+        }
+        const dueDate = new Date(invoice.due_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+
+        const diffTime = dueDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // Alert if due within 3 days (inclusive of today)
+        return diffDays >= 0 && diffDays <= 3;
     };
 
     const getStatusVariant = (status) => {
@@ -78,6 +94,15 @@ export function InvoiceTable({
                             SO: {row.sales_order_number}
                         </div>
                     )}
+                </div>
+            )
+        },
+        {
+            header: "PO Customer",
+            accessorKey: "po_number",
+            cell: (row) => (
+                <div className="font-medium">
+                    {row.po_number || '-'}
                 </div>
             )
         },
@@ -122,7 +147,10 @@ export function InvoiceTable({
                         {row.status}
                     </Badge>
                     {isOverdue(row) && row.status !== 'OVERDUE' && (
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <AlertTriangle className="h-4 w-4 text-red-500" title="Overdue" />
+                    )}
+                    {isNearDue(row) && (
+                        <AlertTriangle className="h-4 w-4 text-amber-500 animate-pulse" title="Due Soon: Please Bill Immediately" />
                     )}
                 </div>
             )
