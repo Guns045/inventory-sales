@@ -73,6 +73,7 @@ export function QuotationForm({
     });
     const [localExtraProducts, setLocalExtraProducts] = useState([]);
     const [productFormLoading, setProductFormLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Load initial items
     useEffect(() => {
@@ -159,8 +160,26 @@ export function QuotationForm({
         }
     };
 
-    // Merge passed products with locally created ones for the dropdown
-    const allProducts = [...products, ...localExtraProducts];
+    // Handle search to filter local products
+    const handleSearch = (query) => {
+        setSearchTerm(query);
+        if (onSearchProducts) {
+            onSearchProducts(query);
+        }
+    };
+
+    // Filter local products based on search term
+    const filteredLocalProducts = localExtraProducts.filter(p => {
+        if (!searchTerm) return true;
+        const lowerTerm = searchTerm.toLowerCase();
+        return (
+            p.name.toLowerCase().includes(lowerTerm) ||
+            (p.sku && p.sku.toLowerCase().includes(lowerTerm))
+        );
+    });
+
+    // Merge passed products with filtered locally created ones for the dropdown
+    const allProducts = [...products, ...filteredLocalProducts];
 
     return (
         <>
@@ -262,7 +281,9 @@ export function QuotationForm({
                             onAdd={addItem}
                             onUpdate={updateItem}
                             onRemove={removeItem}
-                            onSearch={onSearchProducts}
+                            onRemove={removeItem}
+                            onSearch={handleSearch}
+                            onCreateProduct={handleCreateProduct}
                             onCreateProduct={handleCreateProduct}
                             editable={true}
                         />
