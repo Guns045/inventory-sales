@@ -249,7 +249,7 @@ const InternalTransfers = () => {
 
     try {
       setLoadingSuggestions(true);
-      const response = await api.get(`/products?search=${value}&per_page=10`);
+      const response = await api.get(`/products?search=${encodeURIComponent(value)}&per_page=10`);
       setSuggestedProducts(response.data.data || []);
       setShowSuggestions(true);
     } catch (error) {
@@ -383,6 +383,30 @@ const InternalTransfers = () => {
                     onChange={handleProductSearchChange}
                     onFocus={() => {
                       if (productSearch.length >= 2) setShowSuggestions(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (suggestedProducts.length > 0) {
+                          handleSelectProduct(suggestedProducts[0]);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      // Small delay to allow click event on suggestions to fire first
+                      setTimeout(() => {
+                        if (productSearch && !formData.product_id) {
+                          // Check for exact match in suggestions
+                          const exactMatch = suggestedProducts.find(
+                            p => p.sku.toLowerCase() === productSearch.toLowerCase() ||
+                              p.name.toLowerCase() === productSearch.toLowerCase()
+                          );
+
+                          if (exactMatch) {
+                            handleSelectProduct(exactMatch);
+                          }
+                        }
+                      }, 200);
                     }}
                   />
                   {loadingSuggestions && (

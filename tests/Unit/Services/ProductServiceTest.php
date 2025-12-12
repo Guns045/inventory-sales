@@ -86,6 +86,12 @@ class ProductServiceTest extends TestCase
 
         // The first result should be the exact match
         $this->assertEquals('WG9725522281', $result->items()[0]->sku);
+
+        // The subsequent results should be sorted by SKU ascending (secondary sort)
+        // WG9725522281+003, WG9725522281+004, WG9725522281+005
+        $this->assertEquals('WG9725522281+003', $result->items()[1]->sku);
+        $this->assertEquals('WG9725522281+004', $result->items()[2]->sku);
+        $this->assertEquals('WG9725522281+005', $result->items()[3]->sku);
     }
 
     /** @test */

@@ -38,7 +38,8 @@ class ProductService
                 WHEN sku LIKE ? THEN 3 
                 WHEN name LIKE ? THEN 4 
                 ELSE 5 
-            END", [$search, $search, "{$search}%", "{$search}%"]);
+            END", [$search, $search, "{$search}%", "{$search}%"])
+                ->orderBy('sku', 'asc');
         }
 
         $perPage = $filters['per_page'] ?? 20;
