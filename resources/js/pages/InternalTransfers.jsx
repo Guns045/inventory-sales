@@ -119,6 +119,14 @@ const InternalTransfers = () => {
     }
   };
 
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedTransfer, setSelectedTransfer] = useState(null);
+
+  const handleViewDetails = (transfer) => {
+    setSelectedTransfer(transfer);
+    setIsViewOpen(true);
+  };
+
   const handleDeliver = async (id) => {
     const transfer = transfers.find(t => t.id === id);
     const maxQuantity = transfer?.quantity_requested || 0;
@@ -352,7 +360,7 @@ const InternalTransfers = () => {
           <InternalTransferTable
             data={transfers}
             loading={loading}
-            onViewDetails={(t) => { }}
+            onViewDetails={handleViewDetails}
             onApprove={handleApprove}
             onDeliver={handleDeliver}
             onReceive={handleReceive}
@@ -495,6 +503,94 @@ const InternalTransfers = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
             <Button onClick={handleCreateTransfer}>Create Transfer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Transfer Details</DialogTitle>
+          </DialogHeader>
+          {selectedTransfer && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Transfer Number</Label>
+                  <div className="font-medium">{selectedTransfer.transfer_number}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <div className="font-medium">{selectedTransfer.status}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Date Requested</Label>
+                  <div className="font-medium">
+                    {new Date(selectedTransfer.requested_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Requested By</Label>
+                  <div className="font-medium">{selectedTransfer.requester?.name || '-'}</div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Product Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Part Number</Label>
+                    <div className="font-medium">{selectedTransfer.product?.sku}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Product Name</Label>
+                    <div className="font-medium">{selectedTransfer.product?.name}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Warehouse Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">From</Label>
+                    <div className="font-medium">{selectedTransfer.warehouseFrom?.name}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">To</Label>
+                    <div className="font-medium">{selectedTransfer.warehouseTo?.name}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Quantities</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Requested</Label>
+                    <div className="font-medium">{selectedTransfer.quantity_requested}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Delivered</Label>
+                    <div className="font-medium">{selectedTransfer.quantity_delivered || 0}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Received</Label>
+                    <div className="font-medium">{selectedTransfer.quantity_received || 0}</div>
+                  </div>
+                </div>
+              </div>
+
+              {selectedTransfer.notes && (
+                <div className="border-t pt-4">
+                  <Label className="text-muted-foreground">Notes</Label>
+                  <div className="text-sm mt-1">{selectedTransfer.notes}</div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsViewOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
