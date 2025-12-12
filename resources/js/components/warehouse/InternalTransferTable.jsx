@@ -25,7 +25,6 @@ export function InternalTransferTable({
     user,
     canApprove,
     canDeliver,
-    canDeliver,
     canReceive,
     onEdit
 }) {
