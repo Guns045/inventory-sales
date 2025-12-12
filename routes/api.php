@@ -258,6 +258,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Warehouse Transfer Management
     Route::get('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'index'])->middleware('permission:product-stock.read');
     Route::post('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'store'])->middleware('permission:product-stock.create');
+    Route::put('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'update'])->middleware('permission:product-stock.create');
     Route::get('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'show'])->middleware('permission:product-stock.read');
     Route::post('/warehouse-transfers/{id}/approve', [App\Http\Controllers\API\WarehouseTransferController::class, 'approve'])->middleware('permission:product-stock.update');
     Route::post('/warehouse-transfers/{id}/deliver', [App\Http\Controllers\API\WarehouseTransferController::class, 'deliver'])->middleware('permission:product-stock.update');

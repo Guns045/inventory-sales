@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWarehouseTransferRequest;
+use App\Http\Requests\UpdateWarehouseTransferRequest;
 use App\Http\Requests\ApproveTransferRequest;
 use App\Http\Requests\DeliverTransferRequest;
 use App\Http\Requests\ReceiveTransferRequest;
@@ -95,6 +96,25 @@ class WarehouseTransferController extends Controller
                 'message' => 'Failed to create warehouse transfer',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Update the specified warehouse transfer in storage.
+     */
+    public function update(UpdateWarehouseTransferRequest $request, $id)
+    {
+        $transfer = WarehouseTransfer::findOrFail($id);
+        $user = $request->user();
+
+        try {
+            $transfer = $this->transferService->updateTransfer($transfer, $user, $request->validated());
+            return new WarehouseTransferResource($transfer);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update warehouse transfer',
+                'error' => $e->getMessage()
+            ], 422);
         }
     }
 

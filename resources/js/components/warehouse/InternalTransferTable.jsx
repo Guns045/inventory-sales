@@ -25,7 +25,9 @@ export function InternalTransferTable({
     user,
     canApprove,
     canDeliver,
-    canReceive
+    canDeliver,
+    canReceive,
+    onEdit
 }) {
     const getStatusBadge = (status) => {
         const styles = {
@@ -102,6 +104,12 @@ export function InternalTransferTable({
                 <Button variant="ghost" size="icon" onClick={() => onViewDetails(row)} title="View Details">
                     <Eye className="h-4 w-4 text-gray-500" />
                 </Button>
+
+                {row.status === 'REQUESTED' && (
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(row)} title="Edit">
+                        <FileText className="h-4 w-4 text-blue-500" />
+                    </Button>
+                )}
 
                 {row.status === 'REQUESTED' && canApprove(row) && (
                     <Button variant="ghost" size="icon" onClick={() => onApprove(row.id)} title="Approve">

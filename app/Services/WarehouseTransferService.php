@@ -62,6 +62,40 @@ class WarehouseTransferService
     }
 
     /**
+     * Update an existing warehouse transfer request
+     */
+    public function updateTransfer(WarehouseTransfer $transfer, User $user, array $data): WarehouseTransfer
+    {
+        if ($transfer->status !== 'REQUESTED') {
+            throw new \Exception('Only requested transfers can be updated.');
+        }
+
+        if ($transfer->requested_by !== $user->id && !$user->hasPermission('transfers', 'update')) {
+            throw new \Exception('You do not have permission to update this transfer.');
+        }
+
+        return DB::transaction(function () use ($transfer, $user, $data) {
+            $transfer->update([
+                'product_id' => $data['product_id'],
+                'warehouse_from_id' => $data['warehouse_from_id'],
+                'warehouse_to_id' => $data['warehouse_to_id'],
+                'quantity_requested' => $data['quantity_requested'],
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'action' => 'WAREHOUSE_TRANSFER_UPDATED',
+                'description' => "User {$user->name} updated warehouse transfer {$transfer->transfer_number}",
+                'reference_type' => 'WarehouseTransfer',
+                'reference_id' => $transfer->id,
+            ]);
+
+            return $transfer->load(['product', 'warehouseFrom', 'warehouseTo', 'requestedBy']);
+        });
+    }
+
+    /**
      * Approve a transfer request
      */
     public function approveTransfer(WarehouseTransfer $transfer, User $user, ?string $notes = null): array

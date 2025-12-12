@@ -29,7 +29,8 @@ const InternalTransfers = () => {
   });
 
   // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     product_id: '',
     warehouse_from_id: '',
@@ -92,9 +93,15 @@ const InternalTransfers = () => {
 
   const handleCreateTransfer = async () => {
     try {
-      await api.post('/warehouse-transfers', formData);
-      showSuccess('Warehouse transfer request created successfully!');
-      setShowCreateModal(false);
+      if (editingId) {
+        await api.put(`/warehouse-transfers/${editingId}`, formData);
+        showSuccess('Warehouse transfer request updated successfully!');
+      } else {
+        await api.post('/warehouse-transfers', formData);
+        showSuccess('Warehouse transfer request created successfully!');
+      }
+
+      setShowFormModal(false);
       setFormData({
         product_id: '',
         warehouse_from_id: '',
@@ -103,10 +110,24 @@ const InternalTransfers = () => {
         notes: ''
       });
       setProductSearch('');
+      setEditingId(null);
       fetchData();
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to create transfer');
+      showError(err.response?.data?.message || 'Failed to save transfer');
     }
+  };
+
+  const handleEdit = (transfer) => {
+    setEditingId(transfer.id);
+    setFormData({
+      product_id: transfer.product_id,
+      warehouse_from_id: transfer.warehouse_from_id.toString(),
+      warehouse_to_id: transfer.warehouse_to_id.toString(),
+      quantity_requested: transfer.quantity_requested,
+      notes: transfer.notes || ''
+    });
+    setProductSearch(`${transfer.product.sku} - ${transfer.product.name}`);
+    setShowFormModal(true);
   };
 
   const handleApprove = async (id) => {
@@ -313,7 +334,18 @@ const InternalTransfers = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button onClick={() => {
+            setEditingId(null);
+            setFormData({
+              product_id: '',
+              warehouse_from_id: '',
+              warehouse_to_id: '',
+              quantity_requested: 1,
+              notes: ''
+            });
+            setProductSearch('');
+            setShowFormModal(true);
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Create Transfer
           </Button>
@@ -361,6 +393,7 @@ const InternalTransfers = () => {
             data={transfers}
             loading={loading}
             onViewDetails={handleViewDetails}
+            onEdit={handleEdit}
             onApprove={handleApprove}
             onDeliver={handleDeliver}
             onReceive={handleReceive}
@@ -375,10 +408,10 @@ const InternalTransfers = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Create Transfer Request</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit Transfer Request' : 'Create Transfer Request'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -501,8 +534,8 @@ const InternalTransfers = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateTransfer}>Create Transfer</Button>
+            <Button variant="outline" onClick={() => setShowFormModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateTransfer}>{editingId ? 'Update Transfer' : 'Create Transfer'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
