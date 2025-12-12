@@ -30,6 +30,15 @@ class ProductService
                         $q->where('name', 'like', "%{$search}%");
                     });
             });
+
+            // Prioritize exact matches and starts-with matches
+            $query->orderByRaw("CASE 
+                WHEN sku = ? THEN 1 
+                WHEN name = ? THEN 2 
+                WHEN sku LIKE ? THEN 3 
+                WHEN name LIKE ? THEN 4 
+                ELSE 5 
+            END", [$search, $search, "{$search}%", "{$search}%"]);
         }
 
         $perPage = $filters['per_page'] ?? 20;

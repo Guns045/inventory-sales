@@ -69,6 +69,26 @@ class ProductServiceTest extends TestCase
     }
 
     /** @test */
+    public function it_prioritizes_exact_matches_in_search()
+    {
+        // Arrange
+        // Create products that all match "WG9725522281" partially
+        Product::factory()->create(['sku' => 'WG9725522281+005', 'name' => 'Rear leaf spring No.5']);
+        Product::factory()->create(['sku' => 'WG9725522281+004', 'name' => 'Rear leaf spring No.4']);
+        Product::factory()->create(['sku' => 'WG9725522281', 'name' => 'Rear leaf spring']); // Exact match
+        Product::factory()->create(['sku' => 'WG9725522281+003', 'name' => 'Rear leaf spring No.3']);
+
+        // Act
+        $result = $this->productService->getAllProducts(['search' => 'WG9725522281']);
+
+        // Assert
+        $this->assertEquals(4, $result->total());
+
+        // The first result should be the exact match
+        $this->assertEquals('WG9725522281', $result->items()[0]->sku);
+    }
+
+    /** @test */
     public function it_enriches_products_with_stock_data()
     {
         // Arrange
