@@ -62,6 +62,18 @@ class WarehouseTransferController extends Controller
             $query->whereDate('requested_at', '<=', $request->date_to);
         }
 
+        // Search functionality
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transfer_number', 'like', "%{$search}%")
+                    ->orWhereHas('product', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('sku', 'like', "%{$search}%");
+                    });
+            });
+        }
+
         $transfers = $query->orderBy('created_at', 'desc')->paginate(2000);
         return WarehouseTransferResource::collection($transfers);
     }
