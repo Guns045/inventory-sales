@@ -62,7 +62,7 @@ class WarehouseTransferController extends Controller
             $query->whereDate('requested_at', '<=', $request->date_to);
         }
 
-        $transfers = $query->orderBy('created_at', 'desc')->paginate(15);
+        $transfers = $query->orderBy('created_at', 'desc')->paginate(2000);
         return WarehouseTransferResource::collection($transfers);
     }
 
