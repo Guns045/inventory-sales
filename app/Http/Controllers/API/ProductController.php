@@ -52,6 +52,7 @@ class ProductController extends Controller
         try {
             $data = $request->validated();
             $data['min_stock_level'] = $data['min_stock_level'] ?? 0;
+            $data['weight'] = $data['weight'] ?? 0;
             $product = $this->productService->createProduct($data);
             return new ProductResource($product);
 

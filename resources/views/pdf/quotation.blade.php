@@ -15,6 +15,10 @@
       <td>: {{ $quotation['date'] }}</td>
     </tr>
     <tr>
+      <td>Terms of Payment</td>
+      <td>: {{ $quotation['terms_of_payment'] }}</td>
+    </tr>
+    <tr>
       <td>Customer Name</td>
       <td>: {{ $quotation['customer_name'] }}</td>
     </tr>

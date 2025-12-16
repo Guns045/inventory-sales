@@ -61,14 +61,26 @@ class DocumentCounter extends Model
         );
 
         // Format: [PREFIX]-[URUTAN]/[WAREHOUSE]/[BULAN]-[TAHUN]
-        $documentNumber = sprintf(
-            '%s-%03d/%s/%s-%s',
-            $prefix,
-            $counter->counter,
-            $warehouseCode,
-            date('m'),
-            date('Y')
-        );
+        // Special format for INVOICE: PI[URUTAN]-[WAREHOUSE]-[BULAN][TAHUN]
+        if ($documentType === 'INVOICE') {
+            $documentNumber = sprintf(
+                '%s%03d-%s-%s%s',
+                $prefix,
+                $counter->counter,
+                $warehouseCode,
+                date('m'),
+                date('Y')
+            );
+        } else {
+            $documentNumber = sprintf(
+                '%s-%03d/%s/%s-%s',
+                $prefix,
+                $counter->counter,
+                $warehouseCode,
+                date('m'),
+                date('Y')
+            );
+        }
 
         // Increment counter for next document
         $counter->increment('counter');

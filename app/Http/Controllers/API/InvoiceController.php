@@ -263,7 +263,7 @@ class InvoiceController extends Controller
             $pdf = $this->invoiceService->generatePDF($invoice);
 
             $safeNumber = str_replace(['/', '\\'], '_', $invoice->invoice_number);
-            return $pdf->stream('invoice-' . $safeNumber . '.pdf');
+            return $pdf->download('invoice-' . $safeNumber . '.pdf');
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error generating PDF: ' . $e->getMessage()

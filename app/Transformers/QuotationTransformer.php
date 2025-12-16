@@ -65,6 +65,7 @@ class QuotationTransformer
             'valid_until' => \Carbon\Carbon::parse($quotation->valid_until ?? $quotation->created_at)->format('d M Y'),
             'sales_person' => $quotation->user->name ?? 'Sales',
             'po_number' => $quotation->po_number,
+            'terms_of_payment' => $quotation->terms_of_payment,
         ];
     }
 
