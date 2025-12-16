@@ -14,6 +14,7 @@ use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Customer;
 use App\Models\Supplier;
+use App\Models\Invoice;
 use App\Models\SalesOrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -167,6 +168,9 @@ class DashboardController extends Controller
                     'last_month_sales' => $lastMonthSales,
                     'sales_growth' => $lastMonthSales > 0 ?
                         round((($thisMonthSales - $lastMonthSales) / $lastMonthSales) * 100, 2) : 0,
+                    'invoice_unpaid' => SalesOrder::where('status', 'SHIPPED')->sum('total_amount') +
+                        Invoice::whereIn('status', ['UNPAID', 'PARTIAL'])->sum('total_amount'),
+                    'month_orders' => SalesOrder::where('created_at', '>=', $thisMonth)->count(),
                 ],
                 'inventory' => [
                     'total_products' => $totalProducts,
