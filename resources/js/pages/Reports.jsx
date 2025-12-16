@@ -131,8 +131,8 @@ const Reports = () => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount || 0);
   };
 
@@ -203,9 +203,9 @@ const Reports = () => {
         {/* Sales Report Tab */}
         <TabsContent value="sales" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatsCard title="Total Sales" value={formatLargeCurrency(salesReport.summary.total_revenue)} icon={<TrendingUp className="h-4 w-4" />} variant="primary" />
+            <StatsCard title="Total Sales" value={formatCurrency(salesReport.summary.total_revenue)} icon={<TrendingUp className="h-4 w-4" />} variant="primary" />
             <StatsCard title="Orders" value={salesReport.summary.total_orders} icon={<Package className="h-4 w-4" />} variant="info" />
-            <StatsCard title="Avg. Order Value" value={formatLargeCurrency(salesReport.summary.avg_order_value)} icon={<DollarSign className="h-4 w-4" />} variant="success" />
+            <StatsCard title="Avg. Order Value" value={formatCurrency(salesReport.summary.avg_order_value)} icon={<DollarSign className="h-4 w-4" />} variant="success" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
