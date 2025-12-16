@@ -20,7 +20,7 @@ class ReportController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api');
+        // Middleware is handled in routes/api.php
     }
 
     /**
@@ -191,8 +191,7 @@ class ReportController extends Controller
             $startDate = now()->subMonths($period);
 
             // Get all products with their stock and sales data
-            $productsQuery = Product::with(['category', 'productStock'])
-                ->where('is_active', true);
+            $productsQuery = Product::with(['category', 'productStock']);
 
             if ($categoryFilter) {
                 $productsQuery->where('category_id', $categoryFilter);
@@ -319,7 +318,7 @@ class ReportController extends Controller
 
             // Payment data
             $paymentData = Payment::whereBetween('payment_date', [$dateFrom, $dateTo])
-                ->where('status', 'completed')
+                // ->where('status', 'completed') // Status column does not exist in Payment model
                 ->selectRaw('DATE(payment_date) as date, SUM(amount_paid) as payments, COUNT(*) as payment_count')
                 ->groupBy('date')
                 ->orderBy('date')
