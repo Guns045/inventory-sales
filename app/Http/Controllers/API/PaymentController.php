@@ -61,7 +61,8 @@ class PaymentController extends Controller
                 });
             }
 
-            $payments = $query->orderBy('payments.payment_date', 'desc')->paginate(10);
+            $perPage = $request->get('per_page', 10);
+            $payments = $query->orderBy('payments.payment_date', 'desc')->paginate($perPage);
             return PaymentResource::collection($payments);
 
         } catch (\Exception $e) {

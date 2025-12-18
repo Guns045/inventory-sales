@@ -37,6 +37,7 @@ const Payments = () => {
       if (filter.date_from) params.append('date_from', filter.date_from);
       if (filter.date_to) params.append('date_to', filter.date_to);
       if (filter.method && filter.method !== 'all') params.append('method', filter.method);
+      params.append('per_page', 2000);
 
       // In a real app, this would be:
       const response = await api.get(`/payments?${params.toString()}`);
