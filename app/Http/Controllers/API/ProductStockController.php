@@ -11,6 +11,8 @@ use App\Models\ProductStock;
 use App\Services\ProductStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Imports\ProductStockImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductStockController extends Controller
 {
@@ -128,7 +130,7 @@ class ProductStockController extends Controller
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'exists:product_stocks,id'
+            'ids.*' => 'exists:product_stock,id'
         ]);
 
         try {
@@ -224,5 +226,36 @@ class ProductStockController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls',
+            'warehouse_id' => 'required|exists:warehouses,id'
+        ]);
+
+        try {
+            Excel::import(new ProductStockImport($request->warehouse_id, $request->user()->id), $request->file('file'));
+            return response()->json(['message' => 'Stock imported successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function downloadTemplate()
+    {
+        $data = [
+            ['part_number', 'description', 'quantity', 'bin_location', 'weight'],
+            ['PART-001', 'Sample Product', '100', 'A-01-01', '1.5'],
+        ];
+
+        return response()->streamDownload(function () use ($data) {
+            $file = fopen('php://output', 'w');
+            foreach ($data as $row) {
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        }, 'stock_import_template.csv');
     }
 }

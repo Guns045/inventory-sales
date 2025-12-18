@@ -41,14 +41,18 @@ class ProductStockService
         }
 
         // Role-based filtering
-        if ($user && $user->role->name !== 'Super Admin') {
-            // Sales Team can view all warehouse stock data
-            if ($user->role->name === 'Sales Team') {
-                // Sales Team can see all warehouses - no warehouse filtering
-            } else {
-                // Filter other roles by assigned warehouse
-                if ($user->warehouse_id) {
-                    $query->where('warehouse_id', $user->warehouse_id);
+        if ($user) {
+            $roleName = $user->role ? $user->role->name : null;
+
+            if ($roleName !== 'Super Admin') {
+                // Sales Team can view all warehouse stock data
+                if ($roleName === 'Sales Team') {
+                    // Sales Team can see all warehouses - no warehouse filtering
+                } else {
+                    // Filter other roles by assigned warehouse
+                    if ($user->warehouse_id) {
+                        $query->where('warehouse_id', $user->warehouse_id);
+                    }
                 }
             }
         }

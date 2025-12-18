@@ -88,12 +88,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
 
     // Inventory management
+    Route::post('/product-stock/import', [ProductStockController::class, 'import'])->middleware('permission:product-stock.create');
+    Route::get('/product-stock/import-template', [ProductStockController::class, 'downloadTemplate'])->middleware('permission:product-stock.create');
+    Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
+
     Route::get('/product-stock', [ProductStockController::class, 'index'])->middleware('permission:product-stock.read');
     Route::get('/product-stock/{id}', [ProductStockController::class, 'show'])->middleware('permission:product-stock.read');
     Route::post('/product-stock', [ProductStockController::class, 'store'])->middleware('permission:product-stock.create');
     Route::put('/product-stock/{id}', [ProductStockController::class, 'update'])->middleware('permission:product-stock.update');
     Route::delete('/product-stock/{id}', [ProductStockController::class, 'destroy'])->middleware('permission:product-stock.delete');
-    Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
     Route::post('/product-stock/{id}/toggle-visibility', [ProductStockController::class, 'toggleVisibility'])->middleware('permission:product-stock.update');
     Route::get('/product-stock/{id}/movements', [ProductStockController::class, 'getMovementHistory'])->middleware('permission:product-stock.read');
 
