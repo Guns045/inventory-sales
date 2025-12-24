@@ -24,7 +24,7 @@ class InvoiceService
     public function updateOverdueStatus(): int
     {
         $overdueInvoices = Invoice::whereIn('status', ['UNPAID', 'PARTIAL'])
-            ->where('due_date', '<', Carbon::now()->subDay()->endOfDay()) // Due Date + 1 Day passed
+            ->whereDate('due_date', '<', Carbon::now()) // Strictly past due date
             ->get();
 
         $count = 0;
