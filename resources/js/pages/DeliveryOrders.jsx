@@ -1,195 +1,271 @@
 import React, { useState, useEffect } from 'react';
 import { useAPI } from '@/contexts/APIContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DeliveryOrderTable } from '@/components/warehouse/DeliveryOrderTable';
-import { RefreshCw, Search } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Truck,
+  Search,
+  RefreshCw,
+  Filter
+} from "lucide-react";
+import DeliveryOrderTable from '@/components/warehouse/DeliveryOrderTable';
+import Pagination from '@/components/common/Pagination';
 
 import DeliveryOrderDetailsModal from '@/components/warehouse/DeliveryOrderDetailsModal';
 import ShippingDetailsModal from '@/components/warehouse/ShippingDetailsModal';
+import CreateDeliveryOrderModal from '@/components/warehouse/CreateDeliveryOrderModal';
+import MarkDeliveredModal from '@/components/warehouse/MarkDeliveredModal';
 
 const DeliveryOrders = () => {
   const { api } = useAPI();
-  const { showSuccess, showError } = useToast();
-
-  const [salesOrders, setSalesOrders] = useState([]);
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
 
   // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeliveredModalOpen, setIsDeliveredModalOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState('SHIPPED');
 
   // Pagination state
   const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchSalesDeliveryOrders(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search]);
+    fetchSalesDeliveryOrders();
+  }, [salesPagination.current_page, search, statusFilter]);
 
-  const fetchSalesDeliveryOrders = async (page = 1) => {
+  const fetchSalesDeliveryOrders = async (page = salesPagination.current_page) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const params = new URLSearchParams({
+      const params = {
+        page,
         source_type: 'SO',
-        page: page
-      });
-      if (search) params.append('search', search);
+        search: search,
+      };
 
-      const response = await api.get(`/delivery-orders?${params.toString()}`);
-      const data = response.data.data || response.data || [];
-      setSalesOrders(data);
-      setSalesPagination({
-        current_page: response.data.current_page || 1,
-        last_page: response.data.last_page || 1,
-        total: response.data.total || 0
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+
+      const response = await api.get('/delivery-orders', { params });
+      setOrders(response.data.data);
+      setSalesPagination(response.data.meta);
+    } catch (error) {
+      console.error('Error fetching sales delivery orders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch delivery orders",
+        variant: "destructive",
       });
-    } catch (err) {
-      showError('Failed to fetch sales delivery orders');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateStatus = async (order, status) => {
+  const handlePageChange = (page) => {
+    setSalesPagination(prev => ({ ...prev, current_page: page }));
+  };
+
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    setSalesPagination(prev => ({ ...prev, current_page: 1 }));
+  };
+
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    setSalesPagination(prev => ({ ...prev, current_page: 1 }));
+  };
+
+  const handleViewOrder = (order) => {
+    setSelectedOrder(order);
+    setIsViewModalOpen(true);
+  };
+
+  const handleUpdateStatus = (order, status) => {
+    setSelectedOrder(order);
+    setTargetStatus(status);
+
     if (status === 'READY_TO_SHIP') {
-      setSelectedOrder(order);
-      setTargetStatus('READY_TO_SHIP');
       setIsShippingModalOpen(true);
-      return;
+    } else if (status === 'SHIPPED') {
+      // Directly process SHIPPED status without modal
+      processStatusUpdate(order, status, {});
+    } else if (status === 'DELIVERED') {
+      setIsDeliveredModalOpen(true); // Open a modal for DELIVERED status
+    } else {
+      processStatusUpdate(order, status);
     }
-    if (status === 'SHIPPED') {
-      if (window.confirm('Are you sure you want to mark this order as SHIPPED? Stock will be deducted.')) {
-        await processStatusUpdate(order, 'SHIPPED');
-      }
-      return;
-    }
-    await processStatusUpdate(order, status);
+  };
+
+  const handleShipOrder = async (order, shippingData) => {
+    await processStatusUpdate(order, targetStatus, shippingData);
+    setIsShippingModalOpen(false);
   };
 
   const processStatusUpdate = async (order, status, additionalData = {}) => {
     try {
-      let orderId = order.id;
+      await api.put(`/delivery-orders/${order.id}/status`, {
+        status: status,
+        ...additionalData
+      });
 
-      // If it's a pending SO, create DO first
-      if (order.is_pending_so) {
-        const createResponse = await api.post('/delivery-orders/from-sales-order', {
-          sales_order_id: order.sales_order_id,
-          ...additionalData // Pass shipping details if creating directly
-        });
-        orderId = createResponse.data.data?.id || createResponse.data.id;
-      } else if (Object.keys(additionalData).length > 0) {
-        // Update DO details first if we have additional data
-        await api.put(`/delivery-orders/${orderId}`, additionalData);
-      }
-
-      await api.put(`/delivery-orders/${orderId}/status`, { status });
-
-      const successMessages = {
-        'READY_TO_SHIP': 'Status updated to READY_TO_SHIP!',
-        'SHIPPED': 'Status updated to SHIPPED!',
-        'DELIVERED': 'Status updated to DELIVERED!'
-      };
-      showSuccess(successMessages[status] || 'Status updated successfully!');
-
-      fetchSalesDeliveryOrders(salesPagination.current_page);
-      setIsShippingModalOpen(false);
-
+      toast({
+        title: "Success",
+        description: `Order status updated to ${status}`,
+      });
+      fetchSalesDeliveryOrders();
     } catch (error) {
-      showError(error.response?.data?.message || 'Failed to update status');
+      console.error('Error updating status:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update status",
+        variant: "destructive",
+      });
     }
-  };
-
-  const handleShipOrder = async (order, formData) => {
-    await processStatusUpdate(order, targetStatus, formData);
   };
 
   const handleCreatePickingList = async (order) => {
     try {
-      const response = await api.post('/picking-lists/from-sales-order', {
-        sales_order_id: order.sales_order_id
+      // Create Picking List from Delivery Order
+      const response = await api.post('/picking-lists', {
+        delivery_order_id: order.id,
+        notes: `Generated from DO ${order.delivery_order_number}`
       });
-      const pickingListNumber = response.data.data?.picking_list_number || response.data.picking_list_number || 'Generated';
-      showSuccess(`Picking List ${pickingListNumber} generated!`);
 
+      console.log('Picking List Response:', response);
+
+      // Auto-download PDF if available
       if (response.data.pdf_content) {
-        downloadAndOpenPDF(response.data.pdf_content, response.data.filename);
+        const byteCharacters = atob(response.data.pdf_content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = response.data.filename || `PickingList-${order.delivery_order_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
       }
 
-      fetchSalesDeliveryOrders(salesPagination.current_page);
-    } catch (err) {
-      showError(err.response?.data?.message || 'Failed to generate picking list');
-    }
-  };
-
-  const handlePrintDeliveryOrder = async (order) => {
-    try {
-      const response = await api.get(`/delivery-orders/${order.id}/print`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      toast({
+        title: "Success",
+        description: "Picking List created and downloaded successfully",
+      });
+      fetchSalesDeliveryOrders();
     } catch (error) {
-      showError('Failed to print delivery order');
+      console.error('Error creating picking list:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create picking list",
+        variant: "destructive",
+      });
     }
   };
 
-  const downloadAndOpenPDF = (base64Content, filename) => {
+  const handlePrintPickingList = async (order) => {
+    if (!order.picking_list_id) return;
     try {
-      const cleanBase64 = base64Content.replace(/\s/g, '');
-      const binaryData = atob(cleanBase64);
-      const bytes = new Uint8Array(binaryData.length);
-      for (let i = 0; i < binaryData.length; i++) bytes[i] = binaryData.charCodeAt(i);
+      const response = await api.get(`/picking-lists/${order.picking_list_id}/print`, {
+        responseType: 'blob'
+      });
 
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
+      // Fetch picking list number if available, otherwise fallback
+      const filename = `PickingList-${order.picking_list_number || order.picking_list_id}.pdf`;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      showError('Failed to download PDF');
+      console.error('Error printing picking list:', error);
+      toast({
+        title: "Error",
+        description: "Failed to print picking list",
+        variant: "destructive",
+      });
     }
   };
 
-  const handlePrintPickingList = async (order) => {
+  const handlePrintDeliveryOrder = async (order) => {
     try {
-      const pickingListId = order.picking_list_id || order.picking_list?.id;
-      if (!pickingListId) return;
+      const response = await api.get(`/delivery-orders/${order.id}/print`, {
+        responseType: 'blob'
+      });
 
-      const response = await api.get(`/picking-lists/${pickingListId}/print`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = `DeliveryOrder-${order.delivery_order_number}.pdf`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      showError('Failed to print picking list');
+      console.error('Error printing delivery order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to print delivery order",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleView = (order) => {
-    setSelectedOrder(order);
-    setIsViewModalOpen(true);
+  const handleMarkDelivered = async (order, deliveryData) => {
+    try {
+      await api.put(`/delivery-orders/${order.id}/delivered`, deliveryData);
+
+      toast({
+        title: "Success",
+        description: "Delivery Order marked as delivered",
+      });
+      setIsDeliveredModalOpen(false);
+      fetchSalesDeliveryOrders();
+    } catch (error) {
+      console.error('Error marking delivered:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark as delivered",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Delivery Management</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Delivery Management</h2>
           <p className="text-muted-foreground">Manage delivery orders for sales</p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Truck className="mr-2 h-4 w-4" />
+            Create Delivery Order
+          </Button>
           <Button variant="outline" onClick={() => fetchSalesDeliveryOrders()}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
@@ -197,57 +273,56 @@ const DeliveryOrders = () => {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sales Orders Delivery</CardTitle>
-          <div className="flex flex-col md:flex-row justify-between gap-4">
-            <CardDescription>Manage deliveries for customer sales orders</CardDescription>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search delivery orders..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            {/* The following elements were part of the user's diff but are syntactically incorrect or out of context here.
-                They are commented out to maintain a syntactically correct file as per instructions.
-                {selectedOrder?.status === 'PENDING' && (
-                  <Button onClick={() => handleStatusUpdate(selectedOrder, 'SHIPPED')}>
-                    Mark as Shipped
-                  </Button>
-                )}
-                {selectedOrder?.status === 'SHIPPED' && (
-                  <Button onClick={() => handleStatusUpdate(selectedOrder, 'DELIVERED')}>
-                    Mark as Delivered
-                  </Button>
-                )}
-                <SuperAdminActions
-                  type="delivery_order"
-                  id={selectedOrder?.id}
-                  currentStatus={selectedOrder?.status}
-                  onSuccess={() => {
-                    fetchDeliveryOrders(pagination.current_page);
-                    setShowItemsModal(false);
-                  }}
-                />
-            */}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <DeliveryOrderTable
-            data={salesOrders}
-            loading={loading}
-            type="sales"
-            onView={handleView}
-            onUpdateStatus={handleUpdateStatus}
-            onPrint={handlePrintDeliveryOrder}
-            onCreatePickingList={handleCreatePickingList}
-            onPrintPickingList={handlePrintPickingList}
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search delivery orders..."
+            value={search}
+            onChange={handleSearch}
+            className="pl-8"
           />
-        </CardContent>
-      </Card>
+        </div>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger className="w-[180px]">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Filter Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="PREPARING">Preparing</SelectItem>
+            <SelectItem value="READY_TO_SHIP">Ready to Ship</SelectItem>
+            <SelectItem value="SHIPPED">Shipped</SelectItem>
+            <SelectItem value="DELIVERED">Delivered</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="bg-white rounded-lg shadow">
+        <DeliveryOrderTable
+          data={orders}
+          loading={loading}
+          onView={handleViewOrder}
+          onUpdateStatus={handleUpdateStatus}
+          onPrint={handlePrintDeliveryOrder}
+          onCreatePickingList={handleCreatePickingList}
+          onPrintPickingList={handlePrintPickingList}
+        />
+
+        <div className="mt-4">
+          <Pagination
+            currentPage={salesPagination.current_page}
+            lastPage={salesPagination.last_page}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
+
+      <CreateDeliveryOrderModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={fetchSalesDeliveryOrders}
+      />
 
       <DeliveryOrderDetailsModal
         isOpen={isViewModalOpen}
@@ -258,10 +333,15 @@ const DeliveryOrders = () => {
       <ShippingDetailsModal
         isOpen={isShippingModalOpen}
         onClose={() => setIsShippingModalOpen(false)}
-        onSave={handleShipOrder}
         order={selectedOrder}
-        loading={loading}
-        submitLabel={targetStatus === 'READY_TO_SHIP' ? 'Save & Ready' : 'Save & Ship'}
+        onSave={handleShipOrder}
+      />
+
+      <MarkDeliveredModal
+        isOpen={isDeliveredModalOpen}
+        onClose={() => setIsDeliveredModalOpen(false)}
+        deliveryOrder={selectedOrder}
+        onConfirm={handleMarkDelivered}
       />
     </div>
   );

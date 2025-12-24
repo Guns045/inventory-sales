@@ -36,20 +36,32 @@ class DeliveryOrderService
         return DB::transaction(function () use ($salesOrderId, $data) {
             $salesOrder = SalesOrder::with(['customer', 'items.product'])->findOrFail($salesOrderId);
 
-            if (!in_array($salesOrder->status, ['READY_TO_SHIP', 'PROCESSING'])) {
-                throw new \Exception('Cannot generate delivery order. Sales order must be in READY_TO_SHIP or PROCESSING status.');
+            if (!in_array($salesOrder->status, ['READY_TO_SHIP', 'PROCESSING', 'PARTIAL'])) {
+                throw new \Exception('Cannot generate delivery order. Sales order must be in READY_TO_SHIP, PROCESSING or PARTIAL status.');
             }
 
-            // Check if delivery order already exists
-            $existingDeliveryOrder = DeliveryOrder::where('sales_order_id', $salesOrderId)->first();
-            if ($existingDeliveryOrder) {
-                throw new \Exception('Delivery Order already exists for this Sales Order.');
-            }
+            // Allow multiple DOs for Partial Shipment
+            // Removed the check for existing Delivery Order
 
-            // Calculate total amount
+            // Calculate total amount for this DO
             $totalAmount = 0;
-            foreach ($salesOrder->items as $item) {
-                $totalAmount += $item->quantity * $item->unit_price;
+            $itemsToShip = $data['items'] ?? [];
+
+            // If no items specified, assume full shipment of remaining items (legacy support)
+            if (empty($itemsToShip)) {
+                foreach ($salesOrder->items as $item) {
+                    $remaining = $item->quantity - $item->quantity_shipped;
+                    if ($remaining > 0) {
+                        $itemsToShip[] = [
+                            'id' => $item->id,
+                            'quantity' => $remaining
+                        ];
+                    }
+                }
+            }
+
+            if (empty($itemsToShip)) {
+                throw new \Exception('No items to ship.');
             }
 
             // Generate delivery order number
@@ -72,25 +84,56 @@ class DeliveryOrderService
                 'notes' => isset($data['kurir']) ? 'Kurir: ' . $data['kurir'] : null,
                 'status' => 'PREPARING',
                 'created_by' => auth()->id(),
-                'total_amount' => $totalAmount,
+                'total_amount' => 0, // Will be calculated
                 'source_type' => 'SO',
                 'source_id' => $salesOrder->id,
             ]);
 
-            // Create delivery order items
-            foreach ($salesOrder->items as $item) {
+            foreach ($itemsToShip as $shipItem) {
+                $soItem = $salesOrder->items->where('id', $shipItem['id'])->first();
+
+                if (!$soItem) {
+                    continue; // Skip invalid items
+                }
+
+                $qtyToShip = $shipItem['quantity'];
+                $remaining = $soItem->quantity - $soItem->quantity_shipped;
+
+                if ($qtyToShip > $remaining) {
+                    throw new \Exception("Cannot ship {$qtyToShip} for item {$soItem->product->name}. Only {$remaining} remaining.");
+                }
+
+                if ($qtyToShip <= 0) {
+                    continue;
+                }
+
                 DeliveryOrderItem::create([
                     'delivery_order_id' => $deliveryOrder->id,
-                    'product_id' => $item->product_id,
-                    'quantity_shipped' => $item->quantity,
+                    'product_id' => $soItem->product_id,
+                    'quantity_shipped' => $qtyToShip,
                     'status' => 'PREPARING',
-                    'location_code' => $item->product->location_code ?? null,
+                    'location_code' => $soItem->product->location_code ?? null,
                 ]);
+
+                // Update SO Item shipped quantity
+                $soItem->increment('quantity_shipped', $qtyToShip);
+
+                $totalAmount += $qtyToShip * $soItem->unit_price;
             }
 
-            // Update sales order status only if it's not already READY_TO_SHIP
-            // If it's READY_TO_SHIP, we assume it should stay there (e.g. auto-created from SO status change)
-            if ($salesOrder->status !== 'READY_TO_SHIP') {
+            $deliveryOrder->update(['total_amount' => $totalAmount]);
+
+            // Update Sales Order Status
+            $salesOrder->refresh(); // Reload items to get fresh quantity_shipped
+
+            $totalOrdered = $salesOrder->items->sum('quantity');
+            $totalShipped = $salesOrder->items->sum('quantity_shipped');
+
+            if ($totalShipped >= $totalOrdered) {
+                $salesOrder->update(['status' => 'SHIPPED']); // Or READY_TO_SHIP if you prefer manual trigger
+            } elseif ($totalShipped > 0) {
+                $salesOrder->update(['status' => 'PARTIAL']);
+            } else {
                 $salesOrder->update(['status' => 'PROCESSING']);
             }
 
@@ -185,8 +228,67 @@ class DeliveryOrderService
      */
     public function updateDeliveryOrder(DeliveryOrder $deliveryOrder, array $data): DeliveryOrder
     {
-        $deliveryOrder->update($data);
-        return $deliveryOrder->load(['customer', 'salesOrder', 'deliveryOrderItems.product']);
+        return DB::transaction(function () use ($deliveryOrder, $data) {
+            $deliveryOrder->update($data);
+
+            if (isset($data['items']) && is_array($data['items'])) {
+                $salesOrder = $deliveryOrder->salesOrder;
+
+                foreach ($data['items'] as $itemData) {
+                    $doItem = DeliveryOrderItem::find($itemData['id']);
+                    if (!$doItem || $doItem->delivery_order_id !== $deliveryOrder->id) {
+                        continue;
+                    }
+
+                    $newQty = $itemData['quantity'];
+                    $oldQty = $doItem->quantity_shipped;
+                    $diff = $newQty - $oldQty;
+
+                    if ($diff === 0) {
+                        continue;
+                    }
+
+                    // Validate against SO remaining quantity
+                    $soItem = $salesOrder->items->where('product_id', $doItem->product_id)->first();
+                    if ($soItem) {
+                        // The "true" remaining excluding this DO item is: ($soItem->quantity - ($soItem->quantity_shipped - $oldQty)).
+                        // So newQty must be <= ($soItem->quantity - $soItem->quantity_shipped + $oldQty).
+
+                        $maxAllowed = $soItem->quantity - $soItem->quantity_shipped + $oldQty;
+                        if ($newQty > $maxAllowed) {
+                            throw new \Exception("Cannot ship {$newQty} for item {$soItem->product->name}. Max allowed is {$maxAllowed}.");
+                        }
+
+                        $doItem->update(['quantity_shipped' => $newQty]);
+                        $soItem->increment('quantity_shipped', $diff);
+                    }
+                }
+
+                // Recalculate total amount
+                $deliveryOrder->refresh();
+                $recalcTotal = 0;
+                foreach ($deliveryOrder->deliveryOrderItems as $doItem) {
+                    $soItem = $salesOrder->items->where('product_id', $doItem->product_id)->first();
+                    $recalcTotal += $doItem->quantity_shipped * ($soItem->unit_price ?? 0);
+                }
+                $deliveryOrder->update(['total_amount' => $recalcTotal]);
+
+                // Update Sales Order Status
+                $salesOrder->refresh();
+                $totalOrdered = $salesOrder->items->sum('quantity');
+                $totalShipped = $salesOrder->items->sum('quantity_shipped');
+
+                if ($totalShipped >= $totalOrdered) {
+                    $salesOrder->update(['status' => 'SHIPPED']);
+                } elseif ($totalShipped > 0) {
+                    $salesOrder->update(['status' => 'PARTIAL']);
+                } else {
+                    $salesOrder->update(['status' => 'PROCESSING']);
+                }
+            }
+
+            return $deliveryOrder->load(['customer', 'salesOrder', 'deliveryOrderItems.product']);
+        });
     }
 
     /**
@@ -196,9 +298,9 @@ class DeliveryOrderService
      * @param string $status
      * @return DeliveryOrder
      */
-    public function updateStatus(DeliveryOrder $deliveryOrder, string $status): DeliveryOrder
+    public function updateStatus(DeliveryOrder $deliveryOrder, string $status, array $data = []): DeliveryOrder
     {
-        return DB::transaction(function () use ($deliveryOrder, $status) {
+        return DB::transaction(function () use ($deliveryOrder, $status, $data) {
             $oldStatus = $deliveryOrder->status;
 
             // If status is SHIPPED, deduct stock
@@ -215,18 +317,69 @@ class DeliveryOrderService
                 }
             }
 
-            $deliveryOrder->update(['status' => $status]);
+            // Update status and other data (shipping details)
+            $updateData = ['status' => $status];
+
+            // Filter only allowed fields from data to prevent overwriting protected fields
+            $allowedFields = [
+                'shipping_date',
+                'driver_name',
+                'vehicle_plate_number',
+                'tracking_number',
+                'delivery_vendor',
+                'delivery_method',
+                'shipping_contact_person'
+            ];
+
+            foreach ($allowedFields as $field) {
+                if (isset($data[$field])) {
+                    $updateData[$field] = $data[$field];
+                }
+            }
+
+            $deliveryOrder->update($updateData);
 
             // Update related sales order status
             if ($deliveryOrder->salesOrder) {
                 $salesOrder = $deliveryOrder->salesOrder;
 
                 if ($oldStatus !== 'READY_TO_SHIP' && $status === 'READY_TO_SHIP') {
-                    $salesOrder->update(['status' => 'READY_TO_SHIP']);
+                    // Check if all items in SO are covered by READY_TO_SHIP or SHIPPED DOs
+                    $salesOrder->load('deliveryOrders.deliveryOrderItems');
+
+                    $totalOrdered = $salesOrder->items->sum('quantity');
+
+                    // Calculate total quantity in DOs that are READY_TO_SHIP or SHIPPED
+                    $totalReadyOrShipped = 0;
+                    foreach ($salesOrder->deliveryOrders as $do) {
+                        if (in_array($do->status, ['READY_TO_SHIP', 'SHIPPED', 'DELIVERED'])) {
+                            $totalReadyOrShipped += $do->deliveryOrderItems->sum('quantity_shipped');
+                        }
+                    }
+
+                    if ($totalReadyOrShipped >= $totalOrdered) {
+                        $salesOrder->update(['status' => 'READY_TO_SHIP']);
+                    } else {
+                        $salesOrder->update(['status' => 'PARTIAL']);
+                    }
                 }
 
                 if ($oldStatus !== 'SHIPPED' && $status === 'SHIPPED') {
-                    $salesOrder->update(['status' => 'SHIPPED']);
+                    $salesOrder->refresh();
+                    $totalOrdered = $salesOrder->items->sum('quantity');
+                    $totalShipped = $salesOrder->items->sum('quantity_shipped'); // This is updated via triggers or logic elsewhere
+
+                    // If we just shipped this DO, we should re-check total shipped
+                    // Note: quantity_shipped on SO items is updated when DO is created/updated, not when status changes?
+                    // Wait, createFromSalesOrder updates quantity_shipped immediately (line 119).
+                    // So $totalShipped should be accurate.
+
+                    if ($totalShipped >= $totalOrdered) {
+                        $salesOrder->update(['status' => 'SHIPPED']);
+                    } else {
+                        $salesOrder->update(['status' => 'PARTIAL']);
+                    }
+
                     $deliveryOrder->update(['shipping_date' => now()]);
                     $deliveryOrder->deliveryOrderItems()->update(['status' => 'IN_TRANSIT']);
                 }
@@ -238,7 +391,33 @@ class DeliveryOrderService
                 $deliveryOrder->deliveryOrderItems()->update(['status' => 'DELIVERED']);
 
                 if ($deliveryOrder->salesOrder) {
-                    $deliveryOrder->salesOrder->update(['status' => 'COMPLETED']);
+                    $salesOrder = $deliveryOrder->salesOrder;
+                    $salesOrder->load('deliveryOrders.deliveryOrderItems');
+
+                    $totalOrdered = $salesOrder->items->sum('quantity');
+
+                    // Calculate total quantity delivered across all DOs
+                    $totalDelivered = 0;
+                    foreach ($salesOrder->deliveryOrders as $do) {
+                        if ($do->status === 'DELIVERED') {
+                            // For delivered DOs, use quantity_delivered if available, else quantity_shipped (fallback)
+                            // But wait, markAsDelivered updates quantity_delivered. 
+                            // If updateStatus is used, quantity_delivered might not be set per item yet?
+                            // Usually updateStatus('DELIVERED') assumes full delivery of shipped items if not specified otherwise.
+                            // Let's assume quantity_shipped becomes quantity_delivered for simple status update.
+                            $totalDelivered += $do->deliveryOrderItems->sum('quantity_shipped');
+                        }
+                    }
+
+                    // If this DO is being set to DELIVERED via updateStatus, its items might not have quantity_delivered set yet.
+                    // But we just updated them to status DELIVERED.
+                    // Let's assume for updateStatus (simple flow), delivered = shipped.
+
+                    if ($totalDelivered >= $totalOrdered) {
+                        $salesOrder->update(['status' => 'COMPLETED']);
+                    } else {
+                        $salesOrder->update(['status' => 'PARTIAL']);
+                    }
                 }
             }
 
@@ -368,7 +547,26 @@ class DeliveryOrderService
                 ]);
 
                 if ($deliveryOrder->salesOrder) {
-                    $deliveryOrder->salesOrder->update(['status' => 'COMPLETED']);
+                    $salesOrder = $deliveryOrder->salesOrder;
+                    $salesOrder->load('deliveryOrders.deliveryOrderItems');
+
+                    $totalOrdered = $salesOrder->items->sum('quantity');
+
+                    // Calculate total quantity delivered across all DOs
+                    $totalDelivered = 0;
+                    foreach ($salesOrder->deliveryOrders as $do) {
+                        // We only count items that are explicitly marked as DELIVERED or PARTIAL (with qty)
+                        // But here we are iterating DOs.
+                        if ($do->status === 'DELIVERED') {
+                            $totalDelivered += $do->deliveryOrderItems->sum('quantity_delivered');
+                        }
+                    }
+
+                    if ($totalDelivered >= $totalOrdered) {
+                        $salesOrder->update(['status' => 'COMPLETED']);
+                    } else {
+                        $salesOrder->update(['status' => 'PARTIAL']);
+                    }
                 }
             }
 

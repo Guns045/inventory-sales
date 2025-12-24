@@ -26,6 +26,9 @@ class StoreDeliveryOrderRequest extends FormRequest
             'delivery_method' => 'nullable|string|max:50',
             'delivery_vendor' => 'nullable|string|max:255',
             'tracking_number' => 'nullable|string|max:255',
+            'items' => 'nullable|array',
+            'items.*.id' => 'required_with:items|exists:sales_order_items,id',
+            'items.*.quantity' => 'required_with:items|integer|min:1',
         ];
     }
 }

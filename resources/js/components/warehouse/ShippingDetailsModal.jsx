@@ -57,7 +57,7 @@ const ShippingDetailsModal = ({ isOpen, onClose, onSave, order, loading, submitL
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Shipping Details</DialogTitle>
+                    <DialogTitle>Shipping Details {order?.delivery_order_number !== 'PENDING' ? `- ${order?.delivery_order_number}` : ''}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">

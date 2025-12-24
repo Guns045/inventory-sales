@@ -57,76 +57,22 @@ class DeliveryOrderController extends Controller
             });
         }
 
-        $deliveryOrders = $query->paginate($limit);
-
-        // 2. Get Pending Sales Orders (only for page 1 and if source_type is SO)
-        $pendingSalesOrders = collect([]);
-        if ($request->input('page', 1) == 1 && $request->input('source_type') == 'SO') {
-            $pendingSalesOrders = SalesOrder::with(['customer', 'user', 'pickingList', 'warehouse', 'salesOrderItems.product'])
-                ->whereIn('status', ['PROCESSING', 'READY_TO_SHIP'])
-                ->doesntHave('deliveryOrder')
-                ->orderBy('created_at', 'desc')
-                ->get();
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
         }
 
-        // 3. Transform Pending Sales Orders to match DeliveryOrderResource structure
-        $transformedPending = $pendingSalesOrders->map(function ($so) {
-            return [
-                'id' => $so->id,
-                'is_pending_so' => true,
-                'delivery_order_number' => 'PENDING',
-                'sales_order_id' => $so->id,
-                'sales_order' => $so,
-                'customer_id' => $so->customer_id,
-                'customer' => $so->customer,
-                'warehouse_id' => $so->warehouse_id,
-                'warehouse' => $so->warehouse,
-                'source_type' => 'SO',
-                'status' => 'PREPARING', // Map to PREPARING so it shows up as ready for picking
-                'created_at' => $so->created_at,
-                'updated_at' => $so->updated_at,
-                'picking_list_id' => $so->pickingList?->id,
-                'picking_list' => $so->pickingList,
-                'shipping_date' => null,
-                'items' => $so->salesOrderItems->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'product' => $item->product,
-                        'product_name' => $item->product->name ?? 'Unknown',
-                        'product_code' => $item->product->sku ?? 'N/A',
-                        'quantity' => $item->quantity,
-                        'quantity_shipped' => 0,
-                        'location_code' => $item->product->location_code ?? 'N/A',
-                    ];
-                }),
-            ];
-        });
-
-        // 4. Transform Delivery Orders using Resource
-        $transformedDOs = DeliveryOrderResource::collection($deliveryOrders);
-
-        // 5. Merge
-        $mergedData = $transformedPending->merge($transformedDOs->collection);
-
-        // 6. Return custom paginated response
-        return response()->json([
-            'data' => $mergedData,
-            'links' => [
-                'first' => $deliveryOrders->url(1),
-                'last' => $deliveryOrders->url($deliveryOrders->lastPage()),
-                'prev' => $deliveryOrders->previousPageUrl(),
-                'next' => $deliveryOrders->nextPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $deliveryOrders->currentPage(),
-                'from' => $deliveryOrders->firstItem(),
-                'last_page' => $deliveryOrders->lastPage(),
-                'path' => $deliveryOrders->path(),
-                'per_page' => $deliveryOrders->perPage(),
-                'to' => $deliveryOrders->lastItem(),
-                'total' => $deliveryOrders->total() + $pendingSalesOrders->count(),
-            ]
+        Log::info('DeliveryOrder Index Request', [
+            'source_type' => $request->source_type,
+            'search' => $request->search,
+            'status' => $request->status,
+            'count' => $query->count(),
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
         ]);
+
+        $deliveryOrders = $query->paginate($limit);
+
+        return DeliveryOrderResource::collection($deliveryOrders);
     }
 
     /**
@@ -134,14 +80,18 @@ class DeliveryOrderController extends Controller
      */
     public function readyToCreate()
     {
-        $shippedSalesOrders = SalesOrder::with(['customer', 'salesOrderItems.product', 'user'])
-            ->where('status', 'SHIPPED')
-            ->whereDoesntHave('deliveryOrder')
-            ->orderBy('updated_at', 'desc')
-            ->paginate(10);
+        $salesOrders = SalesOrder::with(['customer', 'items.product'])
+            ->whereIn('status', ['PROCESSING', 'PARTIAL', 'READY_TO_SHIP'])
+            ->whereHas('items', function ($q) {
+                $q->whereRaw('quantity > quantity_shipped');
+            })
+            ->latest()
+            ->get();
 
-        return response()->json($shippedSalesOrders);
+        return response()->json($salesOrders);
     }
+
+
 
     /**
      * Store a newly created resource in storage.
@@ -195,7 +145,7 @@ class DeliveryOrderController extends Controller
     {
         try {
             $deliveryOrder = DeliveryOrder::with('deliveryOrderItems')->findOrFail($id);
-            $deliveryOrder = $this->deliveryOrderService->updateStatus($deliveryOrder, $request->status);
+            $deliveryOrder = $this->deliveryOrderService->updateStatus($deliveryOrder, $request->status, $request->validated());
             return new DeliveryOrderResource($deliveryOrder->load(['customer', 'salesOrder', 'deliveryOrderItems.product']));
         } catch (\Exception $e) {
             Log::error('Failed to update delivery order status: ' . $e->getMessage());
@@ -315,6 +265,9 @@ class DeliveryOrderController extends Controller
             'driver_name' => 'nullable|string|max:255',
             'vehicle_plate_number' => 'nullable|string|max:20',
             'kurir' => 'nullable|string|max:255',
+            'items' => 'nullable|array',
+            'items.*.id' => 'required_with:items|exists:sales_order_items,id',
+            'items.*.quantity' => 'required_with:items|integer|min:1',
         ]);
 
         try {

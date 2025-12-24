@@ -49,6 +49,11 @@ class QuotationController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Filter by warehouse if provided
+        if ($request->has('warehouse_id') && !empty($request->warehouse_id) && $request->warehouse_id !== 'all') {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
+
         // Search functionality
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;

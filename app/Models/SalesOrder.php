@@ -63,4 +63,24 @@ class SalesOrder extends Model
     {
         return $this->hasOne(PickingList::class);
     }
+
+    public function deliveryOrders()
+    {
+        return $this->hasMany(DeliveryOrder::class);
+    }
+
+    public function getRemainingItemsAttribute()
+    {
+        return $this->salesOrderItems->map(function ($item) {
+            $item->remaining_quantity = max(0, $item->quantity - $item->quantity_shipped);
+            return $item;
+        });
+    }
+
+    public function getIsFullyShippedAttribute()
+    {
+        return $this->salesOrderItems->every(function ($item) {
+            return $item->quantity_shipped >= $item->quantity;
+        });
+    }
 }

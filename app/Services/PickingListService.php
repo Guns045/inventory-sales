@@ -9,6 +9,7 @@ use App\Models\ProductStock;
 use App\Traits\DocumentNumberHelper;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
+use App\Models\DeliveryOrder;
 
 class PickingListService
 {
@@ -67,6 +68,63 @@ class PickingListService
             }
 
             $salesOrder->update(['status' => 'PROCESSING']);
+
+            return $pickingList;
+        });
+    }
+
+    /**
+     * Create a new Picking List from a Delivery Order.
+     *
+     * @param int $deliveryOrderId
+     * @param User $user
+     * @param string|null $notes
+     * @return PickingList
+     * @throws \Exception
+     */
+    public function createFromDeliveryOrder(int $deliveryOrderId, User $user, ?string $notes = null): PickingList
+    {
+        return DB::transaction(function () use ($deliveryOrderId, $user, $notes) {
+            $deliveryOrder = DeliveryOrder::with(['deliveryOrderItems.product', 'salesOrder'])->findOrFail($deliveryOrderId);
+
+            if ($deliveryOrder->status !== 'PREPARING') {
+                throw new \Exception('Delivery Order must be in PREPARING status to create a Picking List.');
+            }
+
+            if ($deliveryOrder->picking_list_id) {
+                throw new \Exception('Picking List already exists for this Delivery Order.');
+            }
+
+            // Use Delivery Order warehouse ID
+            $warehouseId = $deliveryOrder->warehouse_id;
+
+            $pickingList = PickingList::create([
+                'picking_list_number' => $this->generatePickingListNumber($warehouseId),
+                'sales_order_id' => $deliveryOrder->sales_order_id,
+                'user_id' => $user->id,
+                'status' => 'READY',
+                'notes' => $notes,
+                'warehouse_id' => $warehouseId,
+            ]);
+
+            foreach ($deliveryOrder->deliveryOrderItems as $item) {
+                $productStock = ProductStock::where('product_id', $item->product_id)
+                    ->where('warehouse_id', $warehouseId)
+                    ->first();
+
+                PickingListItem::create([
+                    'picking_list_id' => $pickingList->id,
+                    'product_id' => $item->product_id,
+                    'warehouse_id' => $warehouseId,
+                    'location_code' => $productStock?->bin_location ?? $item->location_code ?? null,
+                    'quantity_required' => $item->quantity_shipped,
+                    'quantity_picked' => 0,
+                    'status' => 'PENDING',
+                ]);
+            }
+
+            // Link DO to PL
+            $deliveryOrder->update(['picking_list_id' => $pickingList->id]);
 
             return $pickingList;
         });
@@ -199,8 +257,9 @@ class PickingListService
         // Only do this if status is not COMPLETED/CANCELLED to preserve history for finished orders.
         if (!in_array($pickingList->status, ['COMPLETED', 'CANCELLED'])) {
             foreach ($pickingList->items as $item) {
+                $warehouseId = $pickingList->salesOrder?->warehouse_id ?? $pickingList->warehouse_id;
                 $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)
-                    ->where('warehouse_id', $pickingList->salesOrder->warehouse_id) // Match SO warehouse
+                    ->where('warehouse_id', $warehouseId) // Match SO warehouse or PL warehouse
                     ->first();
 
                 if ($productStock && $productStock->bin_location) {
@@ -210,7 +269,7 @@ class PickingListService
 
             // AUTO-FIX: Correct Picking List Number if Warehouse Code mismatches
             // e.g. PL-004/MKS/11-2025 but SO is JKT -> PL-004/JKT/11-2025
-            $soWarehouse = $pickingList->salesOrder->warehouse;
+            $soWarehouse = $pickingList->salesOrder?->warehouse;
             if ($soWarehouse) {
                 $warehouseCode = $soWarehouse->code ?? ($soWarehouse->id == 1 ? 'JKT' : 'MKS'); // Fallback if code missing
 

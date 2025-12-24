@@ -53,11 +53,33 @@ class PickingListController extends Controller
     public function store(StorePickingListRequest $request)
     {
         try {
-            $pickingList = $this->pickingListService->createFromSalesOrder(
-                $request->sales_order_id,
-                $request->notes
-            );
-            return new PickingListResource($pickingList);
+            if ($request->has('delivery_order_id')) {
+                $pickingList = $this->pickingListService->createFromDeliveryOrder(
+                    $request->delivery_order_id,
+                    auth()->user(),
+                    $request->notes
+                );
+            } else {
+                $pickingList = $this->pickingListService->createFromOrder(
+                    $request->sales_order_id,
+                    auth()->user(),
+                    $request->notes
+                );
+            }
+
+
+            // Generate PDF immediately
+            $pdf = $this->pickingListService->generatePDF($pickingList);
+            $output = $pdf->output();
+            $pdfContent = base64_encode($output);
+
+            Log::info('PDF Generated size: ' . strlen($output));
+            Log::info('Base64 Content length: ' . strlen($pdfContent));
+
+            return (new PickingListResource($pickingList))->additional([
+                'pdf_content' => $pdfContent,
+                'filename' => 'PickingList-' . $pickingList->picking_list_number . '.pdf'
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error creating Picking List: ' . $e->getMessage()
@@ -131,9 +153,11 @@ class PickingListController extends Controller
             $pickingList = PickingList::findOrFail($id);
             $pdf = $this->pickingListService->generatePDF($pickingList);
 
-            $filename = "PickingList_" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
+            $filename = "PickingList-" . str_replace(['/', '\\'], '_', $pickingList->picking_list_number) . ".pdf";
             return $pdf->stream($filename);
         } catch (\Exception $e) {
+            Log::error('Error generating Picking List PDF: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
             return response()->json([
                 'message' => 'Error generating PDF: ' . $e->getMessage()
             ], 500);

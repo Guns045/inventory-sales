@@ -49,8 +49,11 @@ export function ProductCombobox({
 
             if (product) {
                 setSelectedProduct(product);
-                // Always update search term to match selected product
-                setSearchTerm(`${product.sku} - ${product.name}`);
+                // Only update search term if input is NOT focused
+                const isFocused = wrapperRef.current?.contains(document.activeElement);
+                if (!isFocused) {
+                    setSearchTerm(`${product.sku} - ${product.name}`);
+                }
             }
         }
     }, [value, products, initialProduct]);
@@ -107,6 +110,7 @@ export function ProductCombobox({
     }, [wrapperRef]);
 
     const filteredProducts = onSearch ? products : products.filter(product => {
+        if (!searchTerm) return true;
         const searchLower = searchTerm.toLowerCase();
         return (
             product.name.toLowerCase().includes(searchLower) ||
@@ -137,7 +141,13 @@ export function ProductCombobox({
                 placeholder={placeholder}
                 value={searchTerm}
                 onChange={handleInputChange}
-                onFocus={() => setOpen(true)}
+                onFocus={() => {
+                    setOpen(true);
+                    // If we have onSearch and no search term, reset to show all/default
+                    if (onSearch && !searchTerm) {
+                        onSearch('');
+                    }
+                }}
                 className="w-full"
             />
 

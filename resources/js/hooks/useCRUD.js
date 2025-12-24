@@ -27,10 +27,17 @@ export function useCRUD(endpoint, options = {}) {
             setLoading(true);
             setError(null);
 
-            const params = new URLSearchParams({
+            const queryParams = {
                 page: page,
                 per_page: pagination.per_page,
                 ...searchParams
+            };
+
+            const params = new URLSearchParams();
+            Object.keys(queryParams).forEach(key => {
+                if (queryParams[key] !== undefined && queryParams[key] !== null && queryParams[key] !== '') {
+                    params.append(key, queryParams[key]);
+                }
             });
 
             const response = await api.get(`${endpoint}?${params}`);

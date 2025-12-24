@@ -11,7 +11,7 @@ import {
     XCircle,
     Trash2
 } from 'lucide-react';
-import { Pagination } from '@/components/common/Pagination';
+import Pagination from '@/components/common/Pagination';
 
 export function ProductStockTable({
     data,

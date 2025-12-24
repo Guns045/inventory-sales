@@ -26,6 +26,10 @@ class UpdateDeliveryOrderRequest extends FormRequest
             'delivery_method' => 'nullable|string|max:255',
             'delivery_vendor' => 'nullable|string|max:255',
             'tracking_number' => 'nullable|string|max:255',
+            'items' => 'nullable|array',
+            'items.*.id' => 'required_with:items|exists:delivery_order_items,id',
+            'items.*.quantity' => 'required_with:items|integer|min:0',
+            'picking_list_id' => 'nullable|exists:picking_lists,id',
         ];
     }
 }

@@ -14,7 +14,8 @@ class StorePickingListRequest extends FormRequest
     public function rules()
     {
         return [
-            'sales_order_id' => 'required|exists:sales_orders,id',
+            'sales_order_id' => 'required_without:delivery_order_id|exists:sales_orders,id',
+            'delivery_order_id' => 'nullable|exists:delivery_orders,id',
             'notes' => 'nullable|string',
         ];
     }

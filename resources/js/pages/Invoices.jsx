@@ -100,7 +100,8 @@ const Invoices = () => {
       dueDate.setDate(dueDate.getDate() + 30);
 
       const invoiceData = {
-        sales_order_id: order.id,
+        delivery_order_id: order.id, // Now passing DO ID
+        sales_order_id: order.sales_order_id,
         customer_id: order.customer_id,
         issue_date: today,
         due_date: dueDate.toISOString().split('T')[0],
@@ -110,7 +111,7 @@ const Invoices = () => {
 
       const response = await api.post('/invoices', invoiceData);
       if (response.data) {
-        showSuccess(`Invoice ${response.data.invoice_number} created successfully`);
+        showSuccess(`Invoice ${response.data.invoice_number || response.data.data.invoice_number} created successfully`);
         setIsCreateModalOpen(false);
         fetchData();
       }
@@ -292,9 +293,14 @@ const Invoices = () => {
 
   const readyColumns = [
     {
+      header: "DO Number",
+      accessorKey: "delivery_order_number",
+      cell: (row) => <span className="font-medium">{row.delivery_order_number}</span>
+    },
+    {
       header: "SO Number",
-      accessorKey: "sales_order_number",
-      cell: (row) => <span className="font-medium">{row.sales_order_number}</span>
+      accessorKey: "sales_order.sales_order_number",
+      cell: (row) => <span className="text-muted-foreground">{row.sales_order?.sales_order_number}</span>
     },
     {
       header: "Customer",
@@ -302,12 +308,7 @@ const Invoices = () => {
       cell: (row) => row.customer?.company_name || row.customer?.name || '-'
     },
     {
-      header: "Total",
-      accessorKey: "total_amount",
-      cell: (row) => <span className="font-bold text-blue-600">{formatCurrency(row.total_amount)}</span>
-    },
-    {
-      header: "Shipped Date",
+      header: "Delivered Date",
       accessorKey: "updated_at",
       cell: (row) => new Date(row.updated_at).toLocaleDateString()
     },
@@ -405,7 +406,7 @@ const Invoices = () => {
         <TabsContent value="ready">
           <Card>
             <CardHeader>
-              <CardTitle>Shipped Orders Ready for Invoicing</CardTitle>
+              <CardTitle>Delivered Orders Ready for Invoicing</CardTitle>
             </CardHeader>
             <CardContent>
               <DataTable

@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search } from "lucide-react";
 
 const Quotations = () => {
@@ -47,14 +48,18 @@ const Quotations = () => {
   const [dependenciesLoading, setDependenciesLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedWarehouse, setSelectedWarehouse] = useState('all');
 
-  // Search handler
+  // Search and Filter handler
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchItems(1, { search });
+      fetchItems(1, {
+        search,
+        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+      });
     }, 500);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, selectedWarehouse]);
 
   // Fetch dependencies
   useEffect(() => {
@@ -333,14 +338,32 @@ const Quotations = () => {
               <p className="text-sm text-muted-foreground">
                 Create, view, and manage customer quotations.
               </p>
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search quotations..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8"
-                />
+              <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                <Select
+                  value={selectedWarehouse}
+                  onValueChange={(value) => setSelectedWarehouse(value)}
+                >
+                  <SelectTrigger className="w-full md:w-[200px]">
+                    <SelectValue placeholder="All Warehouses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Warehouses</SelectItem>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                        {warehouse.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative w-full md:w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search quotations..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>

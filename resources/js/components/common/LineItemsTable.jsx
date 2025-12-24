@@ -75,6 +75,10 @@ export function LineItemsTable({
                                             onSearch={onSearch}
                                             onCreate={(searchTerm) => onCreateProduct && onCreateProduct(index, searchTerm)}
                                             onChange={(value) => {
+                                                if (!value) {
+                                                    onUpdate(index, { ...item, product_id: '' });
+                                                    return;
+                                                }
                                                 const selectedProduct = products.find(p => p.id.toString() === value.toString());
                                                 onUpdate(index, {
                                                     ...item,

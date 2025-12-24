@@ -85,6 +85,11 @@ class DeliveryOrder extends Model
         return $this->belongsTo(WarehouseTransfer::class, 'source_id');
     }
 
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {

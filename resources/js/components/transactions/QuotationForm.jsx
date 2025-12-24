@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useForm } from '@/hooks/useForm';
 import { useLineItems } from '@/hooks/useLineItems';
 import { LineItemsTable } from '@/components/common/LineItemsTable';
@@ -161,12 +161,12 @@ export function QuotationForm({
     };
 
     // Handle search to filter local products
-    const handleSearch = (query) => {
+    const handleSearch = useCallback((query) => {
         setSearchTerm(query);
         if (onSearchProducts) {
             onSearchProducts(query);
         }
-    };
+    }, [onSearchProducts]);
 
     // Filter local products based on search term
     const filteredLocalProducts = localExtraProducts.filter(p => {
@@ -281,9 +281,7 @@ export function QuotationForm({
                             onAdd={addItem}
                             onUpdate={updateItem}
                             onRemove={removeItem}
-                            onRemove={removeItem}
                             onSearch={handleSearch}
-                            onCreateProduct={handleCreateProduct}
                             onCreateProduct={handleCreateProduct}
                             editable={true}
                         />

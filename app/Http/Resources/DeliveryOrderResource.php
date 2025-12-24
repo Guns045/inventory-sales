@@ -42,6 +42,7 @@ class DeliveryOrderResource extends JsonResource
                     return [
                         'id' => $item->id,
                         'product' => $item->product,
+                        'quantity' => $item->quantity_shipped, // Map quantity_shipped to quantity for frontend display
                         'quantity_shipped' => $item->quantity_shipped,
                         'quantity_delivered' => $item->quantity_delivered,
                         'status' => $item->status,

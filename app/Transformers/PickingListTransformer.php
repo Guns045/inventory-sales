@@ -20,10 +20,10 @@ class PickingListTransformer
         foreach ($pickingList->items as $index => $item) {
             $items[] = [
                 'no' => $index + 1,
-                'part_number' => $item->product->sku ?? $item->product_code ?? 'N/A',
-                'description' => $item->product->name ?? $item->product->description ?? $item->description ?? 'No description',
+                'part_number' => $item->product?->sku ?? $item->product_code ?? 'N/A',
+                'description' => $item->product?->name ?? $item->product?->description ?? $item->description ?? 'No description',
                 'qty' => $item->quantity_required,
-                'location' => $item->location_code ?? $item->product->location ?? 'A-01-01',
+                'location' => $item->location_code ?? $item->product?->location ?? 'A-01-01',
                 'picked_qty' => $item->quantity_picked ?? $item->quantity_required,
                 'status' => $item->quantity_picked >= $item->quantity_required ? 'COMPLETED' : 'PENDING'
             ];
@@ -53,10 +53,10 @@ class PickingListTransformer
             'status' => $pickingList->status ?? 'PENDING',
             'priority' => $pickingList->priority ?? 'NORMAL',
             'target_time' => $pickingList->target_time ?? '16:00',
-            'picker' => $pickingList->user->name ?? 'Warehouse Staff',
+            'picker' => $pickingList->user?->name ?? 'Warehouse Staff',
             'items' => $items,
             'notes' => $pickingList->notes ?? '',
-            'customer_name' => $pickingList->salesOrder->customer->company_name ?? $pickingList->salesOrder->customer->name ?? 'N/A'
+            'customer_name' => $pickingList->salesOrder?->customer?->company_name ?? $pickingList->salesOrder?->customer?->name ?? 'N/A'
         ];
     }
 
@@ -81,11 +81,11 @@ class PickingListTransformer
         foreach ($salesOrder->items as $index => $item) {
             $items[] = [
                 'no' => $index + 1,
-                'part_number' => $item->product->part_number ?? $item->product->code ?? $item->product->sku ?? 'N/A',
-                'description' => $item->product->name ?? $item->product->description ?? 'No Description',
+                'part_number' => $item->product?->part_number ?? $item->product?->code ?? $item->product?->sku ?? 'N/A',
+                'description' => $item->product?->name ?? $item->product?->description ?? 'No Description',
                 'qty' => $item->quantity,
-                'unit' => $item->product->unit ?? 'pcs',
-                'location' => $item->product->location ?? '-',
+                'unit' => $item->product?->unit ?? 'pcs',
+                'location' => $item->product?->location ?? '-',
                 'notes' => null
             ];
         }
@@ -151,14 +151,14 @@ class PickingListTransformer
         $items = [];
         $items[] = [
             'no' => 1,
-            'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
-            'description' => $transfer->product->name ?? $transfer->product->description ?? '-',
+            'part_number' => $transfer->product?->sku ?? $transfer->product?->part_number ?? '-',
+            'description' => $transfer->product?->name ?? $transfer->product?->description ?? '-',
             'qty' => $transfer->quantity_requested,
-            'unit' => $transfer->product->unit ?? 'pcs',
+            'unit' => $transfer->product?->unit ?? 'pcs',
             'location' => $location,
             'from_location' => $location,
-            'to_location' => $transfer->warehouseTo->name ?? '-',
-            'notes' => "Transfer from " . $transfer->warehouseFrom->name . " to " . $transfer->warehouseTo->name
+            'to_location' => $transfer->warehouseTo?->name ?? '-',
+            'notes' => "Transfer from " . ($transfer->warehouseFrom?->name ?? 'Unknown') . " to " . ($transfer->warehouseTo?->name ?? 'Unknown')
         ];
 
         return [

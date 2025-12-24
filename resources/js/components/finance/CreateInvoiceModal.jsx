@@ -16,9 +16,29 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
 
     useEffect(() => {
         if (order) {
-            setPoNumber(order.po_number || '');
+            setPoNumber(order.sales_order?.po_number || '');
         }
     }, [order]);
+
+    const calculateTotal = (doData) => {
+        if (!doData || !doData.delivery_order_items || !doData.sales_order?.sales_order_items) return 0;
+
+        return doData.delivery_order_items.reduce((total, item) => {
+            const soItem = doData.sales_order.sales_order_items.find(si => si.product_id === item.product_id);
+            if (!soItem) return total;
+
+            const quantity = item.quantity_delivered;
+            const unitPrice = parseFloat(soItem.unit_price);
+            const discount = parseFloat(soItem.discount_percentage);
+            const tax = parseFloat(soItem.tax_rate);
+
+            let price = quantity * unitPrice;
+            const discountAmount = price * (discount / 100);
+            const taxAmount = (price - discountAmount) * (tax / 100);
+
+            return total + (price - discountAmount + taxAmount);
+        }, 0);
+    };
 
     const handleConfirm = () => {
         onConfirm(order, poNumber);
@@ -36,22 +56,29 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
+                                <span className="font-semibold block">Delivery Order:</span>
+                                {order.delivery_order_number}
+                            </div>
+                            <div>
                                 <span className="font-semibold block">Sales Order:</span>
-                                {order.sales_order_number}
+                                {order.sales_order?.sales_order_number}
                             </div>
                             <div>
                                 <span className="font-semibold block">Date:</span>
                                 {new Date(order.created_at).toLocaleDateString()}
                             </div>
-                            <div className="col-span-2">
+                            <div>
                                 <span className="font-semibold block">Customer:</span>
                                 {order.customer?.company_name || order.customer?.name}
                             </div>
-                            <div className="col-span-2">
-                                <span className="font-semibold block">Total Amount:</span>
-                                <span className="text-lg font-bold text-primary">
-                                    {formatRupiah(order.total_amount)}
+                            <div className="col-span-2 mt-2 p-3 bg-muted rounded-md">
+                                <span className="font-semibold block mb-1">Estimated Invoice Amount:</span>
+                                <span className="text-xl font-bold text-primary">
+                                    {formatRupiah(calculateTotal(order))}
                                 </span>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Calculated based on delivered quantities.
+                                </p>
                             </div>
                         </div>
 

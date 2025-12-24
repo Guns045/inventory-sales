@@ -62,7 +62,6 @@ class InvoiceService
                 'customer_id' => $data['customer_id'],
                 'warehouse_id' => $warehouseId,
                 'issue_date' => $data['issue_date'],
-                'issue_date' => $data['issue_date'],
                 'due_date' => $this->calculateDueDate($data['issue_date'], $salesOrder->terms_of_payment),
                 'status' => $data['status'],
                 'total_amount' => $totalAmount,
@@ -100,6 +99,94 @@ class InvoiceService
             ]);
 
             return $invoice->load(['customer', 'salesOrder', 'invoiceItems.product']);
+        });
+    }
+
+    /**
+     * Create an invoice from a delivery order (Partial Invoicing)
+     */
+    public function createFromDeliveryOrder(int $deliveryOrderId, array $data): Invoice
+    {
+        return DB::transaction(function () use ($deliveryOrderId, $data) {
+            $deliveryOrder = \App\Models\DeliveryOrder::with(['deliveryOrderItems.product', 'salesOrder.salesOrderItems'])->findOrFail($deliveryOrderId);
+            $salesOrder = $deliveryOrder->salesOrder;
+
+            // Calculate total amount based on DELIVERED QUANTITY
+            $totalAmount = 0;
+            $invoiceItemsData = [];
+
+            foreach ($deliveryOrder->deliveryOrderItems as $doItem) {
+                // Find matching SO item to get price and discount info
+                $soItem = $salesOrder->salesOrderItems->where('product_id', $doItem->product_id)->first();
+
+                if (!$soItem)
+                    continue; // Should not happen if data integrity is maintained
+
+                $quantity = $doItem->quantity_delivered; // Use delivered quantity
+
+                if ($quantity <= 0)
+                    continue; // Skip items with 0 delivered quantity
+
+                $unitPrice = $soItem->unit_price;
+                $discountPercentage = $soItem->discount_percentage;
+                $taxRate = $soItem->tax_rate;
+
+                $totalPrice = $quantity * $unitPrice;
+                $discountAmount = $totalPrice * ($discountPercentage / 100);
+                $taxAmount = ($totalPrice - $discountAmount) * ($taxRate / 100);
+                $finalPrice = $totalPrice - $discountAmount + $taxAmount;
+
+                $totalAmount += $finalPrice;
+
+                $invoiceItemsData[] = [
+                    'product_id' => $doItem->product_id,
+                    'description' => $doItem->product->name,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'discount_percentage' => $discountPercentage,
+                    'tax_rate' => $taxRate,
+                    'total_price' => $finalPrice,
+                ];
+            }
+
+            // Update PO Number if provided
+            if (isset($data['po_number']) && !empty($data['po_number'])) {
+                $salesOrder->update(['po_number' => $data['po_number']]);
+            }
+
+            $warehouseId = $deliveryOrder->warehouse_id;
+            $invoiceNumber = $this->generateInvoiceNumber($warehouseId);
+
+            $invoice = Invoice::create([
+                'invoice_number' => $invoiceNumber,
+                'sales_order_id' => $salesOrder->id,
+                'delivery_order_id' => $deliveryOrderId, // Link to DO
+                'customer_id' => $salesOrder->customer_id,
+                'warehouse_id' => $warehouseId,
+                'issue_date' => $data['issue_date'],
+                'due_date' => $this->calculateDueDate($data['issue_date'], $salesOrder->terms_of_payment),
+                'status' => $data['status'],
+                'total_amount' => $totalAmount,
+            ]);
+
+            // Create invoice items
+            foreach ($invoiceItemsData as $itemData) {
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    ...$itemData
+                ]);
+            }
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'Created Invoice',
+                'description' => "Created invoice {$invoiceNumber} from delivery order {$deliveryOrder->delivery_order_number}",
+                'reference_type' => 'Invoice',
+                'reference_id' => $invoice->id,
+            ]);
+
+            return $invoice->load(['customer', 'salesOrder', 'deliveryOrder', 'invoiceItems.product']);
         });
     }
 

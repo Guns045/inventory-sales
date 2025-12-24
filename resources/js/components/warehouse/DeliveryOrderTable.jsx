@@ -11,7 +11,7 @@ import {
     Box
 } from 'lucide-react';
 
-export function DeliveryOrderTable({
+const DeliveryOrderTable = ({
     data,
     loading,
     onView,
@@ -20,7 +20,7 @@ export function DeliveryOrderTable({
     onCreatePickingList,
     onPrintPickingList,
     type = 'sales' // 'sales' or 'transfer'
-}) {
+}) => {
     const getStatusBadge = (status) => {
         const styles = {
             'PREPARING': 'bg-blue-100 text-blue-800 hover:bg-blue-200',
@@ -48,11 +48,23 @@ export function DeliveryOrderTable({
             accessorKey: "sales_order.sales_order_number",
             cell: (row) => (
                 <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm">
-                        {type === 'sales'
-                            ? row.sales_order?.sales_order_number || '-'
-                            : row.warehouse_transfer?.transfer_number || row.source_ref || '-'}
-                    </span>
+                    {type === 'sales'
+                        ? (
+                            <div className="flex flex-col">
+                                <span className="font-medium">{row.sales_order?.sales_order_number || '-'}</span>
+                                {row.sales_order?.status === 'PARTIAL' && (
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 w-fit mt-1">
+                                        Partial
+                                    </span>
+                                )}
+                            </div>
+                        )
+                        : (
+                            <span className="font-mono text-sm">
+                                {row.warehouse_transfer?.transfer_number || row.source_ref || '-'}
+                            </span>
+                        )
+                    }
                 </div>
             )
         },
@@ -83,23 +95,23 @@ export function DeliveryOrderTable({
 
     const renderActions = (row) => {
         return (
-            <div className="flex gap-1 justify-end">
-                <Button variant="ghost" size="icon" onClick={() => onView(row)} title="View Details">
+            <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onView(row); }} title="View Details">
                     <Eye className="h-4 w-4 text-gray-500" />
                 </Button>
 
                 {row.status === 'PREPARING' && (
                     <>
                         {row.picking_list_id ? (
-                            <Button variant="ghost" size="icon" onClick={() => onPrintPickingList(row)} title="Print Picking List">
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onPrintPickingList(row); }} title="Print Picking List">
                                 <Printer className="h-4 w-4 text-blue-500" />
                             </Button>
                         ) : (
-                            <Button variant="ghost" size="icon" onClick={() => onCreatePickingList(row)} title="Create Picking List">
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onCreatePickingList(row); }} title="Create Picking List">
                                 <ClipboardCheck className="h-4 w-4 text-blue-500" />
                             </Button>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => onUpdateStatus(row, 'READY_TO_SHIP')} title="Mark Ready to Ship">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onUpdateStatus(row, 'READY_TO_SHIP'); }} title="Mark Ready to Ship">
                             <Package className="h-4 w-4 text-green-500" />
                         </Button>
                     </>
@@ -107,17 +119,17 @@ export function DeliveryOrderTable({
 
                 {row.status === 'READY_TO_SHIP' && (
                     <>
-                        <Button variant="ghost" size="icon" onClick={() => onPrint(row)} title="Print DO">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onPrint(row); }} title="Print DO">
                             <Printer className="h-4 w-4 text-gray-500" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => onUpdateStatus(row, 'SHIPPED')} title="Ship Order">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onUpdateStatus(row, 'SHIPPED'); }} title="Ship Order">
                             <Truck className="h-4 w-4 text-orange-500" />
                         </Button>
                     </>
                 )}
 
                 {row.status === 'SHIPPED' && (
-                    <Button variant="ghost" size="icon" onClick={() => onUpdateStatus(row, 'DELIVERED')} title="Mark Delivered">
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onUpdateStatus(row, 'DELIVERED'); }} title="Mark Delivered">
                         <Box className="h-4 w-4 text-green-600" />
                     </Button>
                 )}
@@ -135,4 +147,6 @@ export function DeliveryOrderTable({
             emptyDescription="Delivery orders will appear here once created"
         />
     );
-}
+};
+
+export default DeliveryOrderTable;

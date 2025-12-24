@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
  * @param {number} total - Total items
  * @param {boolean} showInfo - Show pagination info
  */
-export function Pagination({
+const Pagination = ({
     currentPage,
     totalPages,
     onPageChange,
@@ -27,7 +27,7 @@ export function Pagination({
     total,
     showInfo = true,
     className
-}) {
+}) => {
     const canGoPrev = currentPage > 1
     const canGoNext = currentPage < totalPages
 
@@ -91,3 +91,5 @@ export function Pagination({
         </div>
     )
 }
+
+export default Pagination;

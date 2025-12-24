@@ -85,6 +85,7 @@ export function SalesOrderTable({
                 <StatusBadge status={row.status} config={{
                     'PENDING': { variant: 'warning', label: 'Pending' },
                     'PROCESSING': { variant: 'info', label: 'Processing' },
+                    'PARTIAL': { variant: 'info', label: 'Partial Shipment' },
                     'READY_TO_SHIP': { variant: 'primary', label: 'Ready to Ship' },
                     'SHIPPED': { variant: 'success', label: 'Shipped' },
                     'COMPLETED': { variant: 'success', label: 'Completed' },

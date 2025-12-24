@@ -150,15 +150,19 @@ class InvoiceController extends Controller
     /**
      * Get sales orders ready for invoicing (SHIPPED status)
      */
+    /**
+     * Get delivery orders ready for invoicing (DELIVERED status)
+     */
     public function getReadyToCreate()
     {
-        $shippedSalesOrders = SalesOrder::with(['customer', 'salesOrderItems.product', 'user'])
-            ->whereIn('status', ['SHIPPED', 'COMPLETED'])
-            ->whereDoesntHave('invoice')
+        // Fetch Delivery Orders that are DELIVERED but NOT yet invoiced
+        $deliveredOrders = \App\Models\DeliveryOrder::with(['customer', 'salesOrder.salesOrderItems', 'deliveryOrderItems.product', 'createdBy'])
+            ->where('status', 'DELIVERED')
+            ->whereDoesntHave('invoice') // Ensure no invoice exists for this DO
             ->orderBy('updated_at', 'desc')
             ->paginate(10);
 
-        return response()->json($shippedSalesOrders);
+        return response()->json($deliveredOrders);
     }
 
     /**
@@ -167,10 +171,19 @@ class InvoiceController extends Controller
     public function store(StoreInvoiceRequest $request)
     {
         try {
-            $invoice = $this->invoiceService->createFromSalesOrder(
-                $request->sales_order_id,
-                $request->validated()
-            );
+            if ($request->has('delivery_order_id')) {
+                $invoice = $this->invoiceService->createFromDeliveryOrder(
+                    $request->delivery_order_id,
+                    $request->validated()
+                );
+            } else {
+                // Fallback to SO based if needed, or error out if we strictly enforce DO based
+                $invoice = $this->invoiceService->createFromSalesOrder(
+                    $request->sales_order_id,
+                    $request->validated()
+                );
+            }
+
             return new InvoiceResource($invoice);
         } catch (\Exception $e) {
             return response()->json([
