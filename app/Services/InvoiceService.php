@@ -5,15 +5,53 @@ namespace App\Services;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\SalesOrder;
+use App\Models\DeliveryOrder;
+use App\Models\DocumentCounter;
 use App\Models\ActivityLog;
 use App\Models\Notification;
-use App\Models\DocumentCounter;
 use App\Transformers\InvoiceTransformer;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class InvoiceService
 {
+    /**
+     * Update overdue status for unpaid invoices
+     *
+     * @return int Number of invoices updated
+     */
+    public function updateOverdueStatus(): int
+    {
+        $overdueInvoices = Invoice::whereIn('status', ['UNPAID', 'PARTIAL'])
+            ->where('due_date', '<', Carbon::now()->subDay()->endOfDay()) // Due Date + 1 Day passed
+            ->get();
+
+        $count = 0;
+        foreach ($overdueInvoices as $invoice) {
+            $invoice->update(['status' => 'OVERDUE']);
+
+            ActivityLog::log(
+                'UPDATE_INVOICE_STATUS',
+                "System marked Invoice {$invoice->invoice_number} as OVERDUE",
+                $invoice,
+                ['status' => 'UNPAID'], // Assuming previous was UNPAID/PARTIAL
+                ['status' => 'OVERDUE']
+            );
+
+            Notification::createForRole(
+                config('inventory.roles.finance', 'Finance'),
+                "Invoice {$invoice->invoice_number} is now OVERDUE",
+                'warning',
+                '/invoices'
+            );
+
+            $count++;
+        }
+
+        return $count;
+    }
+
     /**
      * Create an invoice from a sales order
      *
