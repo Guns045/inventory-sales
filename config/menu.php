@@ -56,6 +56,12 @@ return [
                 'path' => '/goods-receipts',
                 'icon' => 'bi-box-seam',
                 'permission' => 'view_goods_receipts'
+            ],
+            [
+                'title' => 'Supplier',
+                'path' => '/suppliers',
+                'icon' => 'bi-truck',
+                'permission' => 'view_suppliers'
             ]
         ]
     ],
@@ -82,12 +88,6 @@ return [
                 'path' => '/warehouses',
                 'icon' => 'bi-building',
                 'permission' => 'view_warehouses'
-            ],
-            [
-                'title' => 'Supplier',
-                'path' => '/suppliers',
-                'icon' => 'bi-truck',
-                'permission' => 'view_suppliers'
             ]
         ]
     ],
