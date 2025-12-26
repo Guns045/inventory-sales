@@ -107,9 +107,9 @@ export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }
                     </div>
 
                     {/* Items Table */}
-                    <div className="border rounded-md overflow-hidden">
+                    <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto">
                         <table className="w-full text-sm">
-                            <thead className="bg-gray-100 border-b">
+                            <thead className="bg-gray-100 border-b sticky top-0 z-10">
                                 <tr>
                                     <th className="px-4 py-2 text-left">Part Number</th>
                                     <th className="px-4 py-2 text-left">Description</th>

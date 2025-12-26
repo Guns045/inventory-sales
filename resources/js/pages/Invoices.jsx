@@ -530,9 +530,9 @@ const Invoices = () => {
             {/* Items Table */}
             <div>
               <h4 className="font-semibold mb-2 text-sm">Invoice Items</h4>
-              <div className="border rounded-md overflow-hidden">
+              <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted">
+                  <thead className="bg-muted sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-2 text-left">Product</th>
                       <th className="px-4 py-2 text-center">Qty</th>

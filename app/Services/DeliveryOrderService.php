@@ -609,7 +609,7 @@ class DeliveryOrderService
 
         // Check source type and transform accordingly
         if ($deliveryOrder->source_type === 'IT' && $deliveryOrder->source_id) {
-            $transfer = WarehouseTransfer::with(['product', 'warehouseFrom', 'warehouseTo'])
+            $transfer = WarehouseTransfer::with(['items.product', 'warehouseFrom', 'warehouseTo'])
                 ->findOrFail($deliveryOrder->source_id);
             $deliveryData = DeliveryOrderTransformer::transformFromWarehouseTransfer($transfer, $deliveryOrder);
             $sourceType = 'IT';

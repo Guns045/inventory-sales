@@ -140,26 +140,29 @@ class PickingListTransformer
             }
         }
 
-        // Fetch ProductStock for bin location
-        $productStock = \App\Models\ProductStock::where('product_id', $transfer->product_id)
-            ->where('warehouse_id', $transfer->warehouse_from_id)
-            ->first();
-
-        $location = $productStock->bin_location ?? $transfer->product->location ?? '-';
-
         // Prepare items data
         $items = [];
-        $items[] = [
-            'no' => 1,
-            'part_number' => $transfer->product?->sku ?? $transfer->product?->part_number ?? '-',
-            'description' => $transfer->product?->name ?? $transfer->product?->description ?? '-',
-            'qty' => $transfer->quantity_requested,
-            'unit' => $transfer->product?->unit ?? 'pcs',
-            'location' => $location,
-            'from_location' => $location,
-            'to_location' => $transfer->warehouseTo?->name ?? '-',
-            'notes' => "Transfer from " . ($transfer->warehouseFrom?->name ?? 'Unknown') . " to " . ($transfer->warehouseTo?->name ?? 'Unknown')
-        ];
+
+        foreach ($transfer->items as $index => $item) {
+            // Fetch ProductStock for bin location
+            $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)
+                ->where('warehouse_id', $transfer->warehouse_from_id)
+                ->first();
+
+            $location = $productStock->bin_location ?? $item->product->location ?? '-';
+
+            $items[] = [
+                'no' => $index + 1,
+                'part_number' => $item->product?->sku ?? $item->product?->part_number ?? '-',
+                'description' => $item->product?->name ?? $item->product?->description ?? '-',
+                'qty' => $item->quantity_requested,
+                'unit' => $item->product?->unit ?? 'pcs',
+                'location' => $location,
+                'from_location' => $location,
+                'to_location' => $transfer->warehouseTo?->name ?? '-',
+                'notes' => $item->notes ?? "Transfer from " . ($transfer->warehouseFrom?->name ?? 'Unknown') . " to " . ($transfer->warehouseTo?->name ?? 'Unknown')
+            ];
+        }
 
         return [
             'PL' => $pickingListNumber,

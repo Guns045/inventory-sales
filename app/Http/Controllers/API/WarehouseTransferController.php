@@ -29,7 +29,7 @@ class WarehouseTransferController extends Controller
     public function index(Request $request)
     {
         $query = WarehouseTransfer::with([
-            'product',
+            'items.product',
             'warehouseFrom',
             'warehouseTo',
             'requestedBy',
@@ -136,7 +136,7 @@ class WarehouseTransferController extends Controller
     public function show($id)
     {
         $transfer = WarehouseTransfer::with([
-            'product',
+            'items.product',
             'warehouseFrom',
             'warehouseTo',
             'requestedBy',

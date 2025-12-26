@@ -636,29 +636,31 @@ const PurchaseOrders = () => {
             <DialogTitle>Items for {selectedOrder?.po_number}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orderItems.map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="font-medium">{item.product?.sku || 'N/A'}</div>
-                      <div className="text-xs text-muted-foreground">{item.product?.name || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell className="text-right">{item.quantity_ordered}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.quantity_ordered * item.unit_price)}</TableCell>
+            <div className="rounded-md border max-h-[300px] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {orderItems.map((item, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="font-medium">{item.product?.sku || 'N/A'}</div>
+                        <div className="text-xs text-muted-foreground">{item.product?.name || 'N/A'}</div>
+                      </TableCell>
+                      <TableCell className="text-right">{item.quantity_ordered}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.quantity_ordered * item.unit_price)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={() => setShowItemsModal(false)}>Close</Button>

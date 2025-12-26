@@ -307,7 +307,7 @@ class DeliveryOrderController extends Controller
         ]);
 
         try {
-            $transfer = \App\Models\WarehouseTransfer::with(['product', 'warehouseFrom', 'warehouseTo'])
+            $transfer = \App\Models\WarehouseTransfer::with(['items.product', 'warehouseFrom', 'warehouseTo'])
                 ->findOrFail($request->warehouse_transfer_id);
 
             if ($transfer->status !== 'IN_TRANSIT') {

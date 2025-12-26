@@ -14,11 +14,13 @@ class StoreWarehouseTransferRequest extends FormRequest
     public function rules()
     {
         return [
-            'product_id' => 'required|exists:products,id',
             'warehouse_from_id' => 'required|exists:warehouses,id',
             'warehouse_to_id' => 'required|exists:warehouses,id|different:warehouse_from_id',
-            'quantity_requested' => 'required|integer|min:1',
             'notes' => 'nullable|string|max:500',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity_requested' => 'required|integer|min:1',
+            'items.*.notes' => 'nullable|string|max:255',
         ];
     }
 }

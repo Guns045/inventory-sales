@@ -50,14 +50,25 @@ export function InternalTransferTable({
             cell: (row) => <span className="font-mono font-medium">{row.transfer_number}</span>
         },
         {
-            header: "Product",
-            accessorKey: "product.sku",
-            cell: (row) => (
-                <div>
-                    <div className="font-medium">{row.product?.sku}</div>
-                    <div className="text-xs text-muted-foreground">{row.product?.description}</div>
-                </div>
-            )
+            header: "Items",
+            accessorKey: "items",
+            cell: (row) => {
+                const itemCount = row.items?.length || 0;
+                if (itemCount === 0) return <span className="text-muted-foreground">-</span>;
+
+                const firstItem = row.items[0];
+                return (
+                    <div>
+                        <div className="font-medium">
+                            {firstItem.product?.sku}
+                            {itemCount > 1 && <span className="text-muted-foreground ml-1 text-xs">(+{itemCount - 1} more)</span>}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {firstItem.product?.name}
+                        </div>
+                    </div>
+                );
+            }
         },
         {
             header: "From",
@@ -70,20 +81,21 @@ export function InternalTransferTable({
             cell: (row) => row.warehouseTo?.name || '-'
         },
         {
-            header: "Qty",
-            accessorKey: "quantity_requested",
-            cell: (row) => (
-                <div className="text-right">
-                    <div>Req: {row.quantity_requested}</div>
-                    {row.quantity_delivered > 0 && <div className="text-xs text-orange-600">Del: {row.quantity_delivered}</div>}
-                    {row.quantity_received > 0 && <div className="text-xs text-green-600">Rec: {row.quantity_received}</div>}
-                    {row.product?.weight > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                            {(row.quantity_requested * row.product.weight).toFixed(2)} kg
-                        </div>
-                    )}
-                </div>
-            )
+            header: "Total Qty",
+            accessorKey: "total_qty",
+            cell: (row) => {
+                const totalRequested = row.items?.reduce((sum, item) => sum + item.quantity_requested, 0) || 0;
+                const totalDelivered = row.items?.reduce((sum, item) => sum + (item.quantity_delivered || 0), 0) || 0;
+                const totalReceived = row.items?.reduce((sum, item) => sum + (item.quantity_received || 0), 0) || 0;
+
+                return (
+                    <div className="text-right">
+                        <div>Req: {totalRequested}</div>
+                        {totalDelivered > 0 && <div className="text-xs text-orange-600">Del: {totalDelivered}</div>}
+                        {totalReceived > 0 && <div className="text-xs text-green-600">Rec: {totalReceived}</div>}
+                    </div>
+                );
+            }
         },
         {
             header: "Status",

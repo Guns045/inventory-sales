@@ -77,20 +77,26 @@ class DeliveryOrderTransformer
         $deliveryOrderNumber = $deliveryOrder ? $deliveryOrder->delivery_order_number : $transfer->transfer_number;
 
         // Prepare items data
+        // Prepare items data
         $items = [];
-        $weight = $transfer->product->weight ?? 0;
-        $quantity = $transfer->quantity_delivered ?? $transfer->quantity_requested;
-        $totalWeight = $weight * $quantity;
+        $totalWeight = 0;
 
-        $items[] = [
-            'part_number' => $transfer->product->sku ?? $transfer->product->part_number ?? '-',
-            'description' => $transfer->product->name ?? $transfer->product->description ?? '-',
-            'quantity' => $quantity,
-            'weight' => $weight,
-            'total_weight' => $totalWeight,
-            'from_location' => $transfer->product->location ?? $transfer->warehouseFrom->name ?? '-',
-            'to_location' => $transfer->product->location ?? $transfer->warehouseTo->name ?? '-'
-        ];
+        foreach ($transfer->items as $item) {
+            $weight = $item->product?->weight ?? 0;
+            $quantity = $item->quantity_delivered ?? $item->quantity_requested;
+            $itemTotalWeight = $weight * $quantity;
+            $totalWeight += $itemTotalWeight;
+
+            $items[] = [
+                'part_number' => $item->product?->sku ?? $item->product?->part_number ?? '-',
+                'description' => $item->product?->name ?? $item->product?->description ?? '-',
+                'quantity' => $quantity,
+                'weight' => $weight,
+                'total_weight' => $itemTotalWeight,
+                'from_location' => $item->product?->location ?? $transfer->warehouseFrom->name ?? '-',
+                'to_location' => $item->product?->location ?? $transfer->warehouseTo->name ?? '-'
+            ];
+        }
 
         return [
             'delivery_no' => $deliveryOrderNumber,

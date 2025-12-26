@@ -11,8 +11,7 @@ class WarehouseTransferResource extends JsonResource
         return [
             'id' => $this->id,
             'transfer_number' => $this->transfer_number,
-            'product_id' => $this->product_id,
-            'product' => $this->whenLoaded('product'),
+            'items' => WarehouseTransferItemResource::collection($this->whenLoaded('items')),
             'warehouse_from_id' => $this->warehouse_from_id,
             'warehouseFrom' => $this->whenLoaded('warehouseFrom', function () {
                 return [
@@ -29,9 +28,6 @@ class WarehouseTransferResource extends JsonResource
                     'code' => $this->warehouseTo->code
                 ];
             }),
-            'quantity_requested' => $this->quantity_requested,
-            'quantity_delivered' => $this->quantity_delivered,
-            'quantity_received' => $this->quantity_received,
             'status' => $this->status,
             'notes' => $this->notes,
             'reason' => $this->reason,

@@ -12,12 +12,8 @@ class WarehouseTransfer extends Model
 
     protected $fillable = [
         'transfer_number',
-        'product_id',
         'warehouse_from_id',
         'warehouse_to_id',
-        'quantity_requested',
-        'quantity_delivered',
-        'quantity_received',
         'status',
         'notes',
         'reason',
@@ -36,9 +32,6 @@ class WarehouseTransfer extends Model
         'delivered_at' => 'datetime',
         'received_at' => 'datetime',
         'requested_at' => 'datetime',
-        'quantity_requested' => 'integer',
-        'quantity_delivered' => 'integer',
-        'quantity_received' => 'integer',
     ];
 
     protected static function boot()
@@ -48,9 +41,9 @@ class WarehouseTransfer extends Model
 
 
     // Scopes
-    public function product(): BelongsTo
+    public function items()
     {
-        return $this->belongsTo(Product::class);
+        return $this->hasMany(WarehouseTransferItem::class);
     }
 
     public function warehouseFrom(): BelongsTo

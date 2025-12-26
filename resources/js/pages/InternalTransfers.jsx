@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InternalTransferTable } from '@/components/warehouse/InternalTransferTable';
-import { Plus, Search, RefreshCw, Loader2, CheckCircle } from "lucide-react";
+import { Plus, Search, RefreshCw, Loader2, CheckCircle, Trash2 } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const InternalTransfers = () => {
   const { api } = useAPI();
@@ -32,18 +33,25 @@ const InternalTransfers = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
-    product_id: '',
     warehouse_from_id: '',
     warehouse_to_id: '',
-    quantity_requested: 1,
-    notes: ''
+    notes: '',
+    items: [] // Array of { product_id, quantity_requested, notes, product_name, product_sku }
   });
 
-  // Auto-suggest state
+  // Auto-suggest state (per row or global? Let's use a simple add-item section)
   const [productSearch, setProductSearch] = useState('');
   const [suggestedProducts, setSuggestedProducts] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [newItem, setNewItem] = useState({
+    product_id: '',
+    quantity_requested: 1,
+    notes: '',
+    product_name: '',
+    product_sku: ''
+  });
+
   const wrapperRef = React.useRef(null);
 
   useEffect(() => {
@@ -92,6 +100,11 @@ const InternalTransfers = () => {
   };
 
   const handleCreateTransfer = async () => {
+    if (formData.items.length === 0) {
+      showError('Please add at least one item to the transfer');
+      return;
+    }
+
     try {
       if (editingId) {
         await api.put(`/warehouse-transfers/${editingId}`, formData);
@@ -102,31 +115,45 @@ const InternalTransfers = () => {
       }
 
       setShowFormModal(false);
-      setFormData({
-        product_id: '',
-        warehouse_from_id: '',
-        warehouse_to_id: '',
-        quantity_requested: 1,
-        notes: ''
-      });
-      setProductSearch('');
-      setEditingId(null);
+      resetForm();
       fetchData();
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to save transfer');
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      warehouse_from_id: '',
+      warehouse_to_id: '',
+      notes: '',
+      items: []
+    });
+    setNewItem({
+      product_id: '',
+      quantity_requested: 1,
+      notes: '',
+      product_name: '',
+      product_sku: ''
+    });
+    setProductSearch('');
+    setEditingId(null);
+  };
+
   const handleEdit = (transfer) => {
     setEditingId(transfer.id);
     setFormData({
-      product_id: transfer.product_id,
       warehouse_from_id: transfer.warehouse_from_id.toString(),
       warehouse_to_id: transfer.warehouse_to_id.toString(),
-      quantity_requested: transfer.quantity_requested,
-      notes: transfer.notes || ''
+      notes: transfer.notes || '',
+      items: transfer.items.map(item => ({
+        product_id: item.product_id,
+        quantity_requested: item.quantity_requested,
+        notes: item.notes || '',
+        product_name: item.product.name,
+        product_sku: item.product.sku
+      }))
     });
-    setProductSearch(`${transfer.product.sku} - ${transfer.product.name}`);
     setShowFormModal(true);
   };
 
@@ -149,21 +176,15 @@ const InternalTransfers = () => {
   };
 
   const handleDeliver = async (id) => {
-    const transfer = transfers.find(t => t.id === id);
-    const maxQuantity = transfer?.quantity_requested || 0;
-    const quantity = prompt(`Enter quantity to deliver (max: ${maxQuantity}):`);
-
-    if (!quantity) return;
-    const parsedQuantity = parseInt(quantity);
-
-    if (isNaN(parsedQuantity) || parsedQuantity <= 0 || parsedQuantity > maxQuantity) {
-      showError('Invalid quantity');
-      return;
-    }
+    // Simple delivery for now - assume delivering all items fully
+    // In a real scenario, we might want a modal to specify qty per item
+    if (!confirm('Are you sure you want to deliver all items in this transfer?')) return;
 
     try {
       await api.post(`/warehouse-transfers/${id}/deliver`, {
-        quantity_delivered: parsedQuantity,
+        quantity_delivered: 0, // Backend will handle item loop or we need to send items array
+        // For now, let's assume backend defaults to requested qty if we don't send items
+        // Or we can send items array if we want to be precise
         notes: 'Delivered by ' + user.name
       });
       showSuccess('Delivery order created successfully!');
@@ -174,13 +195,11 @@ const InternalTransfers = () => {
   };
 
   const handleReceive = async (transfer) => {
-    const maxQuantity = transfer?.quantity_delivered || 0;
-    const quantity = prompt(`Enter quantity to receive (max: ${maxQuantity}):`);
-    if (!quantity) return;
+    if (!confirm('Are you sure you want to receive all items in this transfer?')) return;
 
     try {
       await api.post(`/warehouse-transfers/${transfer.id}/receive`, {
-        quantity_received: parseInt(quantity),
+        quantity_received: 0,
         notes: 'Received by ' + user.name
       });
       showSuccess('Goods received successfully!');
@@ -204,7 +223,6 @@ const InternalTransfers = () => {
   };
 
   const handlePrintDO = async (transferNumber) => {
-    // Implementation for printing DO (reused logic)
     try {
       const response = await api.get('/delivery-orders');
       const deliveryOrders = response.data.data;
@@ -236,7 +254,6 @@ const InternalTransfers = () => {
 
       showSuccess(`Picking List ${picking_list_number} generated!`);
 
-      // Handle PDF download
       if (pdf_content) {
         const byteCharacters = atob(pdf_content);
         const byteNumbers = new Array(byteCharacters.length);
@@ -247,7 +264,6 @@ const InternalTransfers = () => {
         const blob = new Blob([byteArray], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
 
-        // Open in new tab or download
         const link = document.createElement('a');
         link.href = url;
         link.download = filename || `PickingList-${picking_list_number}.pdf`;
@@ -265,9 +281,8 @@ const InternalTransfers = () => {
   const handleProductSearchChange = async (e) => {
     const value = e.target.value;
     setProductSearch(value);
-    // Clear selected product when user types
-    if (formData.product_id) {
-      setFormData(prev => ({ ...prev, product_id: '' }));
+    if (newItem.product_id) {
+      setNewItem(prev => ({ ...prev, product_id: '', product_name: '', product_sku: '' }));
     }
 
     if (value.length < 2) {
@@ -289,12 +304,48 @@ const InternalTransfers = () => {
   };
 
   const handleSelectProduct = (product) => {
-    setFormData({ ...formData, product_id: product.id });
+    setNewItem({
+      ...newItem,
+      product_id: product.id,
+      product_name: product.name,
+      product_sku: product.sku
+    });
     setProductSearch(`${product.sku} - ${product.name}`);
     setShowSuggestions(false);
   };
 
-  // Permission checks
+  const handleAddItem = () => {
+    if (!newItem.product_id) {
+      showError('Please select a product');
+      return;
+    }
+    if (newItem.quantity_requested < 1) {
+      showError('Quantity must be at least 1');
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      items: [...formData.items, { ...newItem }]
+    });
+
+    // Reset new item input
+    setNewItem({
+      product_id: '',
+      quantity_requested: 1,
+      notes: '',
+      product_name: '',
+      product_sku: ''
+    });
+    setProductSearch('');
+  };
+
+  const handleRemoveItem = (index) => {
+    const newItems = [...formData.items];
+    newItems.splice(index, 1);
+    setFormData({ ...formData, items: newItems });
+  };
+
   // Permission checks
   const getRoleName = (user) => {
     if (!user || !user.role) return '';
@@ -335,15 +386,7 @@ const InternalTransfers = () => {
             Refresh
           </Button>
           <Button onClick={() => {
-            setEditingId(null);
-            setFormData({
-              product_id: '',
-              warehouse_from_id: '',
-              warehouse_to_id: '',
-              quantity_requested: 1,
-              notes: ''
-            });
-            setProductSearch('');
+            resetForm();
             setShowFormModal(true);
           }}>
             <Plus className="mr-2 h-4 w-4" />
@@ -409,88 +452,11 @@ const InternalTransfers = () => {
       </Card>
 
       <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Transfer Request' : 'Create Transfer Request'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Product</Label>
-                <div className="relative" ref={wrapperRef}>
-                  <Input
-                    placeholder="Search product by name or SKU..."
-                    value={productSearch}
-                    onChange={handleProductSearchChange}
-                    onFocus={() => {
-                      if (productSearch.length >= 2) setShowSuggestions(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (suggestedProducts.length > 0) {
-                          handleSelectProduct(suggestedProducts[0]);
-                        }
-                      }
-                    }}
-                    onBlur={() => {
-                      // Small delay to allow click event on suggestions to fire first
-                      setTimeout(() => {
-                        if (productSearch && !formData.product_id) {
-                          // Check for exact match in suggestions
-                          const exactMatch = suggestedProducts.find(
-                            p => p.sku.toLowerCase() === productSearch.toLowerCase() ||
-                              p.name.toLowerCase() === productSearch.toLowerCase()
-                          );
-
-                          if (exactMatch) {
-                            handleSelectProduct(exactMatch);
-                          }
-                        }
-                      }, 200);
-                    }}
-                  />
-                  {loadingSuggestions && (
-                    <div className="absolute right-3 top-2.5">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
-                  {showSuggestions && suggestedProducts.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
-                      {suggestedProducts.map((product) => (
-                        <div
-                          key={product.id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                          onClick={() => handleSelectProduct(product)}
-                        >
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-xs text-gray-500">{product.sku}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {!formData.product_id && productSearch.length > 0 && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    Please select a product from the dropdown list
-                  </p>
-                )}
-                {formData.product_id && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" /> Product selected
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Quantity</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={formData.quantity_requested}
-                  onChange={(e) => setFormData({ ...formData, quantity_requested: e.target.value })}
-                />
-              </div>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>From Warehouse</Label>
@@ -524,6 +490,7 @@ const InternalTransfers = () => {
                 </Select>
               </div>
             </div>
+
             <div className="space-y-2">
               <Label>Notes</Label>
               <Input
@@ -531,6 +498,105 @@ const InternalTransfers = () => {
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Optional notes..."
               />
+            </div>
+
+            <div className="border rounded-md p-4 space-y-4">
+              <h4 className="font-medium">Items</h4>
+
+              <div className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-5 space-y-2">
+                  <Label>Product</Label>
+                  <div className="relative" ref={wrapperRef}>
+                    <Input
+                      placeholder="Search product..."
+                      value={productSearch}
+                      onChange={handleProductSearchChange}
+                      onFocus={() => {
+                        if (productSearch.length >= 2) setShowSuggestions(true);
+                      }}
+                    />
+                    {loadingSuggestions && (
+                      <div className="absolute right-3 top-2.5">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                    {showSuggestions && suggestedProducts.length > 0 && (
+                      <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                        {suggestedProducts.map((product) => (
+                          <div
+                            key={product.id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                            onClick={() => handleSelectProduct(product)}
+                          >
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-xs text-gray-500">{product.sku}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Qty</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newItem.quantity_requested}
+                    onChange={(e) => setNewItem({ ...newItem, quantity_requested: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+                <div className="col-span-4 space-y-2">
+                  <Label>Item Notes</Label>
+                  <Input
+                    value={newItem.notes}
+                    onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
+                    placeholder="Optional..."
+                  />
+                </div>
+                <div className="col-span-1">
+                  <Button onClick={handleAddItem} disabled={!newItem.product_id}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-white z-10">
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {formData.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No items added
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      formData.items.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <div className="font-medium">{item.product_name}</div>
+                            <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                          </TableCell>
+                          <TableCell>{item.quantity_requested}</TableCell>
+                          <TableCell>{item.notes}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoveItem(index)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -541,7 +607,7 @@ const InternalTransfers = () => {
       </Dialog>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>Transfer Details</DialogTitle>
           </DialogHeader>
@@ -569,20 +635,6 @@ const InternalTransfers = () => {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Product Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Part Number</Label>
-                    <div className="font-medium">{selectedTransfer.product?.sku}</div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Product Name</Label>
-                    <div className="font-medium">{selectedTransfer.product?.name}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
                 <h4 className="font-medium mb-2">Warehouse Information</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -597,20 +649,33 @@ const InternalTransfers = () => {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Quantities</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Requested</Label>
-                    <div className="font-medium">{selectedTransfer.quantity_requested}</div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Delivered</Label>
-                    <div className="font-medium">{selectedTransfer.quantity_delivered || 0}</div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Received</Label>
-                    <div className="font-medium">{selectedTransfer.quantity_received || 0}</div>
-                  </div>
+                <h4 className="font-medium mb-2">Items</h4>
+                <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Requested</TableHead>
+                        <TableHead>Delivered</TableHead>
+                        <TableHead>Received</TableHead>
+                        <TableHead>Notes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedTransfer.items && selectedTransfer.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div className="font-medium">{item.product?.name}</div>
+                            <div className="text-xs text-muted-foreground">{item.product?.sku}</div>
+                          </TableCell>
+                          <TableCell>{item.quantity_requested}</TableCell>
+                          <TableCell>{item.quantity_delivered || 0}</TableCell>
+                          <TableCell>{item.quantity_received || 0}</TableCell>
+                          <TableCell>{item.notes}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
 

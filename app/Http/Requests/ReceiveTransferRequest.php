@@ -14,7 +14,9 @@ class ReceiveTransferRequest extends FormRequest
     public function rules()
     {
         return [
-            'quantity_received' => 'required|integer|min:1',
+            'items' => 'nullable|array',
+            'items.*.id' => 'required_with:items|exists:warehouse_transfer_items,id',
+            'items.*.quantity_received' => 'required_with:items|integer|min:1',
             'notes' => 'nullable|string|max:500'
         ];
     }

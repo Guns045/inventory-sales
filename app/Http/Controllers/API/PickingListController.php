@@ -237,7 +237,7 @@ class PickingListController extends Controller
         ]);
 
         try {
-            $transfer = \App\Models\WarehouseTransfer::with(['product', 'warehouseFrom', 'warehouseTo', 'requestedBy'])
+            $transfer = \App\Models\WarehouseTransfer::with(['items.product', 'warehouseFrom', 'warehouseTo', 'requestedBy'])
                 ->findOrFail($request->warehouse_transfer_id);
 
             $result = $this->pickingListService->generatePDFFromTransfer($transfer);

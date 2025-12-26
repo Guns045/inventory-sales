@@ -128,64 +128,66 @@ const DeliveryOrderDetailsModal = ({ isOpen, onClose, order }) => {
 
                 <div className="py-4">
                     <h3 className="font-semibold mb-4">Order Items</h3>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Part Number</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Weight (kg)</TableHead>
-                                {!isPendingSO && <TableHead className="text-right">Shipped</TableHead>}
-                                <TableHead>Location</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {items.map((item, index) => (
-                                <TableRow key={item.id || index}>
-                                    <TableCell>
-                                        <div className="font-medium">{item.product?.sku || item.product_code || 'N/A'}</div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="font-medium">{item.product?.name || item.product_name || 'N/A'}</div>
-                                        {item.product?.description && (
-                                            <div className="text-xs text-muted-foreground">{item.product.description}</div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {isPendingSO ? item.quantity : (item.quantity_ordered || item.quantity)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {item.product?.weight ? (
-                                            <span>
-                                                {(item.product.weight * (isPendingSO ? item.quantity : (item.quantity_shipped || item.quantity_delivered || item.quantity_ordered || 0))).toFixed(2)}
-                                                <span className="text-xs text-muted-foreground block">(@{item.product.weight})</span>
-                                            </span>
-                                        ) : '-'}
-                                    </TableCell>
-                                    {!isPendingSO && (
-                                        <TableCell className="text-right">
-                                            {item.quantity_shipped || item.quantity_delivered || 0}
+                    <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead>Part Number</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Quantity</TableHead>
+                                    <TableHead className="text-right">Weight (kg)</TableHead>
+                                    {!isPendingSO && <TableHead className="text-right">Shipped</TableHead>}
+                                    <TableHead>Location</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {items.map((item, index) => (
+                                    <TableRow key={item.id || index}>
+                                        <TableCell>
+                                            <div className="font-medium">{item.product?.sku || item.product_code || 'N/A'}</div>
                                         </TableCell>
-                                    )}
-                                    <TableCell>{item.location_code || item.product?.location_code || 'N/A'}</TableCell>
-                                </TableRow>
-                            ))}
-                            {items.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                                        No items found
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                            {items.length > 0 && totalWeight > 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={3} className="text-right font-bold">Total Weight:</TableCell>
-                                    <TableCell className="text-right font-bold">{totalWeight.toFixed(2)} kg</TableCell>
-                                    <TableCell colSpan={2}></TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                        <TableCell>
+                                            <div className="font-medium">{item.product?.name || item.product_name || 'N/A'}</div>
+                                            {item.product?.description && (
+                                                <div className="text-xs text-muted-foreground">{item.product.description}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {isPendingSO ? item.quantity : (item.quantity_ordered || item.quantity)}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {item.product?.weight ? (
+                                                <span>
+                                                    {(item.product.weight * (isPendingSO ? item.quantity : (item.quantity_shipped || item.quantity_delivered || item.quantity_ordered || 0))).toFixed(2)}
+                                                    <span className="text-xs text-muted-foreground block">(@{item.product.weight})</span>
+                                                </span>
+                                            ) : '-'}
+                                        </TableCell>
+                                        {!isPendingSO && (
+                                            <TableCell className="text-right">
+                                                {item.quantity_shipped || item.quantity_delivered || 0}
+                                            </TableCell>
+                                        )}
+                                        <TableCell>{item.location_code || item.product?.location_code || 'N/A'}</TableCell>
+                                    </TableRow>
+                                ))}
+                                {items.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                            No items found
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {items.length > 0 && totalWeight > 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-right font-bold">Total Weight:</TableCell>
+                                        <TableCell className="text-right font-bold">{totalWeight.toFixed(2)} kg</TableCell>
+                                        <TableCell colSpan={2}></TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
 
 

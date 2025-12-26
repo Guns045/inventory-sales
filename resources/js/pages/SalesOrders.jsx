@@ -271,9 +271,9 @@ const SalesOrders = () => {
 
               <div>
                 <h4 className="font-semibold mb-2">Order Items</h4>
-                <div className="border rounded-md">
+                <div className="border rounded-md max-h-[300px] overflow-y-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead className="text-center">Qty</TableHead>
