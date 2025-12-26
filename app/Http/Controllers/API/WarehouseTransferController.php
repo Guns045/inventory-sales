@@ -67,9 +67,16 @@ class WarehouseTransferController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('transfer_number', 'like', "%{$search}%")
-                    ->orWhereHas('product', function ($q) use ($search) {
+                    ->orWhereHas('items.product', function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
-                            ->orWhere('sku', 'like', "%{$search}%");
+                            ->orWhere('sku', 'like', "%{$search}%")
+                            ->orWhere('description', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('warehouseFrom', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('warehouseTo', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
                     });
             });
         }
