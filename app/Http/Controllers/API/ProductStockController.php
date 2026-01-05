@@ -243,6 +243,56 @@ class ProductStockController extends Controller
         }
     }
 
+    public function export(Request $request)
+    {
+        try {
+            $filters = [
+                'view_mode' => $request->get('view_mode', 'per-warehouse'),
+                'search' => $request->get('search', ''),
+                'warehouse_id' => $request->get('warehouse_id', ''),
+                // No per_page for export, we want all
+            ];
+
+            // Re-implementing query logic here to avoid pagination and get all results
+            // Or we could modify service to accept 'all' as per_page, but let's keep it simple here for now
+            // Actually, let's reuse the service logic but without pagination if possible.
+            // But the service methods return paginators.
+            // Let's just build the query here similar to service.
+
+            $query = ProductStock::with(['product.category', 'warehouse']);
+
+            if ($filters['search']) {
+                $search = $filters['search'];
+                $query->whereHas('product', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            if ($filters['warehouse_id'] && $filters['warehouse_id'] !== 'all') {
+                $query->where('warehouse_id', $filters['warehouse_id']);
+            }
+
+            // Role-based filtering
+            $user = $request->user();
+            if ($user && !$user->canAccessAllWarehouses() && $user->warehouse_id) {
+                $query->where('warehouse_id', $user->warehouse_id);
+            }
+
+            $stocks = $query->get();
+
+            return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\ProductStockExport($stocks), 'product_stock.xlsx');
+
+        } catch (\Exception $e) {
+            Log::error('ProductStock Export Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to export product stock',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function downloadTemplate()
     {
         $data = [

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, CheckCircle, Clock, XCircle, Search } from "lucide-react";
+import { ShoppingCart, CheckCircle, Clock, XCircle, Search, Download } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import SuperAdminActions from '@/components/admin/SuperAdminActions';
 
@@ -164,6 +164,32 @@ const SalesOrders = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      // Add other filters if they exist in state (e.g. status)
+      // Currently only search is in state, but if we add status filter dropdown later, append it here.
+
+      const response = await get(`/sales-orders/export?${params.toString()}`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sales_orders_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess('Sales orders exported successfully');
+    } catch (err) {
+      console.error('Export failed:', err);
+      showError('Failed to export sales orders');
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -209,7 +235,11 @@ const SalesOrders = () => {
         />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <Button variant="outline" onClick={handleExport} disabled={loading}>
+          <Download className="mr-2 h-4 w-4" />
+          Export to Excel
+        </Button>
         <div className="relative w-full md:w-64">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input

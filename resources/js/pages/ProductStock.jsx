@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductStockTable } from '@/components/inventory/ProductStockTable';
-import ImportStockModal from '@/components/inventory/ImportStockModal';
-import { Plus, Search, RefreshCw, Loader2, CheckCircle, Trash2, Upload } from "lucide-react";
+
+import { Plus, Search, RefreshCw, Loader2, CheckCircle, Trash2, Download } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import { FormDialog } from "@/components/common/FormDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -39,7 +39,6 @@ const ProductStock = () => {
   // Modal States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
   const [stockToDelete, setStockToDelete] = useState(null);
 
   // Bulk Delete State
@@ -304,6 +303,31 @@ const ProductStock = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
+
+      const response = await api.get(`/product-stock/export?${params.toString()}`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `product_stock_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess('Product stock exported successfully');
+    } catch (err) {
+      console.error('Export failed:', err);
+      showError('Failed to export product stock');
+    }
+  };
+
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       {/* Top Header Section */}
@@ -323,8 +347,8 @@ const ProductStock = () => {
           </Button>
           {canCreate('product-stock') && (
             <>
-              <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-                <Upload className="mr-2 h-4 w-4" /> Import Stock
+              <Button variant="outline" onClick={handleExport} disabled={loading}>
+                <Download className="mr-2 h-4 w-4" /> Export Stock
               </Button>
               <Button onClick={handleCreateStock} className="bg-indigo-600 hover:bg-indigo-700 text-white">
                 <Plus className="mr-2 h-4 w-4" /> Create Stock
@@ -673,14 +697,7 @@ const ProductStock = () => {
         onConfirm={handleBulkDelete}
       />
 
-      <ImportStockModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onSuccess={() => {
-          fetchProductStock(pagination.current_page);
-          showSuccess("Stock imported successfully");
-        }}
-      />
+
     </div>
   );
 };

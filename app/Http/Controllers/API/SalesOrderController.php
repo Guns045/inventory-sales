@@ -200,4 +200,52 @@ class SalesOrderController extends Controller
             ], 500);
         }
     }
+
+    public function export(Request $request)
+    {
+        try {
+            $query = SalesOrder::with(['customer', 'user', 'items.product', 'quotation', 'warehouse']);
+
+            // Filter by status if provided
+            if ($request->has('status')) {
+                $requestedStatus = $request->status;
+                if (str_contains($requestedStatus, ',')) {
+                    $statuses = explode(',', $requestedStatus);
+                    $query->whereIn('status', $statuses);
+                } else {
+                    $query->where('status', $requestedStatus);
+                }
+            }
+
+            // Search functionality
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('sales_order_number', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                            $customerQuery->where('company_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Filter by user warehouse access
+            $user = $request->user();
+            if ($user && !$user->canAccessAllWarehouses() && $user->warehouse_id) {
+                $query->whereHas('user', function ($q) use ($user) {
+                    $q->where('warehouse_id', $user->warehouse_id);
+                });
+            }
+
+            $salesOrders = $query->orderBy('created_at', 'desc')->get();
+
+            return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SalesOrderExport($salesOrders), 'sales_orders.xlsx');
+
+        } catch (\Exception $e) {
+            Log::error('SalesOrder Export Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to export sales orders',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

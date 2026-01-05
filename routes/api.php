@@ -88,6 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
 
     // Inventory management
+    Route::get('/product-stock/export', [ProductStockController::class, 'export'])->middleware('permission:product-stock.read');
     Route::post('/product-stock/import', [ProductStockController::class, 'import'])->middleware('permission:product-stock.create');
     Route::get('/product-stock/import-template', [ProductStockController::class, 'downloadTemplate'])->middleware('permission:product-stock.create');
     Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
@@ -113,6 +114,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('quotations', QuotationController::class);
 
+    Route::apiResource('quotations', QuotationController::class);
+
+    Route::get('/sales-orders/export', [SalesOrderController::class, 'export'])->middleware('permission:sales-orders.read');
     Route::get('/sales-orders', [SalesOrderController::class, 'index'])->middleware('permission:sales-orders.read');
     Route::post('/sales-orders', [SalesOrderController::class, 'store']);
     Route::get('/sales-orders/{sales_order}', [SalesOrderController::class, 'show']);
