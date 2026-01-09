@@ -174,7 +174,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $deliveredOrders = $query->orderBy('updated_at', 'desc')
+        $deliveredOrders = $query->orderBy('created_at', 'desc')
             ->paginate(2000);
 
         return response()->json($deliveredOrders);
