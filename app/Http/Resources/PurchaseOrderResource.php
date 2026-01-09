@@ -21,6 +21,8 @@ class PurchaseOrderResource extends JsonResource
             'order_date' => $this->order_date,
             'expected_delivery_date' => $this->expected_delivery_date,
             'total_amount' => $this->total_amount,
+            'paid_amount' => $this->paid_amount,
+            'payment_status' => $this->payment_status,
             'formatted_total' => $this->formatted_total,
             'notes' => $this->notes,
             'items' => $this->whenLoaded('items', function () {

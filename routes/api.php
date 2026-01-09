@@ -26,6 +26,9 @@ use App\Http\Controllers\API\PickingListController;
 use App\Http\Controllers\API\SettingsController;
 use App\Http\Controllers\API\PermissionController;
 use App\Http\Controllers\API\ReportController;
+use App\Http\Controllers\API\FinanceController;
+
+
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -185,18 +188,27 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Purchase management
     Route::get('/purchase-orders/ready-for-goods-receipt', [PurchaseOrderController::class, 'readyForGoodsReceipt']);
-    Route::apiResource('purchase-orders', PurchaseOrderController::class)->middleware('permission:purchase-orders.read');
     Route::get('/purchase-orders/{id}/items', [PurchaseOrderController::class, 'getPurchaseOrderItems'])->middleware('permission:purchase-orders.read');
     Route::post('/purchase-orders/{id}/send', [PurchaseOrderController::class, 'sendPO'])->middleware('permission:purchase-orders.update');
     Route::get('/purchase-orders/{id}/print', [PurchaseOrderController::class, 'printPDF'])->middleware('permission:purchase-orders.read');
     Route::post('/purchase-orders/{id}/receive', [PurchaseOrderController::class, 'receive'])->middleware('permission:purchase-orders.update');
     Route::put('/purchase-orders/{id}/status', [PurchaseOrderController::class, 'updateStatus'])->middleware('permission:purchase-orders.update');
     Route::post('/purchase-orders/{id}/cancel', [PurchaseOrderController::class, 'cancel'])->middleware('permission:purchase-orders.update');
+    Route::post('/purchase-orders/{id}/payments', [PurchaseOrderController::class, 'recordPayment'])->middleware('permission:purchase-orders.update'); // New Route
+    Route::apiResource('purchase-orders', PurchaseOrderController::class)->middleware('permission:purchase-orders.read');
 
     Route::apiResource('goods-receipts', GoodsReceiptController::class)->middleware('permission:goods-receipts.read');
     Route::get('/goods-receipts/{id}/items', [GoodsReceiptController::class, 'getGoodsReceiptItems'])->middleware('permission:goods-receipts.read');
     Route::post('/goods-receipts/{id}/receive', [GoodsReceiptController::class, 'receive'])->middleware('permission:goods-receipts.update');
     Route::get('/goods-receipts/status/{status}', [GoodsReceiptController::class, 'getByStatus'])->middleware('permission:goods-receipts.read');
+
+    // Finance Routes
+    Route::get('/finance/accounts', [FinanceController::class, 'index'])->middleware('permission:finance.read');
+    Route::post('/finance/accounts', [FinanceController::class, 'store'])->middleware('permission:finance.create');
+    Route::get('/finance/accounts/{id}', [FinanceController::class, 'show'])->middleware('permission:finance.read');
+    Route::put('/finance/accounts/{id}', [FinanceController::class, 'update'])->middleware('permission:finance.update');
+    Route::get('/finance/accounts/{id}/transactions', [FinanceController::class, 'getTransactions'])->middleware('permission:finance.read');
+    Route::get('/finance/expenses', [FinanceController::class, 'getExpenses'])->middleware('permission:finance.read');
 
     // Approval management
     Route::apiResource('approvals', ApprovalController::class)->only(['index', 'show']);

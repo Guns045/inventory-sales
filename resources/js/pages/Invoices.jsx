@@ -32,6 +32,7 @@ const Invoices = () => {
     date_to: '',
     customer: ''
   });
+  const [readySearch, setReadySearch] = useState('');
 
   // Modals state
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -48,10 +49,21 @@ const Invoices = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [availableCreditNotes, setAvailableCreditNotes] = useState([]);
+  const [financeAccounts, setFinanceAccounts] = useState([]);
 
   useEffect(() => {
     fetchData();
-  }, [filter]);
+    fetchFinanceAccounts();
+  }, [filter, readySearch]);
+
+  const fetchFinanceAccounts = async () => {
+    try {
+      const response = await api.get('/finance/accounts');
+      setFinanceAccounts(response.data);
+    } catch (error) {
+      console.error('Error fetching finance accounts:', error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -63,9 +75,12 @@ const Invoices = () => {
       if (filter.date_to) params.append('date_to', filter.date_to);
       if (filter.customer) params.append('customer', filter.customer);
 
+      const readyParams = new URLSearchParams();
+      if (readySearch) readyParams.append('search', readySearch);
+
       const [invoicesRes, shippedOrdersRes] = await Promise.all([
         api.get(`/invoices?${params.toString()}`),
-        api.get('/invoices/ready-to-create')
+        api.get(`/invoices/ready-to-create?${readyParams.toString()}`)
       ]);
 
       setInvoices(invoicesRes.data.data || invoicesRes.data || []);
@@ -185,7 +200,8 @@ const Invoices = () => {
       payment_date: new Date().toISOString().split('T')[0],
       payment_method: 'Bank Transfer',
       notes: '',
-      credit_note_id: ''
+      credit_note_id: '',
+      finance_account_id: ''
     });
 
     setShowPaymentModal(true);
@@ -206,7 +222,8 @@ const Invoices = () => {
         payment_date: paymentData.payment_date,
         amount_paid: paymentAmount,
         payment_method: paymentData.payment_method,
-        reference_number: paymentData.notes
+        reference_number: paymentData.notes,
+        finance_account_id: paymentData.finance_account_id
       });
 
       showSuccess('Payment recorded successfully');
@@ -409,6 +426,17 @@ const Invoices = () => {
               <CardTitle>Delivered Orders Ready for Invoicing</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by DO number, SO number, or customer..."
+                    value={readySearch}
+                    onChange={(e) => setReadySearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
               <DataTable
                 columns={readyColumns}
                 data={shippedOrders}
@@ -447,6 +475,25 @@ const Invoices = () => {
                   <SelectItem value="Check">Check</SelectItem>
                   <SelectItem value="Credit Card">Credit Card</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Deposit To Account</Label>
+              <Select
+                value={paymentData.finance_account_id}
+                onValueChange={(v) => setPaymentData({ ...paymentData, finance_account_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account (Optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financeAccounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id.toString()}>
+                      {acc.name} ({acc.bank_name} {acc.account_number})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

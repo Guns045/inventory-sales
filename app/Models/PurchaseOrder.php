@@ -18,6 +18,8 @@ class PurchaseOrder extends Model
         'order_date',
         'expected_delivery_date',
         'total_amount',
+        'paid_amount',
+        'payment_status',
         'notes',
     ];
 
@@ -79,9 +81,9 @@ class PurchaseOrder extends Model
     {
         $query->when($filters['search'] ?? null, function ($query, $search) {
             $query->where('po_number', 'like', "%{$search}%")
-                  ->orWhereHas('supplier', function ($q) use ($search) {
-                      $q->where('company_name', 'like', "%{$search}%");
-                  });
+                ->orWhereHas('supplier', function ($q) use ($search) {
+                    $q->where('company_name', 'like', "%{$search}%");
+                });
         });
 
         $query->when($filters['status'] ?? null, function ($query, $status) {

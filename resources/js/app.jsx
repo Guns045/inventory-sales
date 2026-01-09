@@ -45,6 +45,9 @@ const CreateSalesReturn = React.lazy(() => import('@/pages/CreateSalesReturn'));
 const SalesReturnDetail = React.lazy(() => import('@/pages/SalesReturnDetail'));
 const CreditNotes = React.lazy(() => import('@/pages/CreditNotes'));
 const CreditNoteDetail = React.lazy(() => import('@/pages/CreditNoteDetail'));
+const FinanceAccounts = React.lazy(() => import('@/pages/FinanceAccounts'));
+const BankBook = React.lazy(() => import('@/pages/BankBook'));
+const Expenses = React.lazy(() => import('@/pages/Expenses'));
 
 // Import CSS
 import './index.css';
@@ -106,6 +109,9 @@ function App() {
                                                 <Route path="sales-returns/:id" element={<SalesReturnDetail />} />
                                                 <Route path="credit-notes" element={<CreditNotes />} />
                                                 <Route path="credit-notes/:id" element={<CreditNoteDetail />} />
+                                                <Route path="finance/accounts" element={<FinanceAccounts />} />
+                                                <Route path="finance/accounts/:id" element={<BankBook />} />
+                                                <Route path="finance/expenses" element={<Expenses />} />
                                             </Route>
                                         </Routes>
                                     </Suspense>

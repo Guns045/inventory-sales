@@ -356,4 +356,30 @@ class PurchaseOrderController extends Controller
             ], 500);
         }
     }
+    /**
+     * Record payment for Purchase Order
+     */
+    public function recordPayment(Request $request, $id)
+    {
+        $purchaseOrder = PurchaseOrder::findOrFail($id);
+
+        $request->validate([
+            'payment_date' => 'required|date|before_or_equal:today',
+            'amount_paid' => 'required|numeric|min:0.01',
+            'finance_account_id' => 'required|exists:finance_accounts,id',
+        ]);
+
+        try {
+            $paymentService = new \App\Services\PurchaseOrderPaymentService();
+            $purchaseOrder = $paymentService->recordPayment($purchaseOrder, $request->all());
+
+            return new PurchaseOrderResource($purchaseOrder->load(['supplier', 'warehouse', 'user']));
+        } catch (\Exception $e) {
+            Log::error('PurchaseOrder Payment Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to record payment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

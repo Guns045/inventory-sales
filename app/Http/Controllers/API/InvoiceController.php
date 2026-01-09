@@ -153,14 +153,29 @@ class InvoiceController extends Controller
     /**
      * Get delivery orders ready for invoicing (DELIVERED status)
      */
-    public function getReadyToCreate()
+    public function getReadyToCreate(Request $request)
     {
         // Fetch Delivery Orders that are DELIVERED but NOT yet invoiced
-        $deliveredOrders = \App\Models\DeliveryOrder::with(['customer', 'salesOrder.salesOrderItems', 'deliveryOrderItems.product', 'createdBy'])
+        $query = \App\Models\DeliveryOrder::with(['customer', 'salesOrder.salesOrderItems', 'deliveryOrderItems.product', 'createdBy'])
             ->where('status', 'DELIVERED')
-            ->whereDoesntHave('invoice') // Ensure no invoice exists for this DO
-            ->orderBy('updated_at', 'desc')
-            ->paginate(10);
+            ->whereDoesntHave('invoice'); // Ensure no invoice exists for this DO
+
+        // Search functionality
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('delivery_order_number', 'like', "%{$search}%")
+                    ->orWhereHas('salesOrder', function ($soQuery) use ($search) {
+                        $soQuery->where('sales_order_number', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $deliveredOrders = $query->orderBy('updated_at', 'desc')
+            ->paginate(2000);
 
         return response()->json($deliveredOrders);
     }

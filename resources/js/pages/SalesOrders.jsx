@@ -7,6 +7,7 @@ import { StatsCard } from '@/components/common/StatsCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, CheckCircle, Clock, XCircle, Search, Download } from "lucide-react";
@@ -30,19 +31,35 @@ const SalesOrders = () => {
     total: 0
   });
   const [search, setSearch] = useState('');
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState('all');
+
+  useEffect(() => {
+    fetchWarehouses();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchSalesOrders(1);
     }, 500);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, selectedWarehouse]);
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await get('/warehouses');
+      setWarehouses(response.data.data || response.data);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
 
   const fetchSalesOrders = async (page = 1) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ page });
       if (search) params.append('search', search);
+      if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
 
       const response = await get(`/sales-orders?${params.toString()}`);
       if (response && response.data) {
@@ -168,6 +185,7 @@ const SalesOrders = () => {
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
+      if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
       // Add other filters if they exist in state (e.g. status)
       // Currently only search is in state, but if we add status filter dropdown later, append it here.
 
@@ -240,14 +258,29 @@ const SalesOrders = () => {
           <Download className="mr-2 h-4 w-4" />
           Export to Excel
         </Button>
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search sales orders..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
+        <div className="flex items-center gap-2">
+          <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select Warehouse" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Warehouses</SelectItem>
+              {warehouses.map((w) => (
+                <SelectItem key={w.id} value={w.id.toString()}>
+                  {w.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search sales orders..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
         </div>
       </div>
 

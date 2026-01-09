@@ -20,6 +20,7 @@ class StorePaymentRequest extends FormRequest
             'payment_method' => 'required|string|max:50',
             'reference_number' => 'nullable|string|max:100',
             'credit_note_id' => 'nullable|exists:credit_notes,id',
+            'finance_account_id' => 'nullable|exists:finance_accounts,id',
         ];
     }
 

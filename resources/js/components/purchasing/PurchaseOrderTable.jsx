@@ -8,7 +8,8 @@ import {
     Trash2,
     Send,
     Printer,
-    MoreHorizontal
+    MoreHorizontal,
+    CreditCard
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -27,6 +28,7 @@ export function PurchaseOrderTable({
     onViewItems,
     onPrint,
     onSend,
+    onPay,
     canEdit,
     canDelete,
     canSend
@@ -77,6 +79,22 @@ export function PurchaseOrderTable({
             cell: (row) => getStatusBadge(row.status)
         },
         {
+            header: "Payment",
+            accessorKey: "payment_status",
+            cell: (row) => {
+                const colors = {
+                    'PAID': 'bg-green-100 text-green-800',
+                    'PARTIAL': 'bg-yellow-100 text-yellow-800',
+                    'UNPAID': 'bg-red-100 text-red-800'
+                };
+                return (
+                    <Badge className={`${colors[row.payment_status] || 'bg-gray-100'} border-0`}>
+                        {row.payment_status || 'UNPAID'}
+                    </Badge>
+                );
+            }
+        },
+        {
             header: "Expected Date",
             accessorKey: "expected_delivery_date",
             cell: (row) => row.expected_delivery_date ? new Date(row.expected_delivery_date).toLocaleDateString() : '-'
@@ -123,6 +141,12 @@ export function PurchaseOrderTable({
                     {canDelete(row) && (
                         <DropdownMenuItem onClick={() => onDelete(row.id)} className="text-red-600">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                    )}
+
+                    {row.status !== 'DRAFT' && row.status !== 'CANCELLED' && row.payment_status !== 'PAID' && (
+                        <DropdownMenuItem onClick={() => onPay(row)} className="text-green-600">
+                            <CreditCard className="mr-2 h-4 w-4" /> Pay
                         </DropdownMenuItem>
                     )}
                 </DropdownMenuContent>

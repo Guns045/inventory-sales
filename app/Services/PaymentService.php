@@ -62,6 +62,26 @@ class PaymentService
                 'reference_number' => $data['reference_number'] ?? null,
             ]);
 
+            // Handle Finance Transaction (Money In)
+            if (isset($data['finance_account_id']) && $data['finance_account_id']) {
+                $account = \App\Models\FinanceAccount::findOrFail($data['finance_account_id']);
+
+                \App\Models\FinanceTransaction::create([
+                    'finance_account_id' => $account->id,
+                    'type' => 'IN',
+                    'amount' => $data['amount_paid'],
+                    'transaction_date' => $data['payment_date'],
+                    'description' => "Payment for Invoice {$invoice->invoice_number}",
+                    'reference_type' => Payment::class,
+                    'reference_id' => $payment->id,
+                    'category' => 'Sales',
+                    'created_by' => auth()->id()
+                ]);
+
+                // Update Account Balance
+                $account->increment('balance', $data['amount_paid']);
+            }
+
             // Recalculate and update invoice status
             $this->updateInvoiceStatus($invoice);
 

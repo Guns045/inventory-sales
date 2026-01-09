@@ -57,12 +57,17 @@ class SalesOrderController extends Controller
         }
 
         // Filter by user warehouse access
+        // Filter by user warehouse access
         $user = $request->user();
         if ($user && !$user->canAccessAllWarehouses() && $user->warehouse_id) {
             $query->whereHas('user', function ($q) use ($user) {
                 $q->where('warehouse_id', $user->warehouse_id);
             });
-            Log::info('SalesOrder index: Filtering by warehouse: ' . $user->warehouse_id);
+            Log::info('SalesOrder index: Filtering by user warehouse: ' . $user->warehouse_id);
+        } elseif ($request->has('warehouse_id') && !empty($request->warehouse_id) && $request->warehouse_id !== 'all') {
+            // Allow filtering by warehouse if user has access to all
+            $query->where('warehouse_id', $request->warehouse_id);
+            Log::info('SalesOrder index: Filtering by requested warehouse: ' . $request->warehouse_id);
         }
 
         $salesOrders = $query->orderBy('created_at', 'desc')->paginate(2000);
@@ -234,6 +239,8 @@ class SalesOrderController extends Controller
                 $query->whereHas('user', function ($q) use ($user) {
                     $q->where('warehouse_id', $user->warehouse_id);
                 });
+            } elseif ($request->has('warehouse_id') && !empty($request->warehouse_id) && $request->warehouse_id !== 'all') {
+                $query->where('warehouse_id', $request->warehouse_id);
             }
 
             $salesOrders = $query->orderBy('created_at', 'desc')->get();

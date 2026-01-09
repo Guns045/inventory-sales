@@ -118,6 +118,12 @@ return [
         'permission' => null,
         'children' => [
             [
+                'title' => 'Accounts',
+                'path' => '/finance/accounts',
+                'icon' => 'bi-wallet2',
+                'permission' => 'finance.read'
+            ],
+            [
                 'title' => 'Invoice',
                 'path' => '/invoices',
                 'icon' => 'bi-receipt',
@@ -128,6 +134,12 @@ return [
                 'path' => '/payments',
                 'icon' => 'bi-credit-card',
                 'permission' => 'view_payments'
+            ],
+            [
+                'title' => 'Expenses',
+                'path' => '/finance/expenses',
+                'icon' => 'bi-cash-stack',
+                'permission' => 'finance.read'
             ],
             [
                 'title' => 'Credit Notes',
