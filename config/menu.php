@@ -5,7 +5,7 @@ return [
         'title' => 'Dashboard',
         'path' => '/dashboard',
         'icon' => 'bi-speedometer2',
-        'permission' => 'view_dashboard',
+        'permission' => 'dashboard.read',
     ],
     [
         'title' => 'Sales',
@@ -17,25 +17,25 @@ return [
                 'title' => 'Customer',
                 'path' => '/customers',
                 'icon' => 'bi-people',
-                'permission' => 'view_customers'
+                'permission' => 'customers.read'
             ],
             [
                 'title' => 'Quotation',
                 'path' => '/quotations',
                 'icon' => 'bi-file-text',
-                'permission' => 'view_quotations'
+                'permission' => 'quotations.read'
             ],
             [
                 'title' => 'Sales Order',
                 'path' => '/sales-orders',
                 'icon' => 'bi-cart-check',
-                'permission' => 'view_sales_orders'
+                'permission' => 'sales-orders.read'
             ],
             [
                 'title' => 'Sales Return',
                 'path' => '/sales-returns',
                 'icon' => 'bi-arrow-return-left',
-                'permission' => 'view_sales_returns'
+                'permission' => 'sales-returns.read'
             ],
         ]
     ],
@@ -49,19 +49,19 @@ return [
                 'title' => 'Purchase Order',
                 'path' => '/purchase-orders',
                 'icon' => 'bi-cart',
-                'permission' => 'view_purchase_orders'
+                'permission' => 'purchase-orders.read'
             ],
             [
                 'title' => 'Goods Receipt',
                 'path' => '/goods-receipts',
                 'icon' => 'bi-box-seam',
-                'permission' => 'view_goods_receipts'
+                'permission' => 'goods-receipts.read'
             ],
             [
                 'title' => 'Supplier',
                 'path' => '/suppliers',
                 'icon' => 'bi-truck',
-                'permission' => 'view_suppliers'
+                'permission' => 'suppliers.read'
             ]
         ]
     ],
@@ -75,19 +75,19 @@ return [
                 'title' => 'Product',
                 'path' => '/products',
                 'icon' => 'bi-box',
-                'permission' => 'view_products'
+                'permission' => 'products.read'
             ],
             [
                 'title' => 'On Hands Stock',
                 'path' => '/product-stock',
                 'icon' => 'bi-archive',
-                'permission' => 'view_stock'
+                'permission' => 'product-stock.read'
             ],
             [
                 'title' => 'Warehouse',
                 'path' => '/warehouses',
                 'icon' => 'bi-building',
-                'permission' => 'view_warehouses'
+                'permission' => 'warehouses.read'
             ]
         ]
     ],
@@ -101,13 +101,13 @@ return [
                 'title' => 'Warehouse Transfer',
                 'path' => '/internal-transfers',
                 'icon' => 'bi-arrow-left-right',
-                'permission' => 'view_transfers'
+                'permission' => 'warehouse-transfers.read'
             ],
             [
                 'title' => 'Delivery Order',
                 'path' => '/delivery-orders',
                 'icon' => 'bi-truck',
-                'permission' => 'view_delivery_orders'
+                'permission' => 'delivery-orders.read'
             ]
         ]
     ],
@@ -121,25 +121,25 @@ return [
                 'title' => 'Accounts',
                 'path' => '/finance/accounts',
                 'icon' => 'bi-wallet2',
-                'permission' => 'finance.read'
+                'permission' => 'invoices.read' // Using shared finance permission for now or create generic finance.read
             ],
             [
                 'title' => 'Invoice',
                 'path' => '/invoices',
                 'icon' => 'bi-receipt',
-                'permission' => 'view_invoices'
+                'permission' => 'invoices.read'
             ],
             [
                 'title' => 'Payment',
                 'path' => '/payments',
                 'icon' => 'bi-credit-card',
-                'permission' => 'view_payments'
+                'permission' => 'payments.read'
             ],
             [
                 'title' => 'Expenses',
                 'path' => '/finance/expenses',
                 'icon' => 'bi-cash-stack',
-                'permission' => 'finance.read'
+                'permission' => 'invoices.read' // Temporarily mapped to invoice read until expenses permission is standardized
             ],
             [
                 'title' => 'Credit Notes',

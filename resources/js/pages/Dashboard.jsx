@@ -41,29 +41,51 @@ const Dashboard = () => {
     return 'default';
   };
 
+  const hasPermission = (permission) => {
+    if (!user || (!user.permissions && !user.roles)) return false;
+
+    // Check if user has direct permissions array (from API resource)
+    if (user.permissions && user.permissions.includes(permission)) return true;
+
+    // Check roles/permissions structure if different (Admin typically has all)
+    if (user.roles?.some(r => r.name === 'Super Admin')) return true;
+
+    return false;
+  };
+
   const renderRoleBasedDashboard = () => {
     const role = getUserRole();
 
-    switch (role) {
-      case 'Super Admin':
-      case 'Admin':
-        return <MainDashboard />;
-      case 'manager':
-      case 'Sales':
-      case 'Sales Team':
-        return <SalesDashboard />;
-      case 'Gudang':
-      case 'Warehouse':
-      case 'Warehouse Manager Gudang JKT':
-      case 'Warehouse Manager Gudang MKS':
-      case 'Warehouse Staff':
-        return <WarehouseDashboard />;
-      case 'Finance':
-      case 'Finance Team':
-        return <FinanceDashboard />;
-      default:
-        return <DefaultDashboard />;
+    // 1. Super Admin / Admin -> Main Dashboard
+    if (['Super Admin', 'Admin'].includes(role)) {
+      return <MainDashboard />;
     }
+
+    // 2. Role based checks
+    if (['manager', 'Sales', 'Sales Team'].includes(role)) {
+      return <SalesDashboard />;
+    }
+
+    if (['Gudang', 'Warehouse', 'Warehouse Manager Gudang JKT', 'Warehouse Manager Gudang MKS', 'Warehouse Staff'].includes(role)) {
+      return <WarehouseDashboard />;
+    }
+
+    if (['Finance', 'Finance Team'].includes(role)) {
+      return <FinanceDashboard />;
+    }
+
+    // 3. Permission based checks for Custom Roles (fallback)
+    // If custom role has stock view permission, allow Warehouse Dashboard view
+    if (hasPermission('view_stock') || hasPermission('product-stock.read')) {
+      return <WarehouseDashboard />;
+    }
+
+    // If custom role has sales permissions
+    if (hasPermission('view_sales_orders') || hasPermission('sales-orders.read')) {
+      return <SalesDashboard />;
+    }
+
+    return <DefaultDashboard />;
   };
 
   const DefaultDashboard = () => {
