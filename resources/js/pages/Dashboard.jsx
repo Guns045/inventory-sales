@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Alert } from 'react-bootstrap';
 import { useAuth } from '../contexts/AuthContext';
 import SalesDashboard from '../components/dashboard/SalesDashboard';
@@ -55,6 +56,12 @@ const Dashboard = () => {
 
   const renderRoleBasedDashboard = () => {
     const role = getUserRole();
+
+    // CUSTOMER ROLE REDIRECT
+    // If role is 'customer' or 'user', redirect immediately to product stock
+    if (['customer', 'user'].includes(role) || role.toLowerCase().includes('customer')) {
+      return <Navigate to="/product-stock" replace />;
+    }
 
     // 1. Super Admin / Admin -> Main Dashboard
     if (['Super Admin', 'Admin'].includes(role)) {
