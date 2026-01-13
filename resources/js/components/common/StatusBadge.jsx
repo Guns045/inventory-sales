@@ -27,7 +27,10 @@ export function StatusBadge({ status, config }) {
     const currentStatus = statusConfig[status] || { variant: 'secondary', label: status }
 
     return (
-        <Badge variant={currentStatus.variant}>
+        <Badge
+            variant={currentStatus.variant}
+            className={status === 'CANCELLED' ? "bg-red-100 text-red-600 hover:bg-red-200 border-0" : ""}
+        >
             {currentStatus.label}
         </Badge>
     )
