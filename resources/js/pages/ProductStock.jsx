@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/useToast';
 import { FormDialog } from "@/components/common/FormDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Label } from "@/components/ui/label";
+import ReportDamageModal from '@/components/inventory/ReportDamageModal';
 
 const ProductStock = () => {
   const { api } = useAPI();
@@ -40,6 +41,8 @@ const ProductStock = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [stockToDelete, setStockToDelete] = useState(null);
+  const [isReportDamageOpen, setIsReportDamageOpen] = useState(false);
+  const [selectedStockForDamage, setSelectedStockForDamage] = useState(null);
 
   // Bulk Delete State
   const [selectedIds, setSelectedIds] = useState([]);
@@ -164,6 +167,15 @@ const ProductStock = () => {
   const handleViewHistory = (stock) => {
     setSelectedStock(stock);
     setIsViewOpen(true);
+  };
+
+  const handleReportDamage = (stock) => {
+    setSelectedStockForDamage(stock);
+    setIsReportDamageOpen(true);
+  };
+
+  const handleDamageSuccess = () => {
+    fetchProductStock(pagination.current_page);
   };
 
   const handleSubmitEdit = async () => {
@@ -404,6 +416,7 @@ const ProductStock = () => {
             onAdjust={handleAdjustStock}
             onViewHistory={handleViewHistory}
             onDelete={handleDeleteStock}
+            onReportDamage={handleReportDamage}
             userRole={user?.role?.name || user?.role}
             canUpdate={canUpdate('product-stock')}
             canDelete={canDelete('product-stock')}
@@ -697,6 +710,20 @@ const ProductStock = () => {
         onConfirm={handleBulkDelete}
       />
 
+
+      <ReportDamageModal
+        isOpen={isReportDamageOpen}
+        onClose={() => setIsReportDamageOpen(false)}
+        onSuccess={handleDamageSuccess}
+        product={selectedStockForDamage ? {
+          product_id: selectedStockForDamage.product_id,
+          product_name: selectedStockForDamage.product.name,
+          sku: selectedStockForDamage.product.sku,
+          available_quantity: selectedStockForDamage.quantity - selectedStockForDamage.reserved_quantity - (selectedStockForDamage.damaged_quantity || 0),
+          damaged_quantity: selectedStockForDamage.damaged_quantity
+        } : null}
+        warehouseId={selectedStockForDamage?.warehouse_id}
+      />
 
     </div>
   );

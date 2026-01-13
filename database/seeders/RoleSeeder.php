@@ -18,13 +18,24 @@ class RoleSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Truncate permission tables to avoid guard mismatch issues
-        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Truncate permission tables to avoid guard mismatch issues
+        if (config('database.default') === 'sqlite') {
+            \DB::statement('PRAGMA foreign_keys = OFF;');
+        } else {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        }
+
         \DB::table('role_has_permissions')->truncate();
         \DB::table('model_has_roles')->truncate();
         \DB::table('model_has_permissions')->truncate();
         \DB::table('roles')->truncate();
         \DB::table('permissions')->truncate();
-        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        if (config('database.default') === 'sqlite') {
+            \DB::statement('PRAGMA foreign_keys = ON;');
+        } else {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         // Load menu config to get all permissions
         $menuConfig = Config::get('menu');

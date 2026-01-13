@@ -11,8 +11,9 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        // Use raw SQL to modify the enum column as Doctrine DBAL doesn't support enum modification well
-        DB::statement("ALTER TABLE sales_orders MODIFY COLUMN status ENUM('PENDING', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'PARTIAL') NOT NULL DEFAULT 'PENDING'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE sales_orders MODIFY COLUMN status ENUM('PENDING', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'PARTIAL') NOT NULL DEFAULT 'PENDING'");
+        }
     }
 
     /**

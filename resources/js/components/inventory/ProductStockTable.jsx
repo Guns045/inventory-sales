@@ -19,6 +19,7 @@ export function ProductStockTable({
     onAdjust,
     onViewHistory,
     onDelete,
+    onReportDamage, // New prop
     userRole,
     canUpdate = false,
     canDelete = false,
@@ -138,13 +139,6 @@ export function ProductStockTable({
                     const reserved = stock ? stock.reserved_quantity : 0;
                     const available = quantity - reserved;
 
-                    // Only show - if truly no record AND we want to distinguish "no record" from "0 stock"
-                    // But for "All Warehouses" view, showing 0 is often clearer if we are comparing across columns.
-                    // However, to match previous style, let's keep - if stock is null, UNLESS the user specifically wants 0.
-                    // The user said "data belum benar", implying missing data.
-                    // Let's try to show 0 if stock is null but we are in all-warehouses view?
-                    // Actually, if stock is null, it means 0.
-
                     if (!stock) return <span className="text-muted-foreground">-</span>;
 
                     return (
@@ -197,10 +191,24 @@ export function ProductStockTable({
                 accessorKey: "available_quantity",
                 cell: (row) => {
                     if (row.available_quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
-                    const available = row.quantity - row.reserved_quantity;
+
+                    const val = row.available_quantity !== undefined ? row.available_quantity : (row.quantity - row.reserved_quantity - (row.damaged_quantity || 0));
+
                     return (
-                        <span className={`font-bold ${available > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {available}
+                        <span className={`font-bold ${val > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {val}
+                        </span>
+                    );
+                }
+            },
+            {
+                header: "Damaged",
+                accessorKey: "damaged_quantity",
+                cell: (row) => {
+                    if (row.damaged_quantity === null || row.damaged_quantity === undefined) return <span className="text-muted-foreground">-</span>;
+                    return (
+                        <span className={`font-medium ${row.damaged_quantity > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                            {row.damaged_quantity}
                         </span>
                     );
                 }
@@ -255,14 +263,24 @@ export function ProductStockTable({
         return (
             <div className="flex gap-1 justify-end">
                 {canUpdate && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onAdjust(row)}
-                        title="Adjust Stock"
-                    >
-                        <Pencil className="h-4 w-4 text-blue-500" />
-                    </Button>
+                    <>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onAdjust(row)}
+                            title="Adjust Stock"
+                        >
+                            <Pencil className="h-4 w-4 text-blue-500" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onReportDamage && onReportDamage(row)}
+                            title="Report Damage"
+                        >
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        </Button>
+                    </>
                 )}
                 <Button
                     variant="ghost"

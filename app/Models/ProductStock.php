@@ -13,7 +13,9 @@ class ProductStock extends Model
         'product_id',
         'warehouse_id',
         'quantity',
+        'available_quantity',
         'reserved_quantity',
+        'damaged_quantity',
         'bin_location',
         'is_hidden',
     ];

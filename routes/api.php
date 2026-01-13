@@ -96,6 +96,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/product-stock/import-template', [ProductStockController::class, 'downloadTemplate'])->middleware('permission:product-stock.create');
     Route::post('/product-stock/adjust', [ProductStockController::class, 'adjustStock'])->middleware('permission:product-stock.update');
 
+    // Damage Reporting
+    Route::post('/product-stock/damage', [ProductStockController::class, 'reportDamage'])->middleware('permission:product-stock.update');
+    Route::post('/product-stock/damage/reverse', [ProductStockController::class, 'reverseDamage'])->middleware('permission:product-stock.update');
+    Route::post('/product-stock/damage/dispose', [ProductStockController::class, 'disposeDamaged'])->middleware('permission:product-stock.update');
+    Route::get('/product-stock/damage-report', [ProductStockController::class, 'getDamageReport'])->middleware('permission:product-stock.read');
+
     Route::get('/product-stock', [ProductStockController::class, 'index'])->middleware('permission:product-stock.read');
     Route::get('/product-stock/{id}', [ProductStockController::class, 'show'])->middleware('permission:product-stock.read');
     Route::post('/product-stock', [ProductStockController::class, 'store'])->middleware('permission:product-stock.create');

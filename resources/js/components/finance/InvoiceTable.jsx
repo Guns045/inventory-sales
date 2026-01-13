@@ -143,7 +143,10 @@ export function InvoiceTable({
             accessorKey: "status",
             cell: (row) => (
                 <div className="flex items-center gap-2">
-                    <Badge variant={getStatusVariant(row.status)}>
+                    <Badge
+                        variant={getStatusVariant(row.status)}
+                        className={row.status === 'CANCELLED' ? "bg-red-100 text-red-600 hover:bg-red-200 border-0" : ""}
+                    >
                         {row.status}
                     </Badge>
                     {isOverdue(row) && row.status !== 'OVERDUE' && (

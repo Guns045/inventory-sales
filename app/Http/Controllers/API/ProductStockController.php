@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductStockRequest;
 use App\Http\Requests\UpdateProductStockRequest;
 use App\Http\Requests\AdjustStockRequest;
+use App\Http\Requests\StoreDamageReportRequest;
 use App\Http\Resources\ProductStockResource;
 use App\Models\ProductStock;
 use App\Services\ProductStockService;
+use App\Services\DamageReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Imports\ProductStockImport;
@@ -17,10 +19,12 @@ use Maatwebsite\Excel\Facades\Excel;
 class ProductStockController extends Controller
 {
     protected $productStockService;
+    protected $damageReportService;
 
-    public function __construct(ProductStockService $productStockService)
+    public function __construct(ProductStockService $productStockService, DamageReportService $damageReportService)
     {
         $this->productStockService = $productStockService;
+        $this->damageReportService = $damageReportService;
     }
 
     /**
@@ -307,5 +311,124 @@ class ProductStockController extends Controller
             }
             fclose($file);
         }, 'stock_import_template.csv');
+    }
+
+    /**
+     * Report damaged stock
+     */
+    public function reportDamage(StoreDamageReportRequest $request)
+    {
+        try {
+            $result = $this->damageReportService->reportDamage(
+                $request->product_id,
+                $request->warehouse_id,
+                $request->quantity,
+                $request->reason,
+                $request->notes,
+                $request->reference_number
+            );
+
+            return response()->json($result, 200);
+        } catch (\Exception $e) {
+            Log::error('Report Damage Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Reverse damage report (for corrections)
+     */
+    public function reverseDamage(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'quantity' => 'required|integer|min:1',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $result = $this->damageReportService->reverseDamage(
+                $request->product_id,
+                $request->warehouse_id,
+                $request->quantity,
+                $request->notes
+            );
+
+            return response()->json($result, 200);
+        } catch (\Exception $e) {
+            Log::error('Reverse Damage Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Dispose damaged stock (remove from inventory)
+     */
+    public function disposeDamaged(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'quantity' => 'required|integer|min:1',
+            'notes' => 'nullable|string|max:1000',
+            'reference_number' => 'nullable|string|max:100',
+        ]);
+
+        try {
+            $result = $this->damageReportService->disposeDamaged(
+                $request->product_id,
+                $request->warehouse_id,
+                $request->quantity,
+                $request->notes,
+                $request->reference_number
+            );
+
+            return response()->json($result, 200);
+        } catch (\Exception $e) {
+            Log::error('Dispose Damaged Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Get damage report with filters
+     */
+    public function getDamageReport(Request $request)
+    {
+        try {
+            $filters = [
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'product_id' => $request->get('product_id'),
+                'warehouse_id' => $request->get('warehouse_id'),
+                'type' => $request->get('type'),
+                'search' => $request->get('search'),
+                'per_page' => $request->get('per_page', 50),
+            ];
+
+            $movements = $this->damageReportService->getDamageReport($filters);
+            $stats = $this->damageReportService->getDamageStats($filters);
+
+            return response()->json([
+                'movements' => $movements,
+                'stats' => $stats
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get Damage Report Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error fetching damage report',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

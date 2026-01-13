@@ -14,7 +14,7 @@ class UpdateInvoiceStatusRequest extends FormRequest
     public function rules()
     {
         return [
-            'status' => 'required|in:UNPAID,PAID,PARTIAL,OVERDUE',
+            'status' => 'required|in:UNPAID,PAID,PARTIAL,OVERDUE,CANCELLED',
             'notes' => 'nullable|string|max:500'
         ];
     }

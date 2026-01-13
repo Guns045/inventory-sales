@@ -120,7 +120,7 @@ class ProductStockService
 
         // Add calculated available quantity
         $data = $stocks->getCollection()->map(function ($item) {
-            $item->available_quantity = $item->quantity - $item->reserved_quantity;
+            $item->available_quantity = $item->quantity - $item->reserved_quantity - ($item->damaged_quantity ?? 0);
             $item->view_mode = 'per-warehouse';
             return $item;
         });
