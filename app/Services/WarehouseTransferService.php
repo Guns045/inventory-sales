@@ -382,6 +382,121 @@ class WarehouseTransferService
     }
 
     /**
+     * Reset the transfer (God Mode)
+     * Revert status and restore stock if necessary.
+     */
+    public function resetTransfer(WarehouseTransfer $transfer, User $user, string $targetStatus): WarehouseTransfer
+    {
+        return DB::transaction(function () use ($transfer, $user, $targetStatus) {
+            $originalStatus = $transfer->status;
+
+            // 1. Handle Stock Restoration based on ORIGINAL status
+            if ($originalStatus === 'IN_TRANSIT') {
+                // Stock was deducted from source when delivered. We must add it back to source.
+                $transfer->load('items');
+                foreach ($transfer->items as $item) {
+                    $this->inventoryService->addStock(
+                        $item->product_id,
+                        $transfer->warehouse_from_id,
+                        $item->quantity_delivered ?? $item->quantity_requested,
+                        "Transfer Reset (God Mode): {$transfer->transfer_number} - Stock restored to source",
+                        $transfer->id,
+                        WarehouseTransfer::class
+                    );
+                    
+                    // Reset item delivered qty
+                    $item->update(['quantity_delivered' => 0]);
+                }
+
+                // Cancel/Delete Delivery Order
+                 $deliveryOrder = DeliveryOrder::where('source_type', 'IT')
+                    ->where('source_id', $transfer->id)
+                    ->first();
+                if ($deliveryOrder) {
+                    $deliveryOrder->update(['status' => 'CANCELLED', 'notes' => 'Cancelled via God Mode Reset']);
+                    // Or delete? Let's cancel to keep audit trail.
+                }
+
+            } elseif ($originalStatus === 'RECEIVED') {
+                // Stock was added to destination. Remove it from destination.
+                // Stock was deducted from source. Add it back to source.
+                $transfer->load('items');
+                foreach ($transfer->items as $item) {
+                    // Remove from dest
+                    $this->inventoryService->reduceStock(
+                        $item->product_id,
+                        $transfer->warehouse_to_id,
+                        $item->quantity_received ?? $item->quantity_delivered,
+                        "Transfer Reset (God Mode): {$transfer->transfer_number} - Stock removed from dest",
+                        $transfer->id,
+                        WarehouseTransfer::class
+                    );
+                     // Add back to source
+                    $this->inventoryService->addStock(
+                        $item->product_id,
+                        $transfer->warehouse_from_id,
+                        $item->quantity_delivered ?? $item->quantity_requested,
+                        "Transfer Reset (God Mode): {$transfer->transfer_number} - Stock restored to source",
+                         $transfer->id,
+                        WarehouseTransfer::class
+                    );
+                    
+                     // Reset item quantities
+                    $item->update(['quantity_delivered' => 0, 'quantity_received' => 0]);
+                }
+                 // Cancel Delivery Order (and Picking List implied?)
+                 $deliveryOrder = DeliveryOrder::where('source_type', 'IT')
+                    ->where('source_id', $transfer->id)
+                    ->first();
+                if ($deliveryOrder) {
+                    $deliveryOrder->update(['status' => 'CANCELLED']);
+                }
+            } elseif ($originalStatus === 'APPROVED') {
+                 // No stock moved yet, just Picking List created.
+                 $pickingList = PickingList::where('warehouse_id', $transfer->warehouse_from_id)
+                    ->where('notes', 'like', "%{$transfer->transfer_number}%") // Bit weak link, but okay for now
+                    ->first();
+                 if ($pickingList) {
+                     $pickingList->update(['status' => 'CANCELLED']);
+                 }
+            }
+
+            // 2. Update Transfer Status
+            $updateData = [
+                'status' => $targetStatus,
+                'notes' => $transfer->notes . "\n[God Mode] Reset from {$originalStatus} to {$targetStatus} by {$user->name} at " . now(),
+            ];
+
+            // Clear timestamps based on reset level
+            if ($targetStatus === 'REQUESTED') {
+                $updateData['approved_by'] = null;
+                $updateData['approved_at'] = null;
+                $updateData['delivered_by'] = null;
+                $updateData['delivered_at'] = null;
+                $updateData['received_by'] = null;
+                $updateData['received_at'] = null;
+            } elseif ($targetStatus === 'APPROVED') {
+                 $updateData['delivered_by'] = null;
+                 $updateData['delivered_at'] = null;
+                 $updateData['received_by'] = null;
+                 $updateData['received_at'] = null;
+            }
+            
+            $transfer->update($updateData);
+
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'action' => 'WAREHOUSE_TRANSFER_RESET',
+                'description' => "User {$user->name} reset transfer {$transfer->transfer_number} from {$originalStatus} to {$targetStatus} (God Mode)",
+                'reference_type' => 'WarehouseTransfer',
+                'reference_id' => $transfer->id,
+            ]);
+
+            return $transfer;
+        });
+    }
+
+    /**
      * Generate Transfer Number
      */
     private function generateTransferNumber(int $warehouseId): string

@@ -222,6 +222,19 @@ const InternalTransfers = () => {
     }
   };
 
+  const handleReset = async (id, targetStatus) => {
+    if (!confirm(`[GOD MODE] Are you sure you want to reset this transfer to ${targetStatus}? This will REVERT stock movements!`)) return;
+
+    try {
+      await api.post(`/warehouse-transfers/${id}/reset`, { target_status: targetStatus });
+      showSuccess('Transfer reset successfully (God Mode)!');
+      fetchData();
+      setIsViewOpen(false);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to reset');
+    }
+  };
+
   const handlePrintDO = async (transferNumber) => {
     try {
       const response = await api.get('/delivery-orders');
@@ -687,7 +700,18 @@ const InternalTransfers = () => {
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <div>
+              {['Super Admin', 'Admin'].includes(getRoleName(user)) && (
+                <div className="flex gap-2">
+                   {(selectedTransfer?.status === 'IN_TRANSIT' || selectedTransfer?.status === 'RECEIVED' || selectedTransfer?.status === 'APPROVED' || selectedTransfer?.status === 'CANCELLED') && (
+                      <Button variant="destructive" size="sm" onClick={() => handleReset(selectedTransfer.id, 'REQUESTED')}>
+                        (God Mode) Reset to REQUESTED
+                      </Button>
+                   )}
+                </div>
+              )}
+            </div>
             <Button onClick={() => setIsViewOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>

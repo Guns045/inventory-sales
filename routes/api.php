@@ -291,6 +291,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/warehouse-transfers/{id}/deliver', [App\Http\Controllers\API\WarehouseTransferController::class, 'deliver'])->middleware('permission:product-stock.update');
     Route::post('/warehouse-transfers/{id}/receive', [App\Http\Controllers\API\WarehouseTransferController::class, 'receive'])->middleware('permission:product-stock.update');
     Route::post('/warehouse-transfers/{id}/cancel', [App\Http\Controllers\API\WarehouseTransferController::class, 'cancel'])->middleware('permission:product-stock.delete');
+    Route::post('/warehouse-transfers/{id}/reset', [App\Http\Controllers\API\WarehouseTransferController::class, 'reset']); // God Mode
     Route::get('/warehouse-transfers/statistics', [App\Http\Controllers\API\WarehouseTransferController::class, 'statistics'])->middleware('permission:product-stock.read');
 
     // Master Data Raw Products Management

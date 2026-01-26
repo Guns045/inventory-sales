@@ -270,4 +270,35 @@ class WarehouseTransferController extends Controller
         $stats = $this->transferService->getStatistics($request->user());
         return response()->json($stats);
     }
+
+    /**
+     * Reset transfer status (God Mode).
+     */
+    public function reset(Request $request, $id)
+    {
+        $transfer = WarehouseTransfer::findOrFail($id);
+        $user = $request->user();
+
+        // Strict Check: Only Super Admin or specific role
+        if ($user->role !== 'Super Admin' && $user->email !== 'root@jinantruck.my.id') {
+            // allow if explicitly granted permission 'transfers.reset' (optional)
+            if (!$user->hasPermission('transfers', 'reset')) {
+                return response()->json(['message' => 'GOD MODE ACCESS DENIED'], 403);
+            }
+        }
+
+        $request->validate([
+            'target_status' => 'required|in:REQUESTED,APPROVED,CANCELLED',
+        ]);
+
+        try {
+            $transfer = $this->transferService->resetTransfer($transfer, $user, $request->target_status);
+            return response()->json([
+                'message' => 'Warehouse transfer reset successfully (God Mode)',
+                'transfer' => new WarehouseTransferResource($transfer)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
 }

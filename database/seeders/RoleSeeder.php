@@ -43,27 +43,27 @@ class RoleSeeder extends Seeder
 
         // Create permissions
         foreach ($allPermissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'sanctum']);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // Explicitly create dashboard permissions if not exists
-        Permission::firstOrCreate(['name' => 'dashboard.sales', 'guard_name' => 'sanctum']);
-        Permission::firstOrCreate(['name' => 'dashboard.warehouse', 'guard_name' => 'sanctum']);
-        Permission::firstOrCreate(['name' => 'dashboard.finance', 'guard_name' => 'sanctum']);
+        Permission::firstOrCreate(['name' => 'dashboard.sales', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'dashboard.warehouse', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'dashboard.finance', 'guard_name' => 'web']);
 
         // Create Roles and Assign Permissions
 
         // 1. Super Admin
-        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'sanctum']);
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']);
         $superAdmin->givePermissionTo(Permission::all());
 
         // 2. Admin (Access to most, but maybe restricted from some system settings if needed)
         // For now, giving full access similar to Super Admin but conceptually different
-        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'sanctum']);
+        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $admin->givePermissionTo(Permission::all());
 
         // 3. Sales
-        $sales = Role::firstOrCreate(['name' => 'Sales', 'guard_name' => 'sanctum']);
+        $sales = Role::firstOrCreate(['name' => 'Sales', 'guard_name' => 'web']);
         $salesPermissions = [
             'dashboard.read',
             'dashboard.sales', // Add specific dashboard permission
@@ -86,7 +86,7 @@ class RoleSeeder extends Seeder
         $this->syncPermissionsToRole($sales, $salesPermissions);
 
         // 4. Warehouse
-        $warehouse = Role::firstOrCreate(['name' => 'Warehouse', 'guard_name' => 'sanctum']);
+        $warehouse = Role::firstOrCreate(['name' => 'Warehouse', 'guard_name' => 'web']);
         $warehousePermissions = [
             'dashboard.read',
             'dashboard.warehouse',
@@ -119,7 +119,7 @@ class RoleSeeder extends Seeder
         $this->syncPermissionsToRole($warehouse, $warehousePermissions);
 
         // 5. Finance
-        $finance = Role::firstOrCreate(['name' => 'Finance', 'guard_name' => 'sanctum']);
+        $finance = Role::firstOrCreate(['name' => 'Finance', 'guard_name' => 'web']);
         $financePermissions = [
             'dashboard.read',
             'dashboard.finance',
