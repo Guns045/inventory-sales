@@ -57,6 +57,7 @@ export function QuotationTable({
                     actions.viewOnly = true;
                     break;
                 case 'APPROVED':
+                    actions.canEdit = true;
                     actions.canConvertToSO = true;
                     break;
                 case 'REJECTED':
@@ -82,6 +83,7 @@ export function QuotationTable({
                     actions.canReject = true;
                     break;
                 case 'APPROVED':
+                    actions.canEdit = true;
                     actions.canConvertToSO = true;
                     break;
                 case 'REJECTED':
@@ -108,6 +110,7 @@ export function QuotationTable({
                     actions.canReject = true;
                     break;
                 case 'APPROVED':
+                    actions.canEdit = true;
                     actions.canConvertToSO = true;
                     break;
                 case 'REJECTED':

@@ -102,10 +102,10 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::findOrFail($id);
 
-        // Allow editing DRAFT and REJECTED quotations (for Sales Team to resubmit)
-        if (!in_array($quotation->status, ['DRAFT', 'REJECTED'])) {
+        // Allow editing DRAFT, REJECTED, and APPROVED quotations (before conversion)
+        if (!in_array($quotation->status, ['DRAFT', 'REJECTED', 'APPROVED'])) {
             return response()->json([
-                'message' => 'Only draft and rejected quotations can be edited'
+                'message' => 'Only draft, rejected, or approved (unconverted) quotations can be edited'
             ], 422);
         }
 
