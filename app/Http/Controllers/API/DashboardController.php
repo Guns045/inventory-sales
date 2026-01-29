@@ -391,78 +391,69 @@ class DashboardController extends Controller
     public function warehouseDashboard(Request $request)
     {
         try {
-            // Get Pending Sales Orders (Limit 50)
-            $pendingOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])
-                ->where('status', 'PENDING')
-                ->orderBy('created_at', 'asc')
-                ->take(50)
-                ->get();
+            // Low Stock Products
+            $lowStockProducts = ProductStock::with('product', 'warehouse')
+                ->join('products', 'product_stock.product_id', '=', 'products.id')
+                ->where('product_stock.quantity', '<=', DB::raw('products.min_stock_level'))
+                ->where('product_stock.quantity', '>', 0) // Exclude out of stock
+                ->orderBy('product_stock.quantity', 'asc')
+                ->take(20)
+                ->get([
+                    'product_stock.*',
+                    'products.name as product_name',
+                    'products.sku',
+                    'products.min_stock_level'
+                ]);
 
-            // Get Processing Sales Orders (Limit 50)
-            $processingOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])
-                ->where('status', 'PROCESSING')
-                ->orderBy('updated_at', 'asc')
-                ->take(50)
-                ->get();
+            // Out of Stock Products
+            $outStockProducts = ProductStock::with('product', 'warehouse')
+                ->join('products', 'product_stock.product_id', '=', 'products.id')
+                ->where('product_stock.quantity', '=', 0)
+                ->orderBy('products.name', 'asc')
+                ->take(20)
+                ->get([
+                    'product_stock.*',
+                    'products.name as product_name',
+                    'products.sku',
+                    'products.min_stock_level'
+                ]);
 
-            // Get Ready to Ship Orders (Limit 50)
-            $readyToShipOrders = SalesOrder::with(['customer', 'user', 'salesOrderItems.product'])
-                ->where('status', 'READY_TO_SHIP')
-                ->orderBy('updated_at', 'asc')
-                ->take(50)
-                ->get();
+            // Stats
+            $totalStock = ProductStock::sum('quantity');
+            $lowStockCount = ProductStock::join('products', 'product_stock.product_id', '=', 'products.id')
+                ->where('product_stock.quantity', '<=', DB::raw('products.min_stock_level'))
+                ->where('product_stock.quantity', '>', 0)
+                ->count();
+            $outStockCount = ProductStock::where('quantity', 0)->count();
 
-            // Transform orders to include 'items' alias for frontend compatibility
-            $transformOrders = function ($orders) {
-                return $orders->each(function ($order) {
-                    $order->setRelation('items', $order->salesOrderItems);
-                });
-            };
-
-            $transformOrders($pendingOrders);
-            $transformOrders($processingOrders);
-            $transformOrders($readyToShipOrders);
-
-            // Calculate Stats (Count all)
             $warehouseStats = [
-                'pending_processing' => SalesOrder::where('status', 'PENDING')->count(),
-                'processing' => SalesOrder::where('status', 'PROCESSING')->count(),
-                'ready_to_ship' => SalesOrder::where('status', 'READY_TO_SHIP')->count(),
-                'total_orders' => SalesOrder::count(),
+                'total_stock' => $totalStock,
+                'low_stock_count' => $lowStockCount,
+                'out_stock_count' => $outStockCount,
             ];
 
             $data = [
-                'pending_sales_orders' => $pendingOrders,
-                'processing_sales_orders' => $processingOrders,
-                'ready_to_ship_orders' => $readyToShipOrders,
+                'low_stock_products' => $lowStockProducts,
+                'out_stock_products' => $outStockProducts,
                 'warehouse_stats' => $warehouseStats,
             ];
 
-            // Explicitly encode to catch serialization errors
-            $json = json_encode($data);
-            if ($json === false) {
-                throw new \Exception('JSON Encode Error: ' . json_last_error_msg());
-            }
-
-            return response($json)->header('Content-Type', 'application/json');
+            return response()->json($data);
 
         } catch (\Throwable $e) {
             \Log::error('Warehouse Dashboard Error: ' . $e->getMessage());
             \Log::error($e->getTraceAsString());
 
-            // Return default data structure on error
             return response()->json([
                 'error' => $e->getMessage(),
-                'pending_sales_orders' => [],
-                'processing_sales_orders' => [],
-                'ready_to_ship_orders' => [],
+                'low_stock_products' => [],
+                'out_stock_products' => [],
                 'warehouse_stats' => [
-                    'pending_processing' => 0,
-                    'processing' => 0,
-                    'ready_to_ship' => 0,
-                    'total_orders' => 0,
+                    'total_stock' => 0,
+                    'low_stock_count' => 0,
+                    'out_stock_count' => 0,
                 ],
-            ]); // Return 200 to avoid crashing frontend completely, but show empty state
+            ]);
         }
     }
 

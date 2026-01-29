@@ -28,7 +28,8 @@ import {
     Receipt,
     BarChart3,
     ShoppingBag,
-    Undo2
+    Undo2,
+    AlertTriangle
 } from 'lucide-react';
 
 const SidebarContent = ({ menuItems, pathname, onNavigate }) => {
@@ -70,7 +71,8 @@ const SidebarContent = ({ menuItems, pathname, onNavigate }) => {
             'bi-receipt': Receipt,
 
             'bi-graph-up': BarChart3,
-            'bi-arrow-return-left': Undo2
+            'bi-arrow-return-left': Undo2,
+            'bi-exclamation-triangle': AlertTriangle
         };
 
         const IconComponent = iconMap[iconName] || Box;

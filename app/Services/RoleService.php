@@ -148,6 +148,12 @@ class RoleService
                     'permission' => 'goods-receipts.read',
                 ],
                 [
+                    'title' => 'Damage Report',
+                    'path' => '/damage-reports',
+                    'icon' => 'bi-exclamation-triangle',
+                    'permission' => 'damage-reports.read',
+                ],
+                [
                     'title' => 'Logout',
                     'path' => '#',
                     'icon' => 'bi-box-arrow-right',
