@@ -38,14 +38,6 @@ export function GoodsReceiptTable({
         );
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0
-        }).format(amount);
-    };
-
     const columns = [
         {
             header: "GR Number",
@@ -76,11 +68,6 @@ export function GoodsReceiptTable({
             header: "Received Date",
             accessorKey: "receipt_date",
             cell: (row) => row.receipt_date ? new Date(row.receipt_date).toLocaleDateString() : '-'
-        },
-        {
-            header: "Total Amount",
-            accessorKey: "total_amount",
-            cell: (row) => <span className="text-right block">{formatCurrency(row.total_amount)}</span>
         }
     ];
 
