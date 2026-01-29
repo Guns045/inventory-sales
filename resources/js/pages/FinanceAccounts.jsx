@@ -72,17 +72,29 @@ const FinanceAccounts = () => {
         }).format(amount);
     };
 
+    const formatInputNumber = (value) => {
+        if (!value) return '';
+        const number = value.replace(/\D/g, '');
+        return new Intl.NumberFormat('id-ID').format(number);
+    };
+
+    const parseInputNumber = (value) => {
+        if (!value) return '';
+        return value.replace(/\./g, '');
+    };
+
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <PageHeader
                 title="Finance Accounts"
                 description="Manage cash and bank accounts"
-            >
-                <Button onClick={() => setIsCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Account
-                </Button>
-            </PageHeader>
+                actions={
+                    <Button onClick={() => setIsCreateOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Account
+                    </Button>
+                }
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {accounts.map((account) => (
@@ -167,9 +179,9 @@ const FinanceAccounts = () => {
                         <div className="space-y-2">
                             <Label>Initial Balance</Label>
                             <Input
-                                type="number"
-                                value={formData.initial_balance}
-                                onChange={(e) => setFormData({ ...formData, initial_balance: e.target.value })}
+                                type="text"
+                                value={formatInputNumber(formData.initial_balance)}
+                                onChange={(e) => setFormData({ ...formData, initial_balance: parseInputNumber(e.target.value) })}
                                 placeholder="0"
                             />
                         </div>

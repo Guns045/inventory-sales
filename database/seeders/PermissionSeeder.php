@@ -50,7 +50,8 @@ class PermissionSeeder extends Seeder
             'Inventory & Stock' => [
                 'view_stock',
                 'adjust_stock',
-                'view_stock_movements'
+                'view_stock_movements',
+                'damage-reports.read'
             ],
             'Goods Receipt' => [
                 'view_goods_receipts',
@@ -115,7 +116,7 @@ class PermissionSeeder extends Seeder
      */
     private function syncExistingRoles()
     {
-        $roles = \App\Models\Role::with('users')->get();
+        $roles = Role::get();
 
         foreach ($roles as $role) {
             // Map existing JSON permissions to new permission names

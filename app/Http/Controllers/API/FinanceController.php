@@ -139,4 +139,52 @@ class FinanceController extends Controller
 
         return response()->json($transactions);
     }
+
+    /**
+     * Store a manual transaction (e.g., Adjustment, Bank Charges, Interest)
+     */
+    public function storeTransaction(Request $request)
+    {
+        $validated = $request->validate([
+            'finance_account_id' => 'required|exists:finance_accounts,id',
+            'type' => 'required|in:IN,OUT',
+            'amount' => 'required|numeric|min:0.01',
+            'transaction_date' => 'required|date',
+            'category' => 'required|string|max:255',
+            'description' => 'required|string|max:255',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $account = FinanceAccount::findOrFail($validated['finance_account_id']);
+
+            // Create Transaction
+            $transaction = FinanceTransaction::create([
+                'finance_account_id' => $account->id,
+                'type' => $validated['type'],
+                'amount' => $validated['amount'],
+                'transaction_date' => $validated['transaction_date'],
+                'category' => $validated['category'],
+                'description' => $validated['description'],
+                'created_by' => auth()->id()
+            ]);
+
+            // Update Account Balance
+            if ($validated['type'] === 'IN') {
+                $account->increment('balance', $validated['amount']);
+            } else {
+                // For OUT, we still increment/decrement correctly
+                if ($account->balance < $validated['amount']) {
+                    throw new \Exception("Insufficient balance in account {$account->name}.");
+                }
+                $account->decrement('balance', $validated['amount']);
+            }
+
+            DB::commit();
+            return response()->json($transaction, 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to record transaction', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

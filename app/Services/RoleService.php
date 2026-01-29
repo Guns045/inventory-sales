@@ -286,7 +286,11 @@ class RoleService
             return true;
         }
 
-        return $role->hasPermissionTo($item['permission']);
+        try {
+            return $role->hasPermissionTo($item['permission']);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
+            return false;
+        }
     }
 
     /**

@@ -214,6 +214,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/finance/accounts/{id}', [FinanceController::class, 'show'])->middleware('permission:finance.read');
     Route::put('/finance/accounts/{id}', [FinanceController::class, 'update'])->middleware('permission:finance.update');
     Route::get('/finance/accounts/{id}/transactions', [FinanceController::class, 'getTransactions'])->middleware('permission:finance.read');
+    Route::post('/finance/transactions', [FinanceController::class, 'storeTransaction'])->middleware('permission:finance.create');
     Route::get('/finance/expenses', [FinanceController::class, 'getExpenses'])->middleware('permission:finance.read');
 
     // Approval management
