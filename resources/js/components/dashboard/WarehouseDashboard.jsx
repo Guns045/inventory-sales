@@ -16,7 +16,8 @@ import {
   Package,
   AlertTriangle,
   XCircle,
-  Building
+  Building,
+  Download
 } from "lucide-react";
 
 const WarehouseDashboard = () => {
@@ -41,6 +42,33 @@ const WarehouseDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportToExcel = (data, filename) => {
+    // Convert data to CSV format
+    const headers = ['Part Number', 'Description', 'Warehouse', 'Min. Level', 'Quantity', 'Status'];
+    const csvContent = [
+      headers.join(','),
+      ...data.map(item => [
+        item.sku || '',
+        `"${(item.product_name || '').replace(/"/g, '""')}"`,
+        `"${(item.warehouse?.name || 'Unknown').replace(/"/g, '""')}"`,
+        item.min_stock_level || 0,
+        item.quantity || 0,
+        item.quantity === 0 ? 'Out of Stock' : 'Low Stock'
+      ].join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {
@@ -118,19 +146,33 @@ const WarehouseDashboard = () => {
         {/* Low Stock Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              Low Stock Products
-            </CardTitle>
-            <CardDescription>Restock recommended for these items</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  Low Stock Products
+                </CardTitle>
+                <CardDescription>Restock recommended for these items</CardDescription>
+              </div>
+              {low_stock_products.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportToExcel(low_stock_products, 'low_stock_products')}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download to Excel
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {low_stock_products.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Product Name</TableHead>
+                    <TableHead>Part Number</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Warehouse</TableHead>
                     <TableHead className="text-right">Min. Level</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
@@ -144,23 +186,23 @@ const WarehouseDashboard = () => {
                       <TableCell>{stock.product_name}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                            <Building className="h-3 w-3 text-muted-foreground" />
-                            {stock.warehouse?.name || 'Unknown'}
+                          <Building className="h-3 w-3 text-muted-foreground" />
+                          {stock.warehouse?.name || 'Unknown'}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">{stock.min_stock_level}</TableCell>
                       <TableCell className="text-right font-bold text-yellow-600">{stock.quantity}</TableCell>
                       <TableCell>
-                         <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">Low Stock</Badge>
+                        <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">Low Stock</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No low stock alerts. Inventory levels are healthy.</p>
-                </div>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No low stock alerts. Inventory levels are healthy.</p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -168,19 +210,33 @@ const WarehouseDashboard = () => {
         {/* Out of Stock Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-red-500" />
-              Out of Stock Products
-            </CardTitle>
-            <CardDescription>Immediate attention required</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <XCircle className="h-5 w-5 text-red-500" />
+                  Out of Stock Products
+                </CardTitle>
+                <CardDescription>Immediate attention required</CardDescription>
+              </div>
+              {out_stock_products.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportToExcel(out_stock_products, 'out_of_stock_products')}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download to Excel
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {out_stock_products.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Product Name</TableHead>
+                    <TableHead>Part Number</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Warehouse</TableHead>
                     <TableHead className="text-right">Min. Level</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
@@ -194,23 +250,23 @@ const WarehouseDashboard = () => {
                       <TableCell>{stock.product_name}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                            <Building className="h-3 w-3 text-muted-foreground" />
-                            {stock.warehouse?.name || 'Unknown'}
+                          <Building className="h-3 w-3 text-muted-foreground" />
+                          {stock.warehouse?.name || 'Unknown'}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">{stock.min_stock_level}</TableCell>
                       <TableCell className="text-right font-bold text-red-600">{stock.quantity}</TableCell>
                       <TableCell>
-                         <Badge variant="destructive">Out of Stock</Badge>
+                        <Badge variant="destructive">Out of Stock</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No out of stock items.</p>
-                </div>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No out of stock items.</p>
+              </div>
             )}
           </CardContent>
         </Card>
