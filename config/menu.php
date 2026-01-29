@@ -93,7 +93,7 @@ return [
                 'title' => 'Damage Report',
                 'path' => '/damage-reports',
                 'icon' => 'bi-exclamation-triangle',
-                'permission' => 'product-stock.read'
+                'permission' => 'damage-reports.read'
             ]
         ]
     ],
