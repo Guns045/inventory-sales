@@ -18,8 +18,11 @@ class FinanceTransaction extends Model
         'reference_type',
         'reference_id',
         'category',
-        'created_by'
+        'created_by',
+        'attachment'
     ];
+
+    protected $appends = ['attachment_url'];
 
     protected $casts = [
         'amount' => 'decimal:2',
@@ -39,5 +42,10 @@ class FinanceTransaction extends Model
     public function reference()
     {
         return $this->morphTo();
+    }
+
+    public function getAttachmentUrlAttribute()
+    {
+        return $this->attachment ? asset('storage/' . $this->attachment) : null;
     }
 }

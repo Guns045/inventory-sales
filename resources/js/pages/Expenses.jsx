@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatsCard } from "@/components/common/StatsCard";
@@ -28,6 +30,17 @@ const Expenses = () => {
 
     const [selectedExpense, setSelectedExpense] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [expenseForm, setExpenseForm] = useState({
+        finance_account_id: '',
+        amount: '',
+        transaction_date: new Date().toISOString().split('T')[0],
+        category: 'Miscellaneous',
+        description: '',
+        attachment: null
+    });
 
     useEffect(() => {
         fetchAccounts();
@@ -86,6 +99,66 @@ const Expenses = () => {
         }).format(amount);
     };
 
+    const formatInputNumber = (value) => {
+        if (!value) return '';
+        const number = typeof value === 'string' ? value.replace(/\D/g, '') : value.toString();
+        return new Intl.NumberFormat('id-ID').format(number);
+    };
+
+    const parseInputNumber = (value) => {
+        if (!value) return '';
+        return value.replace(/\./g, '');
+    };
+
+    const handleSubmitExpense = async () => {
+        if (!expenseForm.finance_account_id) {
+            showError('Please select a finance account');
+            return;
+        }
+        if (!expenseForm.amount || parseFloat(expenseForm.amount) <= 0) {
+            showError('Please enter a valid amount');
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+
+            const formData = new FormData();
+            formData.append('finance_account_id', expenseForm.finance_account_id);
+            formData.append('amount', expenseForm.amount);
+            formData.append('transaction_date', expenseForm.transaction_date);
+            formData.append('category', expenseForm.category);
+            formData.append('description', expenseForm.description);
+            formData.append('type', 'OUT');
+            if (expenseForm.attachment) {
+                formData.append('attachment', expenseForm.attachment);
+            }
+
+            await api.post('/finance/transactions', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            showSuccess('Expense recorded successfully');
+            setIsCreateOpen(false);
+            setExpenseForm({
+                finance_account_id: '',
+                amount: '',
+                transaction_date: new Date().toISOString().split('T')[0],
+                category: 'Miscellaneous',
+                description: '',
+                attachment: null
+            });
+            fetchExpenses();
+            fetchAccounts();
+        } catch (error) {
+            showError(error.response?.data?.message || 'Failed to record expense');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleViewDetail = (expense) => {
         setSelectedExpense(expense);
         setShowDetailModal(true);
@@ -96,6 +169,12 @@ const Expenses = () => {
             <PageHeader
                 title="Expenses"
                 description="View and manage all expenses (money out)"
+                actions={
+                    <Button onClick={() => setIsCreateOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Record Expense
+                    </Button>
+                }
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -261,10 +340,109 @@ const Expenses = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {selectedExpense.attachment_url && (
+                                <div className="space-y-2">
+                                    <label className="text-muted-foreground text-xs">Receipt Image</label>
+                                    <div className="rounded-lg overflow-hidden border">
+                                        <img
+                                            src={selectedExpense.attachment_url}
+                                            alt="Receipt"
+                                            className="w-full h-auto max-h-[400px] object-contain"
+                                        />
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <Button variant="outline" size="sm" asChild>
+                                            <a href={selectedExpense.attachment_url} target="_blank" rel="noopener noreferrer">
+                                                Open Full Image
+                                            </a>
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     <DialogFooter>
                         <Button onClick={() => setShowDetailModal(false)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Expense Dialog */}
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Record New Expense</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Finance Account</Label>
+                            <Select
+                                value={expenseForm.finance_account_id}
+                                onValueChange={(v) => setExpenseForm({ ...expenseForm, finance_account_id: v })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select account..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {accounts.map((acc) => (
+                                        <SelectItem key={acc.id} value={acc.id.toString()}>
+                                            {acc.name} ({formatCurrency(acc.balance)})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Amount</Label>
+                                <Input
+                                    type="text"
+                                    value={formatInputNumber(expenseForm.amount)}
+                                    onChange={(e) => setExpenseForm({ ...expenseForm, amount: parseInputNumber(e.target.value) })}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Date</Label>
+                                <Input
+                                    type="date"
+                                    value={expenseForm.transaction_date}
+                                    onChange={(e) => setExpenseForm({ ...expenseForm, transaction_date: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Category</Label>
+                            <Input
+                                value={expenseForm.category}
+                                onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                                placeholder="e.g. Operasional, Listrik, ATK"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Description</Label>
+                            <Input
+                                value={expenseForm.description}
+                                onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                                placeholder="Details about this expense"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Receipt Image (Optional)</Label>
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setExpenseForm({ ...expenseForm, attachment: e.target.files[0] })}
+                            />
+                            <p className="text-[10px] text-muted-foreground">Max 2MB (JPG, PNG)</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSubmitExpense} disabled={isSubmitting}>
+                            {isSubmitting ? 'Saving...' : 'Save Expense'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

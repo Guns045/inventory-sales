@@ -152,7 +152,13 @@ class FinanceController extends Controller
             'transaction_date' => 'required|date',
             'category' => 'required|string|max:255',
             'description' => 'required|string|max:255',
+            'attachment' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
+
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('attachments', 'public');
+        }
 
         DB::beginTransaction();
         try {
@@ -166,6 +172,7 @@ class FinanceController extends Controller
                 'transaction_date' => $validated['transaction_date'],
                 'category' => $validated['category'],
                 'description' => $validated['description'],
+                'attachment' => $attachmentPath,
                 'created_by' => auth()->id()
             ]);
 
