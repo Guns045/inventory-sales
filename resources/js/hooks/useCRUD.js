@@ -69,12 +69,12 @@ export function useCRUD(endpoint, options = {}) {
     }, [api, endpoint, pagination.per_page]);
 
     // Create new item
-    const create = useCallback(async (data) => {
+    const create = useCallback(async (data, refetchParams = {}) => {
         try {
             setLoading(true);
             setError(null);
             const response = await api.post(endpoint, data);
-            await fetchItems(pagination.current_page);
+            await fetchItems(pagination.current_page, refetchParams);
             return { success: true, data: response.data };
         } catch (err) {
             const errorMessage = err.response?.data?.message || 'Failed to create item';
@@ -86,12 +86,12 @@ export function useCRUD(endpoint, options = {}) {
     }, [api, endpoint, fetchItems, pagination.current_page]);
 
     // Update existing item
-    const update = useCallback(async (id, data) => {
+    const update = useCallback(async (id, data, refetchParams = {}) => {
         try {
             setLoading(true);
             setError(null);
             const response = await api.put(`${endpoint}/${id}`, data);
-            await fetchItems(pagination.current_page);
+            await fetchItems(pagination.current_page, refetchParams);
             return { success: true, data: response.data };
         } catch (err) {
             const errorMessage = err.response?.data?.message || 'Failed to update item';
@@ -103,12 +103,12 @@ export function useCRUD(endpoint, options = {}) {
     }, [api, endpoint, fetchItems, pagination.current_page]);
 
     // Delete item
-    const remove = useCallback(async (id) => {
+    const remove = useCallback(async (id, refetchParams = {}) => {
         try {
             setLoading(true);
             setError(null);
             await api.delete(`${endpoint}/${id}`);
-            await fetchItems(pagination.current_page);
+            await fetchItems(pagination.current_page, refetchParams);
             return { success: true };
         } catch (err) {
             const errorMessage = err.response?.data?.message || 'Failed to delete item';

@@ -139,11 +139,15 @@ const Quotations = () => {
   const handleFormSubmit = async (formData) => {
     try {
       setFormLoading(true);
-      let result;
+      const filterParams = {
+        search,
+        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+      };
+
       if (selectedQuotation) {
-        result = await update(selectedQuotation.id, formData);
+        result = await update(selectedQuotation.id, formData, filterParams);
       } else {
-        result = await create(formData);
+        result = await create(formData, filterParams);
       }
 
       if (result.success) {
@@ -166,7 +170,11 @@ const Quotations = () => {
 
   const handleDeleteConfirm = async () => {
     if (!selectedQuotation) return;
-    const result = await remove(selectedQuotation.id);
+    const filterParams = {
+      search,
+      warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+    };
+    const result = await remove(selectedQuotation.id, filterParams);
     if (result.success) {
       showSuccess('Quotation deleted successfully');
       closeDelete();
@@ -180,7 +188,10 @@ const Quotations = () => {
       try {
         await api.post(`/quotations/${quotation.id}/approve`, { notes: '' });
         showSuccess('Quotation approved successfully');
-        fetchItems(pagination.current_page);
+        fetchItems(pagination.current_page, {
+          search,
+          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+        });
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to approve quotation');
       }
@@ -201,7 +212,10 @@ const Quotations = () => {
       });
       showSuccess('Quotation rejected successfully');
       closeReject();
-      fetchItems(pagination.current_page);
+      fetchItems(pagination.current_page, {
+        search,
+        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+      });
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to reject quotation');
     }
@@ -214,7 +228,10 @@ const Quotations = () => {
           notes: 'Please review this quotation for approval'
         });
         showSuccess('Quotation submitted for approval');
-        fetchItems(pagination.current_page);
+        fetchItems(pagination.current_page, {
+          search,
+          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+        });
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to submit quotation');
       }
@@ -228,7 +245,10 @@ const Quotations = () => {
           notes: `Converted from Quotation ${quotation.quotation_number}`
         });
         showSuccess(response.data.stock_reserved ? 'Converted and stock reserved!' : 'Converted successfully!');
-        fetchItems(pagination.current_page);
+        fetchItems(pagination.current_page, {
+          search,
+          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+        });
       } catch (err) {
         let msg = err.response?.data?.message || 'Failed to convert';
         if (err.response?.data?.can_convert === false) {
@@ -283,7 +303,10 @@ const Quotations = () => {
         await api.post(`/quotations/${quotation.id}/cancel`, { notes });
         showSuccess('Quotation cancelled successfully');
         closeDetail();
-        fetchItems(pagination.current_page);
+        fetchItems(pagination.current_page, {
+          search,
+          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+        });
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to cancel quotation');
       }

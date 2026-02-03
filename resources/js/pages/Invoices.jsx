@@ -14,7 +14,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { useAPI } from '@/contexts/APIContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
-import { FileText, Clock, AlertCircle, CheckCircle, Search, Download } from "lucide-react";
+import { FileText, Clock, AlertCircle, CheckCircle, Search, Download, Pencil, X, Check } from "lucide-react";
 import CreateInvoiceModal from '../components/finance/CreateInvoiceModal';
 
 const Invoices = () => {
@@ -50,6 +50,11 @@ const Invoices = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [availableCreditNotes, setAvailableCreditNotes] = useState([]);
   const [financeAccounts, setFinanceAccounts] = useState([]);
+
+  // God Mode state
+  const [isEditingPo, setIsEditingPo] = useState(false);
+  const [newPoNumber, setNewPoNumber] = useState('');
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -144,6 +149,9 @@ const Invoices = () => {
       setAvailableCreditNotes(response.data.available_credit_notes || []);
       await fetchPaymentHistory(invoice.id);
       setShowDetailModal(true);
+      // Reset edit mode when opening
+      setIsEditingPo(false);
+      setNewPoNumber(response.data.data?.po_number || response.data?.po_number || '');
     } catch (err) {
       showError('Failed to fetch invoice details');
     }
@@ -562,7 +570,79 @@ const Invoices = () => {
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">PO Number</Label>
-                <div className="font-medium">{selectedInvoice?.po_number || '-'}</div>
+                <div className="flex items-center gap-2">
+                  {isEditingPo ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={newPoNumber}
+                        onChange={(e) => setNewPoNumber(e.target.value)}
+                        className="h-7 w-32 text-sm"
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        disabled={updateLoading}
+                        onClick={async () => {
+                          try {
+                            setUpdateLoading(true);
+                            await api.put(`/invoices/${selectedInvoice.id}`, {
+                              ...selectedInvoice, // Be careful here, usually better to send only changed fields or ensure backend handles partial updates properly, but InvoiceController expects validated full request usually.
+                              // Wait, UpdateInvoiceRequest makes many fields required.
+                              // We need to send all required fields.
+                              sales_order_id: selectedInvoice.sales_order_id,
+                              customer_id: selectedInvoice.customer_id,
+                              issue_date: selectedInvoice.issue_date,
+                              due_date: selectedInvoice.due_date,
+                              status: selectedInvoice.status,
+                              po_number: newPoNumber
+                            });
+                            showSuccess('PO Number updated');
+                            setIsEditingPo(false);
+                            // Refresh
+                            const updated = { ...selectedInvoice, po_number: newPoNumber };
+                            setSelectedInvoice(updated);
+                            fetchData();
+                          } catch (err) {
+                            showError('Failed to update PO Number');
+                          } finally {
+                            setUpdateLoading(false);
+                          }
+                        }}
+                      >
+                        <Check className="h-4 w-4 text-green-500" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setIsEditingPo(false);
+                          setNewPoNumber(selectedInvoice.po_number || '');
+                        }}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="font-medium">{selectedInvoice?.po_number || '-'}</div>
+                      {user?.role === 'root' && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 opacity-50 hover:opacity-100"
+                          onClick={() => {
+                            setNewPoNumber(selectedInvoice?.po_number || '');
+                            setIsEditingPo(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">Total Amount</Label>
