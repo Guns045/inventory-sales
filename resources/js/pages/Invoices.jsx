@@ -627,7 +627,7 @@ const Invoices = () => {
                   ) : (
                     <>
                       <div className="font-medium">{selectedInvoice?.po_number || '-'}</div>
-                      {(user?.role?.name === 'Super Admin' || user?.roles?.some(r => r.name === 'Super Admin')) && (
+                      {(user?.role === 'Super Admin' || user?.role === 'root') && (
                         <Button
                           size="icon"
                           variant="ghost"
