@@ -54,6 +54,8 @@ const Invoices = () => {
   // God Mode state
   const [isEditingPo, setIsEditingPo] = useState(false);
   const [newPoNumber, setNewPoNumber] = useState('');
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [newIssueDate, setNewIssueDate] = useState('');
   const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
@@ -152,6 +154,8 @@ const Invoices = () => {
       // Reset edit mode when opening
       setIsEditingPo(false);
       setNewPoNumber(response.data.data?.po_number || response.data?.po_number || '');
+      setIsEditingDate(false);
+      setNewIssueDate(response.data.data?.issue_date || response.data?.issue_date || '');
     } catch (err) {
       showError('Failed to fetch invoice details');
     }
@@ -558,7 +562,79 @@ const Invoices = () => {
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">Issue Date</Label>
-                <div className="font-medium">{selectedInvoice?.issue_date ? new Date(selectedInvoice.issue_date).toLocaleDateString() : '-'}</div>
+                <div className="flex items-center gap-2">
+                  {isEditingDate ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="date"
+                        value={newIssueDate}
+                        onChange={(e) => setNewIssueDate(e.target.value)}
+                        className="h-7 w-36 text-sm"
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        disabled={updateLoading}
+                        onClick={async () => {
+                          try {
+                            setUpdateLoading(true);
+                            // Keep PO Number as is or use selected value
+                            await api.put(`/invoices/${selectedInvoice.id}`, {
+                              ...selectedInvoice,
+                              sales_order_id: selectedInvoice.sales_order_id,
+                              customer_id: selectedInvoice.customer_id,
+                              issue_date: newIssueDate,
+                              due_date: selectedInvoice.due_date,
+                              status: selectedInvoice.status,
+                              po_number: selectedInvoice.po_number
+                            });
+                            showSuccess('Issue Date updated');
+                            setIsEditingDate(false);
+                            // Refresh
+                            const updated = { ...selectedInvoice, issue_date: newIssueDate };
+                            setSelectedInvoice(updated);
+                            fetchData();
+                          } catch (err) {
+                            showError('Failed to update Issue Date');
+                          } finally {
+                            setUpdateLoading(false);
+                          }
+                        }}
+                      >
+                        <Check className="h-4 w-4 text-green-500" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setIsEditingDate(false);
+                          setNewIssueDate(selectedInvoice.issue_date || '');
+                        }}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="font-medium">{selectedInvoice?.issue_date ? new Date(selectedInvoice.issue_date).toLocaleDateString() : '-'}</div>
+                      {(user?.role === 'Super Admin' || user?.role === 'root') && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 opacity-50 hover:opacity-100"
+                          onClick={() => {
+                            setNewIssueDate(selectedInvoice?.issue_date ? new Date(selectedInvoice.issue_date).toISOString().split('T')[0] : '');
+                            setIsEditingDate(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="text-muted-foreground text-xs">Due Date</Label>
