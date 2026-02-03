@@ -237,7 +237,15 @@ class InvoiceService
      */
     public function updateInvoice(Invoice $invoice, array $data): Invoice
     {
-        $invoice->update($data);
+        DB::transaction(function () use ($invoice, $data) {
+            $invoice->update($data);
+
+            // Update PO Number on related Sales Order if provided
+            if (isset($data['po_number'])) {
+                $invoice->salesOrder()->update(['po_number' => $data['po_number']]);
+            }
+        });
+
         return $invoice->load(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse']);
     }
 
