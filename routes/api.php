@@ -164,6 +164,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery'])->middleware('permission:picking-lists.read');
 
     // Delivery management - explicit routes to ensure all records are returned
+    Route::get('/delivery-orders/pending-items/{customerId}', [DeliveryOrderController::class, 'getPendingItemsByCustomer']);
+    Route::post('/delivery-orders/consolidated', [DeliveryOrderController::class, 'storeConsolidated']);
     Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate']);
     Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
     Route::post('/delivery-orders/from-picking-list', [DeliveryOrderController::class, 'createFromPickingList']);

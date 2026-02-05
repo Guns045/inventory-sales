@@ -10,8 +10,8 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('delivery_order_items', function (Blueprint $table) {
-            $table->unsignedBigInteger('sales_order_item_id')->nullable()->after('delivery_order_id');
+        Schema::table('invoice_items', function (Blueprint $table) {
+            $table->unsignedBigInteger('sales_order_item_id')->nullable()->after('invoice_id');
             $table->foreign('sales_order_item_id')->references('id')->on('sales_order_items')->onDelete('set null');
         });
     }
@@ -21,7 +21,7 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('delivery_order_items', function (Blueprint $table) {
+        Schema::table('invoice_items', function (Blueprint $table) {
             $table->dropForeign(['sales_order_item_id']);
             $table->dropColumn('sales_order_item_id');
         });

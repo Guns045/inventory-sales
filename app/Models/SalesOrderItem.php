@@ -10,6 +10,7 @@ class SalesOrderItem extends Model
         'sales_order_id',
         'product_id',
         'quantity',
+        'quantity_shipped',
         'unit_price',
         'discount_percentage',
         'tax_rate',

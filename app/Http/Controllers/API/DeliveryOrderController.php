@@ -236,6 +236,67 @@ class DeliveryOrderController extends Controller
     /**
      * Print delivery order
      */
+    /**
+     * Get pending items for a customer
+     */
+    public function getPendingItemsByCustomer($customerId)
+    {
+        $items = \App\Models\SalesOrderItem::with(['salesOrder', 'product'])
+            ->whereHas('salesOrder', function ($q) use ($customerId) {
+                $q->where('customer_id', $customerId)
+                    ->whereIn('status', ['APPROVED', 'PROCESSING', 'PARTIAL', 'READY_TO_SHIP']); // Added PROCESSING
+            })
+            ->whereRaw('quantity > quantity_shipped')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'sales_order_id' => $item->sales_order_id,
+                    'sales_order_number' => $item->salesOrder ? $item->salesOrder->sales_order_number : 'N/A',
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product ? $item->product->name : 'Unknown Product',
+                    'quantity' => $item->quantity,
+                    'quantity_shipped' => $item->quantity_shipped,
+                    'remaining_quantity' => $item->quantity - $item->quantity_shipped,
+                ];
+            })
+            ->values(); // Ensure it returns a sequential array, not an object with keys
+
+        return response()->json($items);
+    }
+
+    /**
+     * Store a consolidated delivery order
+     */
+    public function storeConsolidated(Request $request)
+    {
+        $request->validate([
+            'customer_id' => 'required|exists:customers,id',
+            'shipping_date' => 'required|date',
+            'shipping_address' => 'required|string',
+            'items' => 'required|array|min:1',
+            'items.*.sales_order_item_id' => 'required|exists:sales_order_items,id',
+            'items.*.quantity_to_ship' => 'required|integer|min:1',
+        ]);
+
+        try {
+            $deliveryOrder = $this->deliveryOrderService->createConsolidated($request->all());
+            return new DeliveryOrderResource($deliveryOrder);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Consolidated DO Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Failed to create consolidated delivery order: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Print delivery order
+     */
     public function print($id)
     {
         try {

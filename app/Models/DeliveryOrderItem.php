@@ -9,6 +9,7 @@ class DeliveryOrderItem extends Model
 {
     protected $fillable = [
         'delivery_order_id',
+        'sales_order_item_id', // Added for consolidated DO
         'product_id',
         'quantity_shipped',
         'quantity_delivered',
@@ -29,6 +30,11 @@ class DeliveryOrderItem extends Model
         return $this->belongsTo(DeliveryOrder::class);
     }
 
+    public function salesOrderItem(): BelongsTo
+    {
+        return $this->belongsTo(SalesOrderItem::class);
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
@@ -36,7 +42,7 @@ class DeliveryOrderItem extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'PREPARING' => 'Preparing',
             'READY' => 'Ready',
             'IN_TRANSIT' => 'In Transit',
@@ -49,7 +55,7 @@ class DeliveryOrderItem extends Model
 
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'PREPARING' => 'blue',
             'READY' => 'green',
             'IN_TRANSIT' => 'yellow',
@@ -77,7 +83,8 @@ class DeliveryOrderItem extends Model
 
     public function getDeliveryPercentageAttribute(): float
     {
-        if ($this->quantity_shipped == 0) return 0;
+        if ($this->quantity_shipped == 0)
+            return 0;
         return ($this->quantity_delivered / $this->quantity_shipped) * 100;
     }
 
@@ -85,14 +92,15 @@ class DeliveryOrderItem extends Model
     {
         $quantityToDeliver = $quantity ?? $this->remaining_quantity;
 
-        if ($quantityToDelivered <= 0) return;
+        if ($quantityToDeliver <= 0)
+            return;
 
-        $newDelivered = $this->quantity_delivered + $quantityToDelivered;
+        $newDelivered = $this->quantity_delivered + $quantityToDeliver;
 
         $this->update([
             'quantity_delivered' => $newDelivered,
             'status' => $newDelivered >= $this->quantity_shipped ? 'DELIVERED' :
-                      ($newDelivered > 0 ? 'PARTIAL' : $this->status),
+                ($newDelivered > 0 ? 'PARTIAL' : $this->status),
             'delivered_at' => $newDelivered >= $this->quantity_shipped ? now() : $this->delivered_at,
         ]);
     }

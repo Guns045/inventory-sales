@@ -14,7 +14,11 @@ class CustomerController extends Controller
      */
     public function index()
     {
-        $customers = Customer::all();
+        $customers = Customer::withCount([
+            'salesOrders' => function ($query) {
+                $query->whereIn('status', ['APPROVED', 'PROCESSING', 'PARTIAL', 'READY_TO_SHIP']);
+            }
+        ])->get();
         return response()->json($customers);
     }
 

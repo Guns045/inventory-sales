@@ -144,6 +144,7 @@ const Quotations = () => {
         warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
       };
 
+      let result;
       if (selectedQuotation) {
         result = await update(selectedQuotation.id, formData, filterParams);
       } else {

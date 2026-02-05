@@ -156,7 +156,7 @@ class InvoiceController extends Controller
     public function getReadyToCreate(Request $request)
     {
         // Fetch Delivery Orders that are DELIVERED but NOT yet invoiced
-        $query = \App\Models\DeliveryOrder::with(['customer', 'salesOrder.salesOrderItems', 'deliveryOrderItems.product', 'createdBy'])
+        $query = \App\Models\DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product', 'deliveryOrderItems.salesOrderItem', 'createdBy'])
             ->where('status', 'DELIVERED')
             ->whereDoesntHave('invoice'); // Ensure no invoice exists for this DO
 

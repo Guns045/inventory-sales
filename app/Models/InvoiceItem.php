@@ -8,6 +8,7 @@ class InvoiceItem extends Model
 {
     protected $fillable = [
         'invoice_id',
+        'sales_order_item_id', // Added for consolidated DO/Invoice support
         'product_id',
         'description',
         'quantity',
@@ -20,6 +21,11 @@ class InvoiceItem extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function salesOrderItem()
+    {
+        return $this->belongsTo(SalesOrderItem::class);
     }
 
     public function product()

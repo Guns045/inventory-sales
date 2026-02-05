@@ -21,16 +21,19 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     }, [order]);
 
     const calculateTotal = (doData) => {
-        if (!doData || !doData.delivery_order_items || !doData.sales_order?.sales_order_items) return 0;
+        if (!doData || !doData.delivery_order_items) return 0;
 
         return doData.delivery_order_items.reduce((total, item) => {
-            const soItem = doData.sales_order.sales_order_items.find(si => si.product_id === item.product_id);
+            // Priority: Directly linked salesOrderItem (Consolidated support), fallback to primary SO items list
+            const soItem = item.sales_order_item ||
+                doData.sales_order?.sales_order_items?.find(si => si.product_id === item.product_id);
+
             if (!soItem) return total;
 
             const quantity = item.quantity_delivered;
             const unitPrice = parseFloat(soItem.unit_price);
-            const discount = parseFloat(soItem.discount_percentage);
-            const tax = parseFloat(soItem.tax_rate);
+            const discount = parseFloat(soItem.discount_percentage || 0);
+            const tax = parseFloat(soItem.tax_rate || 0);
 
             let price = quantity * unitPrice;
             const discountAmount = price * (discount / 100);
@@ -48,7 +51,7 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[700px]">
+            <DialogContent className="sm:max-w-[750px]">
                 <DialogHeader>
                     <DialogTitle>Create Invoice</DialogTitle>
                 </DialogHeader>
@@ -56,28 +59,28 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                                <span className="font-semibold block">Delivery Order:</span>
-                                {order.delivery_order_number}
+                                <span className="font-semibold block text-muted-foreground uppercase text-[10px]">Delivery Order</span>
+                                <span className="font-bold">{order.delivery_order_number}</span>
                             </div>
                             <div>
-                                <span className="font-semibold block">Sales Order:</span>
-                                {order.sales_order?.sales_order_number}
+                                <span className="font-semibold block text-muted-foreground uppercase text-[10px]">Reference</span>
+                                <span className="font-bold">{order.sales_order?.sales_order_number || 'CONSOLIDATED'}</span>
                             </div>
                             <div>
-                                <span className="font-semibold block">Date:</span>
-                                {new Date(order.created_at).toLocaleDateString()}
+                                <span className="font-semibold block text-muted-foreground uppercase text-[10px]">Date</span>
+                                <span>{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
                             <div>
-                                <span className="font-semibold block">Customer:</span>
-                                {order.customer?.company_name || order.customer?.name}
+                                <span className="font-semibold block text-muted-foreground uppercase text-[10px]">Customer</span>
+                                <span>{order.customer?.company_name || order.customer?.name}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Items Table */}
-                    <div className="border rounded-md overflow-hidden">
+                    <div className="border rounded-md overflow-hidden max-h-[300px] overflow-y-auto">
                         <table className="w-full text-sm">
-                            <thead className="bg-muted">
+                            <thead className="bg-muted sticky top-0 shadow-sm z-10">
                                 <tr>
                                     <th className="px-3 py-2 text-left">Product</th>
                                     <th className="px-3 py-2 text-center">Qty</th>
@@ -89,13 +92,21 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                             </thead>
                             <tbody className="divide-y">
                                 {order.delivery_order_items?.map((item, index) => {
-                                    const soItem = order.sales_order?.sales_order_items?.find(si => si.product_id === item.product_id);
-                                    if (!soItem) return null;
+                                    const soItem = item.sales_order_item ||
+                                        order.sales_order?.sales_order_items?.find(si => si.product_id === item.product_id);
+
+                                    if (!soItem) return (
+                                        <tr key={index}>
+                                            <td colSpan="6" className="px-3 py-2 text-center text-red-500 italic">
+                                                Pricing info missing for {item.product?.sku}
+                                            </td>
+                                        </tr>
+                                    );
 
                                     const quantity = item.quantity_delivered;
                                     const unitPrice = parseFloat(soItem.unit_price);
-                                    const discount = parseFloat(soItem.discount_percentage);
-                                    const tax = parseFloat(soItem.tax_rate);
+                                    const discount = parseFloat(soItem.discount_percentage || 0);
+                                    const tax = parseFloat(soItem.tax_rate || 0);
 
                                     let price = quantity * unitPrice;
                                     const discountAmount = price * (discount / 100);
@@ -103,16 +114,16 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                     const total = price - discountAmount + taxAmount;
 
                                     return (
-                                        <tr key={index}>
+                                        <tr key={index} className="hover:bg-muted/30">
                                             <td className="px-3 py-2">
-                                                <div className="font-medium">{item.product?.sku}</div>
-                                                <div className="text-xs text-muted-foreground">{item.product?.name}</div>
+                                                <div className="font-semibold">{item.product?.sku}</div>
+                                                <div className="text-[11px] text-muted-foreground leading-tight">{item.product?.name}</div>
                                             </td>
                                             <td className="px-3 py-2 text-center">{quantity}</td>
                                             <td className="px-3 py-2 text-right">{formatRupiah(unitPrice)}</td>
-                                            <td className="px-3 py-2 text-right">{discount > 0 ? `${discount}%` : '-'}</td>
-                                            <td className="px-3 py-2 text-right">{tax > 0 ? `${tax}%` : '-'}</td>
-                                            <td className="px-3 py-2 text-right font-medium">{formatRupiah(total)}</td>
+                                            <td className="px-3 py-2 text-right text-muted-foreground">{discount > 0 ? `${discount}%` : '-'}</td>
+                                            <td className="px-3 py-2 text-right text-muted-foreground">{tax > 0 ? `${tax}%` : '-'}</td>
+                                            <td className="px-3 py-2 text-right font-semibold">{formatRupiah(total)}</td>
                                         </tr>
                                     );
                                 })}

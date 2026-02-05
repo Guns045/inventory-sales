@@ -11,8 +11,8 @@
       <td>: {{ $invoice['invoice_no'] }}</td>
     </tr>
     <tr>
-      <td>Quotation No</td>
-      <td>: {{ $invoice['quotation_no'] }}</td>
+      <td>Delivery No</td>
+      <td>: {{ $invoice['delivery_no'] }}</td>
     </tr>
     <tr>
       <td>Date</td>
@@ -32,30 +32,45 @@
     </tr>
   </table>
 
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Part Number</th>
-        <th>Description</th>
-        <th>Quantity</th>
-        <th>Unit Price</th>
-        <th>Disc</th>
-        <th>Total Price</th>
-      </tr>
-    </thead>
-    <tbody>
-      @foreach($invoice['items'] as $item)
-        <tr>
-          <td>{{ $item['part_number'] }}</td>
-          <td style="text-align:left">{{ $item['description'] }}</td>
-          <td>{{ $item['qty'] }}</td>
-          <td>{{ number_format($item['unit_price'], 0, ',', '.') }}</td>
-          <td>{{ $item['disc'] }}%</td>
-          <td>{{ number_format($item['total_price'], 0, ',', '.') }}</td>
-        </tr>
-      @endforeach
-    </tbody>
-  </table>
+  @foreach($invoice['items_grouped'] ?? [['so_number' => $invoice['sales_order_no'], 'quotation_no' => $invoice['quotation_no'], 'items' => $invoice['items']]] as $group)
+    <div class="so-group" style="margin-top: 15px;">
+      <h4 style="margin-bottom: 5px; color: #333;">Quotation No: {{ $group['quotation_no'] }}
+        @if(isset($group['po_number']) && $group['po_number'] !== '-' && !empty($group['po_number']))
+          <span style="font-weight: normal; margin-left: 10px;">(PO: {{ $group['po_number'] }})</span>
+        @endif
+      </h4>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Part Number</th>
+            <th>Description</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Disc</th>
+            <th>Total Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($group['items'] as $item)
+            <tr>
+              <td>{{ $item['part_number'] }}</td>
+              <td style="text-align:left">{{ $item['description'] }}</td>
+              <td style="text-align:center">{{ $item['qty'] }}</td>
+              <td style="text-align:right">{{ number_format($item['unit_price'], 0, ',', '.') }}</td>
+              <td style="text-align:right">{{ $item['disc'] }}%</td>
+              <td style="text-align:right">{{ number_format($item['total_price'], 0, ',', '.') }}</td>
+            </tr>
+          @endforeach
+          @if(isset($invoice['items_grouped']) && count($invoice['items_grouped']) > 1)
+            <tr style="background-color: #f9f9f9; font-weight: bold;">
+              <td colspan="5" style="text-align: right;">Total</td>
+              <td style="text-align: right;">{{ number_format($group['group_total'], 0, ',', '.') }}</td>
+            </tr>
+          @endif
+        </tbody>
+      </table>
+    </div>
+  @endforeach
 
   <div style="margin-top: 5px;">
     <div style="float: left; width: 55%; margin-top: 20px;">
@@ -92,6 +107,5 @@
       </table>
     </div>
     <div style="clear: both;"></div>
-  </div>
   </div>
 @endsection

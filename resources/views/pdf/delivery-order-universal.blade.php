@@ -101,48 +101,53 @@
         </table>
     @endif
 
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Part Number</th>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Weight (kg)</th>
-                @if(isset($source_type) && $source_type === 'IT')
-                    <th>From Location</th>
-                    <th>To Location</th>
-                @else
-                    <th>PO Number</th>
-                    <th>Delivery Method</th>
-                    <th>Delivery Vendor</th>
+    @foreach($delivery['items_grouped'] ?? [['so_number' => $delivery['sales_order_no'], 'items' => $delivery['items']]] as $group)
+        <div class="so-group" style="margin-top: 20px;">
+            <h4 style="margin-bottom: 5px; color: #333;">SO Reference: {{ $group['so_number'] }}
+                @if(isset($group['po_number']) && $group['po_number'] !== '-')
+                    <span style="font-weight: normal; margin-left: 10px;">(PO: {{ $group['po_number'] }})</span>
                 @endif
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($delivery['items'] as $item)
-                <tr>
-                    <td>{{ $item['part_number'] }}</td>
-                    <td>{{ $item['description'] }}</td>
-                    <td class="text-center">{{ $item['quantity'] }}</td>
-                    <td class="text-center">
-                        @if(isset($item['total_weight']) && $item['total_weight'] > 0)
-                            {{ number_format($item['total_weight'], 2) }}
+            </h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Weight (kg)</th>
+                        @if(isset($source_type) && $source_type === 'IT')
+                            <th>From Location</th>
+                            <th>To Location</th>
                         @else
-                            -
+                            {{-- PO Number removed per previous request as it's now in the header above the table --}}
                         @endif
-                    </td>
-                    @if(isset($source_type) && $source_type === 'IT')
-                        <td class="text-center">{{ $item['from_location'] ?? $item['location'] ?? '-' }}</td>
-                        <td class="text-center">{{ $item['to_location'] ?? '-' }}</td>
-                    @else
-                        <td class="text-center">{{ $item['po_number'] }}</td>
-                        <td class="text-center">{{ $item['delivery_method'] }}</td>
-                        <td class="text-center">{{ $item['delivery_vendor'] }}</td>
-                    @endif
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($group['items'] as $item)
+                        <tr>
+                            <td>{{ $item['part_number'] }}</td>
+                            <td>{{ $item['description'] }}</td>
+                            <td class="text-center">{{ $item['quantity'] }}</td>
+                            <td class="text-center">
+                                @if(isset($item['total_weight']) && $item['total_weight'] > 0)
+                                    {{ number_format($item['total_weight'], 2) }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            @if(isset($source_type) && $source_type === 'IT')
+                                <td class="text-center">{{ $item['from_location'] ?? $item['location'] ?? '-' }}</td>
+                                <td class="text-center">{{ $item['to_location'] ?? '-' }}</td>
+                            @else
+                                {{-- PO Number removed per previous request --}}
+                            @endif
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endforeach
 
     @if(isset($source_type) && $source_type === 'IT')
         {{-- Internal Transfer Signature Section --}}

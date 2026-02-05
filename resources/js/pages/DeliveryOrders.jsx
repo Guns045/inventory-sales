@@ -24,7 +24,10 @@ import ShippingDetailsModal from '@/components/warehouse/ShippingDetailsModal';
 import CreateDeliveryOrderModal from '@/components/warehouse/CreateDeliveryOrderModal';
 import MarkDeliveredModal from '@/components/warehouse/MarkDeliveredModal';
 
+import { useNavigate } from 'react-router-dom';
+
 const DeliveryOrders = () => {
+  const navigate = useNavigate();
   const { api } = useAPI();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -34,7 +37,6 @@ const DeliveryOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDeliveredModalOpen, setIsDeliveredModalOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState('SHIPPED');
 
@@ -262,7 +264,7 @@ const DeliveryOrders = () => {
           <p className="text-muted-foreground">Manage delivery orders for sales</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Button onClick={() => navigate('/delivery-orders/create-consolidated')}>
             <Truck className="mr-2 h-4 w-4" />
             Create Delivery Order
           </Button>
@@ -318,11 +320,7 @@ const DeliveryOrders = () => {
         </div>
       </div>
 
-      <CreateDeliveryOrderModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={fetchSalesDeliveryOrders}
-      />
+
 
       <DeliveryOrderDetailsModal
         isOpen={isViewModalOpen}

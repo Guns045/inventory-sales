@@ -146,24 +146,32 @@ class InvoiceService
     public function createFromDeliveryOrder(int $deliveryOrderId, array $data): Invoice
     {
         return DB::transaction(function () use ($deliveryOrderId, $data) {
-            $deliveryOrder = \App\Models\DeliveryOrder::with(['deliveryOrderItems.product', 'salesOrder.salesOrderItems'])->findOrFail($deliveryOrderId);
-            $salesOrder = $deliveryOrder->salesOrder;
+            $deliveryOrder = \App\Models\DeliveryOrder::with(['deliveryOrderItems.product', 'deliveryOrderItems.salesOrderItem.salesOrder'])->findOrFail($deliveryOrderId);
+
+            // For consolidated DO, primary salesOrder might be the first one
+            // We'll use it for terms of payment and customer default, but items will come from their respective SOs
+            $primarySalesOrder = $deliveryOrder->salesOrder;
 
             // Calculate total amount based on DELIVERED QUANTITY
             $totalAmount = 0;
             $invoiceItemsData = [];
 
             foreach ($deliveryOrder->deliveryOrderItems as $doItem) {
-                // Find matching SO item to get price and discount info
-                $soItem = $salesOrder->salesOrderItems->where('product_id', $doItem->product_id)->first();
+                // Get SO item directly from the link (critical for consolidated DO)
+                $soItem = $doItem->salesOrderItem;
+
+                if (!$soItem) {
+                    // Fallback to searching in primary SO if link is missing (for legacy data)
+                    $soItem = $primarySalesOrder->salesOrderItems->where('product_id', $doItem->product_id)->first();
+                }
 
                 if (!$soItem)
-                    continue; // Should not happen if data integrity is maintained
+                    continue;
 
                 $quantity = $doItem->quantity_delivered; // Use delivered quantity
 
                 if ($quantity <= 0)
-                    continue; // Skip items with 0 delivered quantity
+                    continue;
 
                 $unitPrice = $soItem->unit_price;
                 $discountPercentage = $soItem->discount_percentage;
@@ -177,6 +185,7 @@ class InvoiceService
                 $totalAmount += $finalPrice;
 
                 $invoiceItemsData[] = [
+                    'sales_order_item_id' => $soItem->id,
                     'product_id' => $doItem->product_id,
                     'description' => $doItem->product->name,
                     'quantity' => $quantity,
@@ -187,9 +196,9 @@ class InvoiceService
                 ];
             }
 
-            // Update PO Number if provided
-            if (isset($data['po_number']) && !empty($data['po_number'])) {
-                $salesOrder->update(['po_number' => $data['po_number']]);
+            // Update PO Number if provided (on the primary SO)
+            if (isset($data['po_number']) && !empty($data['po_number']) && $primarySalesOrder) {
+                $primarySalesOrder->update(['po_number' => $data['po_number']]);
             }
 
             $warehouseId = $deliveryOrder->warehouse_id;
@@ -197,12 +206,12 @@ class InvoiceService
 
             $invoice = Invoice::create([
                 'invoice_number' => $invoiceNumber,
-                'sales_order_id' => $salesOrder->id,
-                'delivery_order_id' => $deliveryOrderId, // Link to DO
-                'customer_id' => $salesOrder->customer_id,
+                'sales_order_id' => $primarySalesOrder ? $primarySalesOrder->id : null,
+                'delivery_order_id' => $deliveryOrderId,
+                'customer_id' => $deliveryOrder->customer_id,
                 'warehouse_id' => $warehouseId,
                 'issue_date' => $data['issue_date'],
-                'due_date' => $this->calculateDueDate($data['issue_date'], $salesOrder->terms_of_payment),
+                'due_date' => $this->calculateDueDate($data['issue_date'], $primarySalesOrder ? $primarySalesOrder->terms_of_payment : null),
                 'status' => $data['status'],
                 'total_amount' => $totalAmount,
             ]);

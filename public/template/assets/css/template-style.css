@@ -109,7 +109,7 @@ body {
 
 .sign-box strong {
   font-weight: bold;
-  margin-bottom: 70px; /* tambah jarak untuk tanda tangan */
+  margin-bottom: 40px; /* Reduced from 70px to save space */
   display: block;
 }
 
@@ -129,7 +129,7 @@ body {
 /* Signature line styling */
 .signature-line {
   border-bottom: 1px solid #000;
-  margin: 70px 0 5px 0; /* sesuai dengan margin-bottom strong */
+  margin: 40px 0 5px 0; /* Reduced from 70px to save space */
   height: 1px;
   width: 200px; /* tentukan lebar signature line */
   margin-left: auto;
@@ -138,7 +138,7 @@ body {
 
 /* Additional spacing untuk signature sections */
 .sign-section {
-  margin-top: 80px; /* tambah margin atas untuk lebih banyak ruang */
+  margin-top: 30px; /* Reduced from 80px to save space */
   margin-bottom: 20px;
 }
 
