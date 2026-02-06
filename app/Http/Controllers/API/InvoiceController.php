@@ -277,10 +277,35 @@ class InvoiceController extends Controller
      */
     public function destroy($id)
     {
-        $invoice = Invoice::findOrFail($id);
-        $invoice->delete();
+        try {
+            $invoice = Invoice::withCount('payments')->findOrFail($id);
 
-        return response()->json(['message' => 'Invoice deleted successfully']);
+            if ($invoice->payments_count > 0) {
+                return response()->json([
+                    'message' => 'Cannot delete invoice with existing payments. Please delete the payments first.'
+                ], 422);
+            }
+
+            $invoiceNumber = $invoice->invoice_number;
+            $invoice->delete();
+
+            // Log activity
+            \App\Models\ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'Deleted Invoice',
+                'description' => "Deleted invoice {$invoiceNumber}",
+                'reference_type' => 'Invoice',
+                'reference_id' => $id,
+            ]);
+
+            return response()->json(['message' => 'Invoice deleted successfully']);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete invoice: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getInvoiceItems($id)

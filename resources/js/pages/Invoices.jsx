@@ -14,7 +14,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { useAPI } from '@/contexts/APIContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
-import { FileText, Clock, AlertCircle, CheckCircle, Search, Download, Pencil, X, Check } from "lucide-react";
+import { FileText, Clock, AlertCircle, CheckCircle, Search, Download, Pencil, X, Check, Trash2, History } from "lucide-react";
 import CreateInvoiceModal from '../components/finance/CreateInvoiceModal';
 
 const Invoices = () => {
@@ -276,6 +276,31 @@ const Invoices = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       showError('Failed to generate PDF');
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice) => {
+    // Basic payment check (frontend)
+    if (invoice.total_paid > 0 || (invoice.payments && invoice.payments.length > 0)) {
+      showError("Cannot delete invoice with existing payments. Please delete the payments first.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete invoice ${invoice.invoice_number}? This will return its items to the "Ready to Invoice" list.`)) {
+      return;
+    }
+
+    try {
+      setUpdateLoading(true);
+      await api.delete(`/invoices/${invoice.id}`);
+      showSuccess(`Invoice ${invoice.invoice_number} deleted successfully`);
+      setShowDetailModal(false);
+      fetchData(); // Refresh list and counts
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      showError(error.response?.data?.message || "Failed to delete invoice");
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -849,9 +874,23 @@ const Invoices = () => {
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handlePrint(selectedInvoice)}>Print</Button>
-            <Button onClick={() => setShowDetailModal(false)}>Close</Button>
+          <DialogFooter className="flex justify-between items-center w-full">
+            <div className="flex gap-2">
+              {(user?.role === 'Super Admin' || user?.role === 'root') && (
+                <Button
+                  variant="destructive"
+                  onClick={() => handleDeleteInvoice(selectedInvoice)}
+                  disabled={updateLoading}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Invoice
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => handlePrint(selectedInvoice)}>Print</Button>
+              <Button onClick={() => setShowDetailModal(false)}>Close</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
