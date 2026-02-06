@@ -158,14 +158,20 @@ class InvoiceController extends Controller
         // Fetch Delivery Orders that are DELIVERED but have items not yet invoiced for this DO
         $query = \App\Models\DeliveryOrder::with([
             'customer',
-            'salesOrder',
+            'salesOrder.salesOrderItems',
             'deliveryOrderItems' => function ($q) {
                 $q->with(['product', 'salesOrderItem.salesOrder'])
                     ->whereNotExists(function ($sub) {
                         $sub->select(\DB::raw(1))
                             ->from('invoice_items')
                             ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
-                            ->whereColumn('invoice_items.sales_order_item_id', 'delivery_order_items.sales_order_item_id')
+                            ->where(function ($joinQuery) {
+                                $joinQuery->whereColumn('invoice_items.sales_order_item_id', 'delivery_order_items.sales_order_item_id')
+                                    ->orWhere(function ($fallbackQuery) {
+                                        $fallbackQuery->whereNull('delivery_order_items.sales_order_item_id')
+                                            ->whereColumn('invoice_items.product_id', 'delivery_order_items.product_id');
+                                    });
+                            })
                             ->whereColumn('invoices.delivery_order_id', 'delivery_order_items.delivery_order_id');
                     });
             },
@@ -182,7 +188,13 @@ class InvoiceController extends Controller
                                 $sub->select(\DB::raw(1))
                                     ->from('invoice_items')
                                     ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
-                                    ->whereColumn('invoice_items.sales_order_item_id', 'delivery_order_items.sales_order_item_id')
+                                    ->where(function ($joinQuery) {
+                                        $joinQuery->whereColumn('invoice_items.sales_order_item_id', 'delivery_order_items.sales_order_item_id')
+                                            ->orWhere(function ($fallbackQuery) {
+                                                $fallbackQuery->whereNull('delivery_order_items.sales_order_item_id')
+                                                    ->whereColumn('invoice_items.product_id', 'delivery_order_items.product_id');
+                                            });
+                                    })
                                     ->whereColumn('invoices.delivery_order_id', 'delivery_orders.id');
                             });
                     });
@@ -205,7 +217,7 @@ class InvoiceController extends Controller
         $deliveredOrders = $query->orderBy('created_at', 'desc')
             ->paginate(2000);
 
-        return response()->json($deliveredOrders);
+        return \App\Http\Resources\DeliveryOrderResource::collection($deliveredOrders);
     }
 
     /**

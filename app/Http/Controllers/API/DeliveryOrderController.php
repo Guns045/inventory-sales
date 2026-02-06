@@ -34,7 +34,7 @@ class DeliveryOrderController extends Controller
         // 1. Get Delivery Orders
         $query = DeliveryOrder::with([
             'customer',
-            'salesOrder',
+            'salesOrder.salesOrderItems',
             'deliveryOrderItems.product',
             'deliveryOrderItems.salesOrderItem.salesOrder',
             'warehouse',

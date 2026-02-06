@@ -54,7 +54,10 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     const calculateSOTotal = (items) => {
         return items.reduce((total, item) => {
             const soItem = item.sales_order_item ||
-                order.sales_order?.sales_order_items?.find(si => si.product_id === item.product_id);
+                order.sales_order?.sales_order_items?.find(si =>
+                    (item.sales_order_item_id && si.id === item.sales_order_item_id) ||
+                    (si.product_id === (item.product_id || item.product?.id))
+                );
 
             if (!soItem) return total;
 
@@ -198,15 +201,24 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                 <tbody className="divide-y divide-dashed">
                                                     {soItems.map((item, idx) => {
                                                         const soItem = item.sales_order_item ||
-                                                            order.sales_order?.sales_order_items?.find(si => si.product_id === item.product_id);
+                                                            order.sales_order?.sales_order_items?.find(si =>
+                                                                (item.sales_order_item_id && si.id === item.sales_order_item_id) ||
+                                                                (si.product_id === (item.product_id || item.product?.id))
+                                                            );
 
-                                                        if (!soItem) return (
-                                                            <tr key={idx}>
-                                                                <td colSpan="4" className="px-4 py-2 text-center text-red-500 italic text-xs">
-                                                                    Pricing info missing for {item.product?.sku}
-                                                                </td>
-                                                            </tr>
-                                                        );
+                                                        if (!soItem) {
+                                                            console.warn(`Pricing info missing for product ${item.product?.sku} (ID: ${item.product_id || item.product?.id}) in order ${order.delivery_order_number}.`, {
+                                                                item,
+                                                                order_sales_order_items: order.sales_order?.sales_order_items
+                                                            });
+                                                            return (
+                                                                <tr key={idx}>
+                                                                    <td colSpan="4" className="px-4 py-2 text-center text-red-500 italic text-xs">
+                                                                        Pricing info missing for {item.product?.sku}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        }
 
                                                         const quantity = item.quantity_delivered;
                                                         const unitPrice = parseFloat(soItem.unit_price);

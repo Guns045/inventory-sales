@@ -109,6 +109,7 @@ class DeliveryOrderService
 
                 DeliveryOrderItem::create([
                     'delivery_order_id' => $deliveryOrder->id,
+                    'sales_order_item_id' => $soItem->id,
                     'product_id' => $soItem->product_id,
                     'quantity_shipped' => $qtyToShip,
                     'status' => 'PREPARING',
@@ -191,8 +192,12 @@ class DeliveryOrderService
 
             // Create delivery order items from picking list items
             foreach ($pickingList->items as $item) {
+                // Find corresponding SO item to get the ID
+                $soItem = $salesOrderItems->where('product_id', $item->product_id)->first();
+
                 DeliveryOrderItem::create([
                     'delivery_order_id' => $deliveryOrder->id,
+                    'sales_order_item_id' => $soItem ? $soItem->id : null,
                     'product_id' => $item->product_id,
                     'quantity_shipped' => $item->quantity_picked,
                     'status' => 'PREPARING',

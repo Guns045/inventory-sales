@@ -53,6 +53,8 @@ class DeliveryOrderResource extends JsonResource
         return $items->map(function ($item) {
             return [
                 'id' => $item->id,
+                'product_id' => $item->product_id,
+                'sales_order_item_id' => $item->sales_order_item_id,
                 'product' => $item->product,
                 'sales_order_item' => $item->salesOrderItem,
                 'quantity' => $item->quantity_shipped,
