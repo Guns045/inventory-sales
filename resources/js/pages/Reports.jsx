@@ -27,7 +27,8 @@ const Reports = () => {
   const [stockReport, setStockReport] = useState({
     summary: { total_items: 0, low_stock: 0, stock_value: 0 },
     chartData: [],
-    lowStockItems: []
+    lowStockItems: [],
+    fastMovingItems: []
   });
 
   const [financeReport, setFinanceReport] = useState({
@@ -99,7 +100,8 @@ const Reports = () => {
           stock_value: stockData.summary.total_current_value
         },
         chartData: stockChart,
-        lowStockItems: (stockData.out_of_stock_products || []).concat(stockData.low_turnover_products || []).slice(0, 10)
+        lowStockItems: (stockData.out_of_stock_products || []).concat(stockData.low_turnover_products || []).slice(0, 10),
+        fastMovingItems: (stockData.products || []).filter(p => p.turnover_ratio > 0).slice(0, 10)
       });
 
       // Process Finance Data
@@ -182,6 +184,17 @@ const Reports = () => {
       cell: (row) => <span className="text-red-600 font-bold">{row.current_stock}</span>
     },
     { header: "Status", accessorKey: "status" }
+  ];
+
+  const fastMovingColumns = [
+    { header: "Code", accessorKey: "code" },
+    { header: "Product Name", accessorKey: "name" },
+    {
+      header: "Turnover Ratio",
+      accessorKey: "turnover_ratio",
+      cell: (row) => <span className="text-green-600 font-bold">{row.turnover_ratio}x</span>
+    },
+    { header: "Days Supply", accessorKey: "days_of_supply", cell: (row) => `${row.days_of_supply} Days` }
   ];
 
   return (
@@ -290,6 +303,27 @@ const Reports = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
+                <CardTitle>Top Fast Moving Items</CardTitle>
+                <CardDescription>Products with highest turnover rates</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DataTable columns={fastMovingColumns} data={stockReport.fastMovingItems} loading={loading} />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Slow Moving / Out of Stock</CardTitle>
+                <CardDescription>Items requiring attention</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DataTable columns={stockColumns} data={stockReport.lowStockItems} loading={loading} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <Card>
+              <CardHeader>
                 <CardTitle>Stock Distribution</CardTitle>
                 <CardDescription>Inventory by category</CardDescription>
               </CardHeader>
@@ -304,15 +338,6 @@ const Reports = () => {
                     <Bar dataKey="stock" fill="#8884d8" name="Stock Level" />
                   </BarChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Low Stock / Slow Moving</CardTitle>
-                <CardDescription>Items requiring attention</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DataTable columns={stockColumns} data={stockReport.lowStockItems} loading={loading} />
               </CardContent>
             </Card>
           </div>
