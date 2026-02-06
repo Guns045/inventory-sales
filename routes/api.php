@@ -275,6 +275,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/inventory-turnover', [ReportController::class, 'inventoryTurnover'])->middleware('permission:reports.read');
     Route::get('/reports/financial-performance', [ReportController::class, 'financialPerformance'])->middleware('permission:reports.read');
     Route::get('/reports/customer-analysis', [ReportController::class, 'customerAnalysis'])->middleware('permission:reports.read');
+    Route::get('/reports/stock-velocity', [ReportController::class, 'stockVelocity'])->middleware('permission:reports.read');
     Route::post('/reports/export', [ReportController::class, 'exportReport'])->middleware('permission:reports.read');
 
     // Company Settings routes (Admin only)

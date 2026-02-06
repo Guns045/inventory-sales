@@ -40,6 +40,11 @@ const Reports = () => {
     topSuppliers: []
   });
 
+  const [velocityReport, setVelocityReport] = useState({
+    summary: { total_in: 0, total_out: 0 },
+    chartData: []
+  });
+
   useEffect(() => {
     fetchAllReports();
   }, [dateRange]);
@@ -52,11 +57,12 @@ const Reports = () => {
       if (dateRange.to) params.append('date_to', dateRange.to);
       const queryString = params.toString();
 
-      const [salesRes, stockRes, financeRes, customerRes] = await Promise.all([
+      const [salesRes, stockRes, financeRes, customerRes, velocityRes] = await Promise.all([
         api.get(`/reports/sales-performance?${queryString}`),
         api.get(`/reports/inventory-turnover?${queryString}`),
         api.get(`/reports/financial-performance?${queryString}`),
-        api.get(`/reports/customer-analysis?${queryString}`)
+        api.get(`/reports/customer-analysis?${queryString}`),
+        api.get(`/reports/stock-velocity?${queryString}`)
       ]);
 
       // Process Sales Data
@@ -118,6 +124,19 @@ const Reports = () => {
       setPartnersReport({
         topCustomers: customerData.top_customers || [],
         topSuppliers: []
+      });
+
+      // Process Velocity Data
+      const velocityData = velocityRes.data;
+      const velocityChart = (velocityData.data || []).map(d => ({
+        name: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        in: d.stock_in,
+        out: d.stock_out
+      }));
+
+      setVelocityReport({
+        summary: velocityData.summary,
+        chartData: velocityChart
       });
 
     } catch (error) {
@@ -247,6 +266,26 @@ const Reports = () => {
             <StatsCard title="Low Stock / Issues" value={stockReport.summary.low_stock} icon={<BarChart3 className="h-4 w-4" />} variant="destructive" />
             <StatsCard title="Stock Value" value={formatLargeCurrency(stockReport.summary.stock_value)} icon={<DollarSign className="h-4 w-4" />} variant="success" />
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Stock In vs Stock Out Velocity</CardTitle>
+              <CardDescription>Stock inflow (Purchase/Receipt) vs Outflow (Sales/Delivery)</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={velocityReport.chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="in" stroke="#3b82f6" name="Stock In" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="out" stroke="#ef4444" name="Stock Out" strokeWidth={2} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>

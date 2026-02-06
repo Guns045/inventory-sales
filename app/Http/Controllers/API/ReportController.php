@@ -471,6 +471,71 @@ class ReportController extends Controller
     }
 
     /**
+     * Stock In vs Stock Out Velocity Report
+     */
+    public function stockVelocity(Request $request)
+    {
+        try {
+            $dateFrom = $request->get('date_from', now()->subDays(30));
+            $dateTo = $request->get('date_to', now());
+
+            $dateFrom = Carbon::parse($dateFrom)->startOfDay();
+            $dateTo = Carbon::parse($dateTo)->endOfDay();
+
+            $movements = StockMovement::whereBetween('created_at', [$dateFrom, $dateTo])
+                ->whereIn('type', ['IN', 'OUT', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'RETURN_IN', 'RETURN_OUT'])
+                ->selectRaw('DATE(created_at) as date, type, SUM(ABS(quantity_change)) as total_quantity')
+                ->groupBy('date', 'type')
+                ->orderBy('date')
+                ->get();
+
+            $velocityByDay = [];
+
+            // Initialize date range
+            $currentDate = clone $dateFrom;
+            while ($currentDate <= $dateTo) {
+                $velocityByDay[$currentDate->format('Y-m-d')] = [
+                    'date' => $currentDate->format('Y-m-d'),
+                    'stock_in' => 0,
+                    'stock_out' => 0
+                ];
+                $currentDate->addDay();
+            }
+
+            foreach ($movements as $movement) {
+                $date = $movement->date;
+                if (!isset($velocityByDay[$date]))
+                    continue;
+
+                if (in_array($movement->type, ['IN', 'ADJUSTMENT_IN', 'RETURN_IN'])) {
+                    $velocityByDay[$date]['stock_in'] += (float) $movement->total_quantity;
+                } else {
+                    $velocityByDay[$date]['stock_out'] += (float) $movement->total_quantity;
+                }
+            }
+
+            return response()->json([
+                'data' => array_values($velocityByDay),
+                'summary' => [
+                    'total_in' => array_sum(array_column($velocityByDay, 'stock_in')),
+                    'total_out' => array_sum(array_column($velocityByDay, 'stock_out')),
+                    'period' => [
+                        'from' => $dateFrom->format('Y-m-d'),
+                        'to' => $dateTo->format('Y-m-d')
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Stock Velocity Report Error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to generate stock velocity report',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Export report to PDF/Excel
      */
     public function exportReport(Request $request)
