@@ -38,22 +38,31 @@ class DeliveryOrderResource extends JsonResource
             'recipient_name' => $this->recipient_name,
             'recipient_title' => $this->recipient_title,
             'items' => $this->whenLoaded('deliveryOrderItems', function () {
-                return $this->deliveryOrderItems->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'product' => $item->product,
-                        'quantity' => $item->quantity_shipped, // Map quantity_shipped to quantity for frontend display
-                        'quantity_shipped' => $item->quantity_shipped,
-                        'quantity_delivered' => $item->quantity_delivered,
-                        'status' => $item->status,
-                        'location_code' => $item->location_code,
-                        'delivered_at' => $item->delivered_at,
-                        'notes' => $item->notes,
-                    ];
-                });
+                return $this->mapItems($this->deliveryOrderItems);
+            }),
+            'delivery_order_items' => $this->whenLoaded('deliveryOrderItems', function () {
+                return $this->mapItems($this->deliveryOrderItems);
             }),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    private function mapItems($items)
+    {
+        return $items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'product' => $item->product,
+                'sales_order_item' => $item->salesOrderItem,
+                'quantity' => $item->quantity_shipped,
+                'quantity_shipped' => $item->quantity_shipped,
+                'quantity_delivered' => $item->quantity_delivered,
+                'status' => $item->status,
+                'location_code' => $item->location_code,
+                'delivered_at' => $item->delivered_at,
+                'notes' => $item->notes,
+            ];
+        });
     }
 }

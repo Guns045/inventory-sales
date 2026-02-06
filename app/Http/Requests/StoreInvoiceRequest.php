@@ -14,7 +14,10 @@ class StoreInvoiceRequest extends FormRequest
     public function rules()
     {
         return [
-            'sales_order_id' => 'required|exists:sales_orders,id',
+            'sales_order_id' => 'required_without:delivery_order_id|exists:sales_orders,id',
+            'delivery_order_id' => 'nullable|exists:delivery_orders,id',
+            'selected_so_ids' => 'nullable|array',
+            'selected_so_ids.*' => 'exists:sales_orders,id',
             'customer_id' => 'required|exists:customers,id',
             'issue_date' => 'required|date',
             'due_date' => 'required|date',

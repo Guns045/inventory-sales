@@ -46,27 +46,39 @@ const DeliveryOrderTable = ({
         {
             header: type === 'sales' ? "Sales Order" : "Internal Transfer",
             accessorKey: "sales_order.sales_order_number",
-            cell: (row) => (
-                <div className="flex items-center gap-2">
-                    {type === 'sales'
-                        ? (
-                            <div className="flex flex-col">
-                                <span className="font-medium">{row.sales_order?.sales_order_number || '-'}</span>
-                                {row.sales_order?.status === 'PARTIAL' && (
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 w-fit mt-1">
-                                        Partial
-                                    </span>
-                                )}
-                            </div>
-                        )
-                        : (
-                            <span className="font-mono text-sm">
-                                {row.warehouse_transfer?.transfer_number || row.source_ref || '-'}
+            cell: (row) => {
+                if (type === 'transfer') {
+                    return (
+                        <span className="font-mono text-sm">
+                            {row.warehouse_transfer?.transfer_number || row.source_ref || '-'}
+                        </span>
+                    );
+                }
+
+                // Extract all unique SO numbers
+                const soNumbers = [...new Set([
+                    row.sales_order?.sales_order_number,
+                    ...(row.delivery_order_items?.map(item => item.sales_order_item?.sales_order?.sales_order_number) || [])
+                ])].filter(Boolean);
+
+                const isPartial = row.sales_order?.status === 'PARTIAL';
+
+                return (
+                    <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-0.5">
+                            {soNumbers.map((no, idx) => (
+                                <span key={idx} className="font-medium text-sm">{no}</span>
+                            ))}
+                            {soNumbers.length === 0 && <span className="font-medium text-sm">-</span>}
+                        </div>
+                        {isPartial && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 w-fit font-bold uppercase tracking-tighter">
+                                Partial
                             </span>
-                        )
-                    }
-                </div>
-            )
+                        )}
+                    </div>
+                );
+            }
         },
         {
             header: type === 'sales' ? "Customer" : "Destination",

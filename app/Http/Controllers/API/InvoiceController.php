@@ -155,10 +155,38 @@ class InvoiceController extends Controller
      */
     public function getReadyToCreate(Request $request)
     {
-        // Fetch Delivery Orders that are DELIVERED but NOT yet invoiced
-        $query = \App\Models\DeliveryOrder::with(['customer', 'salesOrder', 'deliveryOrderItems.product', 'deliveryOrderItems.salesOrderItem', 'createdBy'])
+        // Fetch Delivery Orders that are DELIVERED but have items not yet invoiced for this DO
+        $query = \App\Models\DeliveryOrder::with([
+            'customer',
+            'salesOrder',
+            'deliveryOrderItems' => function ($q) {
+                $q->with(['product', 'salesOrderItem.salesOrder'])
+                    ->whereNotExists(function ($sub) {
+                        $sub->select(\DB::raw(1))
+                            ->from('invoice_items')
+                            ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+                            ->whereColumn('invoice_items.sales_order_item_id', 'delivery_order_items.sales_order_item_id')
+                            ->whereColumn('invoices.delivery_order_id', 'delivery_order_items.delivery_order_id');
+                    });
+            },
+            'createdBy'
+        ])
             ->where('status', 'DELIVERED')
-            ->whereDoesntHave('invoice'); // Ensure no invoice exists for this DO
+            ->where(function ($q) {
+                $q->whereDoesntHave('invoice')
+                    ->orWhereExists(function ($query) {
+                        $query->select(\DB::raw(1))
+                            ->from('delivery_order_items')
+                            ->whereColumn('delivery_order_items.delivery_order_id', 'delivery_orders.id')
+                            ->whereNotExists(function ($sub) {
+                                $sub->select(\DB::raw(1))
+                                    ->from('invoice_items')
+                                    ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+                                    ->whereColumn('invoice_items.sales_order_item_id', 'delivery_order_items.sales_order_item_id')
+                                    ->whereColumn('invoices.delivery_order_id', 'delivery_orders.id');
+                            });
+                    });
+            });
 
         // Search functionality
         if ($request->has('search') && !empty($request->search)) {

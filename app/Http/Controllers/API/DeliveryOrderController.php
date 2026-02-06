@@ -36,6 +36,7 @@ class DeliveryOrderController extends Controller
             'customer',
             'salesOrder',
             'deliveryOrderItems.product',
+            'deliveryOrderItems.salesOrderItem.salesOrder',
             'warehouse',
             'warehouseTransfer.warehouseTo',
             'warehouseTransfer.warehouseFrom'
@@ -53,6 +54,12 @@ class DeliveryOrderController extends Controller
                 $q->where('delivery_order_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', function ($customerQuery) use ($search) {
                         $customerQuery->where('company_name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('salesOrder', function ($soQuery) use ($search) {
+                        $soQuery->where('sales_order_number', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('deliveryOrderItems.salesOrderItem.salesOrder', function ($soQuery) use ($search) {
+                        $soQuery->where('sales_order_number', 'like', "%{$search}%");
                     });
             });
         }

@@ -113,7 +113,7 @@ const Invoices = () => {
     setIsCreateModalOpen(true);
   };
 
-  const handleCreateInvoice = async (order, poNumber) => {
+  const handleCreateInvoice = async (order, poNumber, selectedSoIds = []) => {
     try {
       setCreateLoading(true);
 
@@ -128,7 +128,8 @@ const Invoices = () => {
         issue_date: today,
         due_date: dueDate.toISOString().split('T')[0],
         status: 'UNPAID',
-        po_number: poNumber
+        po_number: poNumber,
+        selected_so_ids: selectedSoIds
       };
 
       const response = await api.post('/invoices', invoiceData);
@@ -329,7 +330,21 @@ const Invoices = () => {
     {
       header: "SO Number",
       accessorKey: "sales_order.sales_order_number",
-      cell: (row) => <span className="text-muted-foreground">{row.sales_order?.sales_order_number}</span>
+      cell: (row) => {
+        const soNumbers = [...new Set([
+          row.sales_order?.sales_order_number,
+          ...(row.delivery_order_items?.map(item => item.sales_order_item?.sales_order?.sales_order_number) || [])
+        ])].filter(Boolean);
+
+        return (
+          <div className="flex flex-col gap-0.5">
+            {soNumbers.map((no, idx) => (
+              <span key={idx} className="text-muted-foreground text-xs font-medium">{no}</span>
+            ))}
+            {soNumbers.length === 0 && <span className="text-muted-foreground">-</span>}
+          </div>
+        );
+      }
     },
     {
       header: "Customer",

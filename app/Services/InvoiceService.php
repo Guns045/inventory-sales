@@ -147,10 +147,17 @@ class InvoiceService
     {
         return DB::transaction(function () use ($deliveryOrderId, $data) {
             $deliveryOrder = \App\Models\DeliveryOrder::with(['deliveryOrderItems.product', 'deliveryOrderItems.salesOrderItem.salesOrder'])->findOrFail($deliveryOrderId);
+            $selectedSoIds = isset($data['selected_so_ids']) ? $data['selected_so_ids'] : null;
 
             // For consolidated DO, primary salesOrder might be the first one
             // We'll use it for terms of payment and customer default, but items will come from their respective SOs
             $primarySalesOrder = $deliveryOrder->salesOrder;
+
+            // If selective invoicing is used, update primarySalesOrder to be the first selected one
+            if ($selectedSoIds && count($selectedSoIds) > 0) {
+                $firstSoId = $selectedSoIds[0];
+                $primarySalesOrder = \App\Models\SalesOrder::find($firstSoId) ?: $primarySalesOrder;
+            }
 
             // Calculate total amount based on DELIVERED QUANTITY
             $totalAmount = 0;
@@ -162,11 +169,16 @@ class InvoiceService
 
                 if (!$soItem) {
                     // Fallback to searching in primary SO if link is missing (for legacy data)
-                    $soItem = $primarySalesOrder->salesOrderItems->where('product_id', $doItem->product_id)->first();
+                    $soItem = $primarySalesOrder ? $primarySalesOrder->salesOrderItems->where('product_id', $doItem->product_id)->first() : null;
                 }
 
                 if (!$soItem)
                     continue;
+
+                // Filter by selected SOs if provided
+                if ($selectedSoIds && !in_array($soItem->sales_order_id, $selectedSoIds)) {
+                    continue;
+                }
 
                 $quantity = $doItem->quantity_delivered; // Use delivered quantity
 
