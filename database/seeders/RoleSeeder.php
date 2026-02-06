@@ -17,25 +17,9 @@ class RoleSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Truncate permission tables to avoid guard mismatch issues
-        // Truncate permission tables to avoid guard mismatch issues
-        if (config('database.default') === 'sqlite') {
-            \DB::statement('PRAGMA foreign_keys = OFF;');
-        } else {
-            \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        }
-
+        // Clear role_has_permissions to ensure a fresh sync of permissions to roles
         \DB::table('role_has_permissions')->truncate();
-        \DB::table('model_has_roles')->truncate();
         \DB::table('model_has_permissions')->truncate();
-        \DB::table('roles')->truncate();
-        \DB::table('permissions')->truncate();
-
-        if (config('database.default') === 'sqlite') {
-            \DB::statement('PRAGMA foreign_keys = ON;');
-        } else {
-            \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        }
 
         // Load menu config to get all permissions
         $menuConfig = Config::get('menu');
@@ -166,6 +150,9 @@ class RoleSeeder extends Seeder
                 $permissions[] = 'quotations.convert';
                 $permissions[] = 'quotations.approve';
                 $permissions[] = 'quotations.reject';
+            }
+            if ($resource === 'warehouse-transfers') {
+                $permissions[] = 'warehouse-transfers.approve';
             }
             if ($resource === 'picking-lists') {
                 $permissions[] = 'picking-lists.complete';

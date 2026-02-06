@@ -185,7 +185,7 @@ class User extends Authenticatable
 
     public function canApproveTransfers(): bool
     {
-        return $this->hasPermission('transfers', 'approve');
+        return $this->hasPermission('warehouse-transfers', 'approve');
     }
 
     public function canManageWarehouse($warehouseId): bool

@@ -164,13 +164,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/picking-lists/available-for-delivery', [PickingListController::class, 'getAvailableForDelivery'])->middleware('permission:picking-lists.read');
 
     // Delivery management - explicit routes to ensure all records are returned
-    Route::get('/delivery-orders/pending-items/{customerId}', [DeliveryOrderController::class, 'getPendingItemsByCustomer']);
-    Route::post('/delivery-orders/consolidated', [DeliveryOrderController::class, 'storeConsolidated']);
-    Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate']);
-    Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists']);
-    Route::post('/delivery-orders/from-picking-list', [DeliveryOrderController::class, 'createFromPickingList']);
-    Route::post('/delivery-orders/from-sales-order', [DeliveryOrderController::class, 'createFromSalesOrder']);
-    Route::post('/delivery-orders/from-transfer', [DeliveryOrderController::class, 'createFromTransfer']);
+    Route::get('/delivery-orders/pending-items/{customerId}', [DeliveryOrderController::class, 'getPendingItemsByCustomer'])->middleware('permission:delivery-orders.read');
+    Route::post('/delivery-orders/consolidated', [DeliveryOrderController::class, 'storeConsolidated'])->middleware('permission:delivery-orders.create');
+    Route::get('/delivery-orders/ready-to-create', [DeliveryOrderController::class, 'readyToCreate'])->middleware('permission:delivery-orders.read');
+    Route::get('/delivery-orders/available-picking-lists', [DeliveryOrderController::class, 'getAvailablePickingLists'])->middleware('permission:delivery-orders.read');
+    Route::post('/delivery-orders/from-picking-list', [DeliveryOrderController::class, 'createFromPickingList'])->middleware('permission:delivery-orders.create');
+    Route::post('/delivery-orders/from-sales-order', [DeliveryOrderController::class, 'createFromSalesOrder'])->middleware('permission:delivery-orders.create');
+    Route::post('/delivery-orders/from-transfer', [DeliveryOrderController::class, 'createFromTransfer'])->middleware('permission:delivery-orders.create');
 
     Route::get('/delivery-orders', [DeliveryOrderController::class, 'index']);
     Route::post('/delivery-orders', [DeliveryOrderController::class, 'store']);
@@ -286,16 +286,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // Warehouse Transfer Management
-    Route::get('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'index'])->middleware('permission:product-stock.read');
-    Route::post('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'store'])->middleware('permission:product-stock.create');
-    Route::put('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'update'])->middleware('permission:product-stock.create');
-    Route::get('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'show'])->middleware('permission:product-stock.read');
-    Route::post('/warehouse-transfers/{id}/approve', [App\Http\Controllers\API\WarehouseTransferController::class, 'approve'])->middleware('permission:product-stock.update');
-    Route::post('/warehouse-transfers/{id}/deliver', [App\Http\Controllers\API\WarehouseTransferController::class, 'deliver'])->middleware('permission:product-stock.update');
-    Route::post('/warehouse-transfers/{id}/receive', [App\Http\Controllers\API\WarehouseTransferController::class, 'receive'])->middleware('permission:product-stock.update');
-    Route::post('/warehouse-transfers/{id}/cancel', [App\Http\Controllers\API\WarehouseTransferController::class, 'cancel'])->middleware('permission:product-stock.delete');
+    Route::get('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'index'])->middleware('permission:warehouse-transfers.read');
+    Route::post('/warehouse-transfers', [App\Http\Controllers\API\WarehouseTransferController::class, 'store'])->middleware('permission:warehouse-transfers.create');
+    Route::put('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'update'])->middleware('permission:warehouse-transfers.create');
+    Route::get('/warehouse-transfers/{id}', [App\Http\Controllers\API\WarehouseTransferController::class, 'show'])->middleware('permission:warehouse-transfers.read');
+    Route::post('/warehouse-transfers/{id}/approve', [App\Http\Controllers\API\WarehouseTransferController::class, 'approve'])->middleware('permission:warehouse-transfers.update');
+    Route::post('/warehouse-transfers/{id}/deliver', [App\Http\Controllers\API\WarehouseTransferController::class, 'deliver'])->middleware('permission:warehouse-transfers.update');
+    Route::post('/warehouse-transfers/{id}/receive', [App\Http\Controllers\API\WarehouseTransferController::class, 'receive'])->middleware('permission:warehouse-transfers.update');
+    Route::post('/warehouse-transfers/{id}/cancel', [App\Http\Controllers\API\WarehouseTransferController::class, 'cancel'])->middleware('permission:warehouse-transfers.delete');
     Route::post('/warehouse-transfers/{id}/reset', [App\Http\Controllers\API\WarehouseTransferController::class, 'reset']); // God Mode
-    Route::get('/warehouse-transfers/statistics', [App\Http\Controllers\API\WarehouseTransferController::class, 'statistics'])->middleware('permission:product-stock.read');
+    Route::get('/warehouse-transfers/statistics', [App\Http\Controllers\API\WarehouseTransferController::class, 'statistics'])->middleware('permission:warehouse-transfers.read');
 
     // Master Data Raw Products Management
     Route::post('/settings/raw-products/upload', [SettingsController::class, 'uploadRawProductsExcel'])->middleware('permission:products.create');

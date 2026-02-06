@@ -99,7 +99,7 @@ class WarehouseTransferController extends Controller
             ], 403);
         }
 
-        if (!$user->hasPermission('transfers', 'create')) {
+        if (!$user->hasPermission('warehouse-transfers', 'create')) {
             return response()->json([
                 'message' => 'You do not have permission to create transfers'
             ], 403);
