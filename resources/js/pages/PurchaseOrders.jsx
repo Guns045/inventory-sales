@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import CreatePurchaseOrderModal from '@/components/purchasing/CreatePurchaseOrderModal';
+import { PurchaseOrderForm } from '@/components/purchasing/PurchaseOrderForm';
 
 const PurchaseOrders = () => {
   const { api } = useAPI();
@@ -29,8 +29,9 @@ const PurchaseOrders = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
 
-  // Modal States
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  // Modal & Form States
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
 
@@ -54,6 +55,7 @@ const PurchaseOrders = () => {
   });
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState({});
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     fetchPurchaseOrders();
@@ -81,7 +83,17 @@ const PurchaseOrders = () => {
     fetchSuppliers();
     fetchWarehouses();
     fetchProducts();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/categories');
+      setCategories(response.data || []);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
 
   const handleRecordPaymentClick = (po) => {
     setSelectedPO(po);
@@ -148,9 +160,22 @@ const PurchaseOrders = () => {
     }
   };
 
-  const handleEdit = (order) => {
-    setEditingOrder(order);
-    setShowCreateModal(true);
+  const handleCreate = () => {
+    setEditingOrder(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = async (order) => {
+    try {
+      setFormLoading(true);
+      const response = await api.get(`/purchase-orders/${order.id}`);
+      setEditingOrder(response.data.data || response.data);
+      setIsFormOpen(true);
+    } catch (err) {
+      showError('Failed to load order details');
+    } finally {
+      setFormLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -208,6 +233,35 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleFormSubmit = async (formData) => {
+    try {
+      setFormLoading(true);
+      if (editingOrder) {
+        await api.put(`/purchase-orders/${editingOrder.id}`, formData);
+        showSuccess('Purchase order updated successfully');
+      } else {
+        await api.post('/purchase-orders', formData);
+        showSuccess('Purchase order created successfully');
+      }
+      setIsFormOpen(false);
+      setEditingOrder(null);
+      fetchPurchaseOrders();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to save purchase order');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleSearchProducts = React.useCallback(async (query) => {
+    try {
+      const response = await api.get(`/products?search=${encodeURIComponent(query)}&per_page=20`);
+      setProducts(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to search products:', err);
+    }
+  }, [api]);
+
   // Permissions
   const canEdit = (order) => (hasPermission('edit_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && order.status === 'DRAFT';
   const canDelete = (order) => (hasPermission('edit_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && order.status === 'DRAFT';
@@ -220,6 +274,27 @@ const PurchaseOrders = () => {
       minimumFractionDigits: 0
     }).format(amount);
   };
+
+  if (isFormOpen) {
+    return (
+      <div className="container mx-auto p-6">
+        <PurchaseOrderForm
+          initialData={editingOrder}
+          suppliers={suppliers}
+          warehouses={warehouses}
+          products={products}
+          categories={categories}
+          onSubmit={handleFormSubmit}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingOrder(null);
+          }}
+          onSearchProducts={handleSearchProducts}
+          loading={formLoading}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -234,7 +309,7 @@ const PurchaseOrders = () => {
             Refresh
           </Button>
           {(hasPermission('create_purchase_orders') || user?.role === 'Super Admin' || user?.role === 'Admin') && (
-            <Button onClick={() => { setEditingOrder(null); setShowCreateModal(true); }}>
+            <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" />
               Create Order
             </Button>
@@ -352,22 +427,7 @@ const PurchaseOrders = () => {
         </DialogContent>
       </Dialog >
 
-      <CreatePurchaseOrderModal
-        isOpen={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setEditingOrder(null);
-        }}
-        onSuccess={() => {
-          setShowCreateModal(false);
-          setEditingOrder(null);
-          fetchPurchaseOrders();
-        }}
-        order={editingOrder}
-        suppliers={suppliers}
-        warehouses={warehouses}
-        products={products}
-      />
+
 
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
         <DialogContent>

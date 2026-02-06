@@ -26,7 +26,8 @@ export function LineItemsTable({
     onRemove,
     onSearch,
     onCreateProduct,
-    editable = true
+    editable = true,
+    priceType = 'sell_price'
 }) {
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {
@@ -83,7 +84,7 @@ export function LineItemsTable({
                                                 onUpdate(index, {
                                                     ...item,
                                                     product_id: parseInt(value),
-                                                    unit_price: selectedProduct ? parseFloat(selectedProduct.sell_price || 0) : (item.unit_price || 0),
+                                                    unit_price: selectedProduct ? parseFloat(selectedProduct[priceType] || 0) : (item.unit_price || 0),
                                                     // Optional: auto-fill other fields if product has them
                                                     // tax_rate: selectedProduct?.tax_rate || 0
                                                 });
