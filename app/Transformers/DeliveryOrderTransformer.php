@@ -118,6 +118,8 @@ class DeliveryOrderTransformer
         return [
             'delivery_no' => $deliveryOrderNumber,
             'transfer_no' => $transfer->transfer_number,
+            'sales_order_no' => $transfer->transfer_number, // Use transfer no as reference
+            'customer_name' => 'INTERNAL TRANSFER',
             'from_warehouse' => $transfer->warehouseFrom->name,
             'to_warehouse' => $transfer->warehouseTo->name,
             'date' => $deliveryOrder ? \Carbon\Carbon::parse($deliveryOrder->created_at)->format('d M Y') : date('d M Y'),
@@ -127,6 +129,13 @@ class DeliveryOrderTransformer
             'recipient_name' => $deliveryOrder->recipient_name ?? null,
             'recipient_title' => $deliveryOrder->recipient_title ?? null,
             'items' => $items,
+            'items_grouped' => [
+                [
+                    'so_number' => $transfer->transfer_number,
+                    'po_number' => '-',
+                    'items' => $items
+                ]
+            ],
             'total_weight' => $totalWeight,
             'notes' => "Internal Transfer: " . $transfer->transfer_number,
             'status' => $deliveryOrder->status ?? 'IN_TRANSIT'

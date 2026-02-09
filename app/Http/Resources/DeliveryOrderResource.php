@@ -59,7 +59,7 @@ class DeliveryOrderResource extends JsonResource
                 'sales_order_item' => $item->salesOrderItem,
                 'quantity' => $item->quantity_shipped,
                 'quantity_shipped' => $item->quantity_shipped,
-                'quantity_delivered' => $item->quantity_delivered,
+                'quantity_delivered' => $item->quantity_delivered ?? $item->quantity_shipped,
                 'status' => $item->status,
                 'location_code' => $item->location_code,
                 'delivered_at' => $item->delivered_at,

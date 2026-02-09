@@ -177,6 +177,7 @@ class InvoiceController extends Controller
             },
             'createdBy'
         ])
+            ->where('source_type', 'SO')
             ->where('status', 'DELIVERED')
             ->where(function ($q) {
                 $q->whereDoesntHave('invoice')
