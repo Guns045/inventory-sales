@@ -286,6 +286,58 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Update a specific invoice item (God Mode).
+     */
+    public function updateItem(Request $request, $invoiceId, $itemId)
+    {
+        $request->validate([
+            'tax_rate' => 'required|numeric|min:0|max:100',
+        ]);
+
+        try {
+            $invoice = Invoice::findOrFail($invoiceId);
+            $item = \App\Models\InvoiceItem::where('invoice_id', $invoiceId)->findOrFail($itemId);
+
+            // Update item tax
+            $item->tax_rate = $request->tax_rate;
+
+            // Recalculate item total
+            $price = $item->quantity * $item->unit_price;
+            $discountAmount = $price * ($item->discount_percentage / 100);
+            $taxAmount = ($price - $discountAmount) * ($item->tax_rate / 100);
+            $item->total_price = $price - $discountAmount + $taxAmount;
+
+            $item->save();
+
+            // Recalculate Invoice Grand Total
+            $newTotal = $invoice->invoiceItems->sum('total_price');
+            $invoice->total_amount = $newTotal;
+            $invoice->save();
+
+            // Log activity
+            \App\Models\ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'Updated Invoice Item',
+                'description' => "Updated tax rate for item {$item->product->sku} in invoice {$invoice->invoice_number} to {$item->tax_rate}%",
+                'reference_type' => 'Invoice',
+                'reference_id' => $invoice->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Invoice item updated successfully',
+                'item' => $item,
+                'invoice_total' => $newTotal
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update invoice item',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy($id)

@@ -187,7 +187,17 @@ class InvoiceService
 
                 $unitPrice = $soItem->unit_price;
                 $discountPercentage = $soItem->discount_percentage;
+
+                // Check for tax override in input data
                 $taxRate = $soItem->tax_rate;
+                if (isset($data['items']) && is_array($data['items'])) {
+                    foreach ($data['items'] as $itemData) {
+                        if ($itemData['id'] == $doItem->id && isset($itemData['tax_rate'])) {
+                            $taxRate = $itemData['tax_rate'];
+                            break;
+                        }
+                    }
+                }
 
                 $totalPrice = $quantity * $unitPrice;
                 $discountAmount = $totalPrice * ($discountPercentage / 100);

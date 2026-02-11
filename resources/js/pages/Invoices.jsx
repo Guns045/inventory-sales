@@ -795,7 +795,45 @@ const Invoices = () => {
                         <td className="px-4 py-2 text-center">{item.quantity}</td>
                         <td className="px-4 py-2 text-right">{formatCurrency(item.unit_price)}</td>
                         <td className="px-4 py-2 text-right">{item.discount_percentage > 0 ? `${item.discount_percentage}%` : '-'}</td>
-                        <td className="px-4 py-2 text-right">{item.tax_rate > 0 ? `${item.tax_rate}%` : '-'}</td>
+                        <td className="px-4 py-2 text-center">
+                          {(user?.role === 'Super Admin' || user?.role === 'root') ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <Input
+                                type="number"
+                                className="h-7 w-20 text-right text-xs"
+                                defaultValue={item.tax_rate}
+                                onBlur={async (e) => {
+                                  const newRate = parseFloat(e.target.value);
+                                  if (newRate !== item.tax_rate) {
+                                    if (confirm(`Update tax rate from ${item.tax_rate}% to ${newRate}% for ${item.product?.sku}?`)) {
+                                      try {
+                                        setUpdateLoading(true);
+                                        await api.put(`/invoices/${selectedInvoice.id}/items/${item.id}`, {
+                                          tax_rate: newRate
+                                        });
+                                        showSuccess('Tax rate updated');
+                                        // Refresh detail
+                                        handleViewDetail(selectedInvoice);
+                                        fetchData(); // Refresh list to update total
+                                      } catch (err) {
+                                        console.error(err);
+                                        showError('Failed to update tax rate');
+                                        e.target.value = item.tax_rate; // Reset on error
+                                      } finally {
+                                        setUpdateLoading(false);
+                                      }
+                                    } else {
+                                      e.target.value = item.tax_rate;
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="text-muted-foreground text-xs">%</span>
+                            </div>
+                          ) : (
+                            <span>{item.tax_rate > 0 ? `${item.tax_rate}%` : '-'}</span>
+                          )}
+                        </td>
                         <td className="px-4 py-2 text-right">{formatCurrency(item.total_price)}</td>
                       </tr>
                     ))}

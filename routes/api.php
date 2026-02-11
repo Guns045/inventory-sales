@@ -189,6 +189,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices/ready-to-create', [InvoiceController::class, 'getReadyToCreate']);
     Route::get('/invoices/export', [InvoiceController::class, 'export'])->middleware('permission:invoices.read');
     Route::apiResource('invoices', InvoiceController::class);
+    Route::put('/invoices/{invoice}/items/{invoiceItem}', [InvoiceController::class, 'updateItem'])->middleware('permission:invoices.update');
     Route::get('/invoices/{id}/items', [InvoiceController::class, 'getInvoiceItems']);
     Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->middleware('permission:invoices.read');
     Route::patch('/invoices/{id}/status', [InvoiceController::class, 'updateStatus'])->middleware('permission:invoices.update');

@@ -9,12 +9,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from '@/lib/utils';
+import { Percent } from 'lucide-react';
 
 const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     const [poNumber, setPoNumber] = useState('');
     const [selectedSoIds, setSelectedSoIds] = useState([]);
     const [expandedSoIds, setExpandedSoIds] = useState([]);
+
+    // Tax Correction State
+    const [taxOverrides, setTaxOverrides] = useState({}); // { [itemId]: taxRate }
+    const [globalTaxEnabled, setGlobalTaxEnabled] = useState(false);
+    const [globalTaxRate, setGlobalTaxRate] = useState(11);
 
     useEffect(() => {
         if (order) {
@@ -27,6 +34,21 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
 
             setSelectedSoIds(soIds);
             setExpandedSoIds(soIds); // Expand all by default
+
+            // Initialize tax overrides with existing SO tax rates
+            const initialTaxOverrides = {};
+            order.delivery_order_items?.forEach(item => {
+                const soItem = item.sales_order_item ||
+                    order.sales_order?.sales_order_items?.find(si =>
+                        (item.sales_order_item_id && si.id === item.sales_order_item_id) ||
+                        (si.product_id === (item.product_id || item.product?.id))
+                    );
+
+                if (soItem) {
+                    initialTaxOverrides[item.id] = parseFloat(soItem.tax_rate || 0);
+                }
+            });
+            setTaxOverrides(initialTaxOverrides);
         }
     }, [order]);
 
@@ -51,6 +73,32 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
         return groups;
     };
 
+    const handleTaxChange = (itemId, newRate) => {
+        setTaxOverrides(prev => ({
+            ...prev,
+            [itemId]: parseFloat(newRate) || 0
+        }));
+    };
+
+    const applyGlobalTax = () => {
+        if (!order?.delivery_order_items) return;
+
+        const newOverrides = { ...taxOverrides };
+        order.delivery_order_items.forEach(item => {
+            newOverrides[item.id] = globalTaxEnabled ? parseFloat(globalTaxRate) : 0;
+        });
+
+        setTaxOverrides(newOverrides);
+    };
+
+    // Apply global tax when toggled or rate changed
+    useEffect(() => {
+        if (globalTaxEnabled) {
+            applyGlobalTax();
+        }
+    }, [globalTaxEnabled, globalTaxRate]);
+
+
     const calculateSOTotal = (items) => {
         return items.reduce((total, item) => {
             const soItem = item.sales_order_item ||
@@ -64,7 +112,11 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
             const quantity = item.quantity_delivered;
             const unitPrice = parseFloat(soItem.unit_price);
             const discount = parseFloat(soItem.discount_percentage || 0);
-            const tax = parseFloat(soItem.tax_rate || 0);
+
+            // Use overridden tax rate if available, otherwise fallback to SO rate
+            const tax = taxOverrides[item.id] !== undefined
+                ? taxOverrides[item.id]
+                : parseFloat(soItem.tax_rate || 0);
 
             let price = quantity * unitPrice;
             const discountAmount = price * (discount / 100);
@@ -84,7 +136,19 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     };
 
     const handleConfirm = () => {
-        onConfirm(order, poNumber, selectedSoIds);
+        // Prepare items with overridden tax rates
+        const itemsWithTax = order.delivery_order_items
+            .filter(item => {
+                const soId = item.sales_order_item?.sales_order_id || order.sales_order_id;
+                return selectedSoIds.includes(soId);
+            })
+            .map(item => ({
+                id: item.id, // delivery_order_item_id
+                sales_order_item_id: item.sales_order_item_id,
+                tax_rate: taxOverrides[item.id]
+            }));
+
+        onConfirm(order, poNumber, selectedSoIds, itemsWithTax);
     };
 
     const toggleSoSelection = (soId, e) => {
@@ -111,7 +175,7 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Create Invoice</DialogTitle>
                 </DialogHeader>
@@ -129,6 +193,38 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                             <div className="col-span-2">
                                 <span className="font-semibold block text-muted-foreground uppercase text-[10px] tracking-tight">Date</span>
                                 <span>{new Date(order.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
+                            </div>
+                        </div>
+
+                        {/* Global Tax Toggle */}
+                        <div className="flex items-center gap-4 p-3 border rounded-lg bg-blue-50/50 border-blue-100">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="global-tax"
+                                    checked={globalTaxEnabled}
+                                    onCheckedChange={setGlobalTaxEnabled}
+                                />
+                                <Label htmlFor="global-tax" className="text-sm font-medium cursor-pointer">
+                                    Apply Global Tax Correction
+                                </Label>
+                            </div>
+
+                            {globalTaxEnabled && (
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                                    <span className="text-xs text-muted-foreground">Rate:</span>
+                                    <div className="relative w-20">
+                                        <Input
+                                            type="number"
+                                            className="h-8 pr-6 text-right"
+                                            value={globalTaxRate}
+                                            onChange={(e) => setGlobalTaxRate(e.target.value)}
+                                        />
+                                        <Percent className="absolute right-2 top-2 h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                </div>
+                            )}
+                            <div className="ml-auto text-xs text-muted-foreground italic">
+                                * Overrides original SO tax rates
                             </div>
                         </div>
                     </div>
@@ -195,6 +291,7 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                         <th className="px-4 py-2 text-left">Product</th>
                                                         <th className="px-4 py-2 text-center">Qty</th>
                                                         <th className="px-4 py-2 text-right">Unit Price</th>
+                                                        <th className="px-4 py-2 text-center w-[120px]">Tax %</th>
                                                         <th className="px-4 py-2 text-right">Total</th>
                                                     </tr>
                                                 </thead>
@@ -207,13 +304,9 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                             );
 
                                                         if (!soItem) {
-                                                            console.warn(`Pricing info missing for product ${item.product?.sku} (ID: ${item.product_id || item.product?.id}) in order ${order.delivery_order_number}.`, {
-                                                                item,
-                                                                order_sales_order_items: order.sales_order?.sales_order_items
-                                                            });
                                                             return (
                                                                 <tr key={idx}>
-                                                                    <td colSpan="4" className="px-4 py-2 text-center text-red-500 italic text-xs">
+                                                                    <td colSpan="5" className="px-4 py-2 text-center text-red-500 italic text-xs">
                                                                         Pricing info missing for {item.product?.sku}
                                                                     </td>
                                                                 </tr>
@@ -223,11 +316,15 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                         const quantity = item.quantity_delivered;
                                                         const unitPrice = parseFloat(soItem.unit_price);
                                                         const discount = parseFloat(soItem.discount_percentage || 0);
-                                                        const tax = parseFloat(soItem.tax_rate || 0);
+
+                                                        // Tax calculation with override support
+                                                        const currentTax = taxOverrides[item.id] !== undefined
+                                                            ? taxOverrides[item.id]
+                                                            : parseFloat(soItem.tax_rate || 0);
 
                                                         let price = quantity * unitPrice;
                                                         const discountAmount = price * (discount / 100);
-                                                        const taxAmount = (price - discountAmount) * (tax / 100);
+                                                        const taxAmount = (price - discountAmount) * (currentTax / 100);
                                                         const total = price - discountAmount + taxAmount;
 
                                                         return (
@@ -238,6 +335,15 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                                 </td>
                                                                 <td className="px-4 py-2 text-center font-medium">{quantity}</td>
                                                                 <td className="px-4 py-2 text-right text-muted-foreground">{formatRupiah(unitPrice)}</td>
+                                                                <td className="px-4 py-2 text-center">
+                                                                    <Input
+                                                                        type="number"
+                                                                        className="h-7 w-20 text-center mx-auto"
+                                                                        value={currentTax}
+                                                                        onChange={(e) => handleTaxChange(item.id, e.target.value)}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    />
+                                                                </td>
                                                                 <td className="px-4 py-2 text-right font-bold">{formatRupiah(total)}</td>
                                                             </tr>
                                                         );
@@ -264,7 +370,7 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                     {formatRupiah(calculateFinalTotal())}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground block">
-                                    Based on delivered quantities.
+                                    Based on delivered quantities & corrected tax rates.
                                 </span>
                             </div>
                         </div>
