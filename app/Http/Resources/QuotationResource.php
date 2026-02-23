@@ -22,6 +22,9 @@ class QuotationResource extends JsonResource
             'discount' => $this->discount,
             'tax' => $this->tax,
             'total_amount' => $this->total_amount,
+            'other_costs' => $this->other_costs,
+            'notes' => $this->notes,
+            'is_reserved' => (bool) $this->is_reserved,
             'items' => $this->whenLoaded('quotationItems', function () {
                 return $this->quotationItems->map(function ($item) {
                     return [

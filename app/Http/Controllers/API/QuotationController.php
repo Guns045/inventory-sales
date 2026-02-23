@@ -513,4 +513,37 @@ class QuotationController extends Controller
 
         return \Excel::download(new \App\Exports\QuotationExport($quotation), "quotation-{$quotation->quotation_number}.xlsx");
     }
+    public function reserve($id)
+    {
+        try {
+            $quotation = Quotation::findOrFail($id);
+            $quotation = $this->quotationService->reserveStock($quotation);
+
+            return response()->json([
+                'message' => 'Stock reserved successfully',
+                'quotation' => new QuotationResource($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product']))
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to reserve stock: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function unreserve($id)
+    {
+        try {
+            $quotation = Quotation::findOrFail($id);
+            $quotation = $this->quotationService->unreserveStock($quotation);
+
+            return response()->json([
+                'message' => 'Stock reservation released successfully',
+                'quotation' => new QuotationResource($quotation->load(['customer', 'user', 'warehouse', 'quotationItems.product']))
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to release stock: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -71,8 +71,9 @@ class InventoryService
                     'type' => 'RESERVATION',
                     'quantity_change' => -$reserveFromWarehouse,
                     'reference_id' => $quotation->id,
-                    'reference_type' => Quotation::class,
-                    'notes' => "Stock reserved for Sales Order conversion from Quotation #{$quotation->quotation_number} (Warehouse: {$productStock->warehouse->name})",
+                    'reference_type' => 'Quotation',
+                    'reference_number' => $quotation->quotation_number,
+                    'notes' => "Stock reserved for Quotation #{$quotation->quotation_number} (Warehouse: {$productStock->warehouse->name})",
                 ]);
 
                 $remainingQuantity -= $reserveFromWarehouse;
@@ -80,6 +81,57 @@ class InventoryService
         }
 
         return $stockReservations;
+    }
+
+    /**
+     * Release reserved stock for a Quotation
+     *
+     * @param Quotation $quotation
+     * @return void
+     */
+    public function releaseReservedStockForQuotation(Quotation $quotation): void
+    {
+        // Find all stock movements of type RESERVATION for this quotation
+        $reservations = StockMovement::where('reference_id', $quotation->id)
+            ->where('reference_type', 'Quotation')
+            ->where('type', 'RESERVATION')
+            ->get();
+
+        foreach ($reservations as $reservation) {
+            $productStock = ProductStock::where('product_id', $reservation->product_id)
+                ->where('warehouse_id', $reservation->warehouse_id)
+                ->first();
+
+            if ($productStock) {
+                // Release the quantity
+                $releaseQuantity = abs($reservation->quantity_change);
+                $productStock->decrement('reserved_quantity', min($releaseQuantity, $productStock->reserved_quantity));
+
+                // Log release movement
+                StockMovement::create([
+                    'product_id' => $reservation->product_id,
+                    'warehouse_id' => $reservation->warehouse_id,
+                    'type' => 'RELEASE_RESERVATION',
+                    'quantity_change' => $releaseQuantity,
+                    'reference_id' => $quotation->id,
+                    'reference_type' => 'Quotation',
+                    'reference_number' => $quotation->quotation_number,
+                    'notes' => "Stock reservation released for Quotation #{$quotation->quotation_number}",
+                ]);
+            }
+
+            // Delete the original reservation movement to prevent double release? 
+            // Or just mark it? Better to just leave it and rely on RELEASE_RESERVATION type.
+            // Actually, we should probably delete the RESERVATION entries or mark them 
+            // so we don't release them twice if the user clicks unreserve multiple times.
+            // But since we'll set is_reserved to false, that's the guard.
+        }
+
+        // Remove the original RESERVATION movements so they can be re-reserved if needed
+        StockMovement::where('reference_id', $quotation->id)
+            ->where('reference_type', Quotation::class)
+            ->where('type', 'RESERVATION')
+            ->delete();
     }
 
     /**

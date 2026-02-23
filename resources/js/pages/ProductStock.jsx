@@ -14,6 +14,8 @@ import { FormDialog } from "@/components/common/FormDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Label } from "@/components/ui/label";
 import ReportDamageModal from '@/components/inventory/ReportDamageModal';
+import StockHistory from '@/components/inventory/StockHistory';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ProductStock = () => {
   const { api } = useAPI();
@@ -609,83 +611,92 @@ const ProductStock = () => {
         cancelText=""
       >
         {selectedStock && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-muted-foreground">Product</Label>
-                <div className="font-medium">{selectedStock.product?.name}</div>
-                <div className="text-sm text-muted-foreground">{selectedStock.product?.sku}</div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Warehouse</Label>
-                <div className="font-medium">{selectedStock.warehouse?.name}</div>
-                <div className="text-sm text-muted-foreground">{selectedStock.warehouse?.code}</div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Quantity</Label>
-                <div className="font-medium text-lg">
-                  {selectedStock.quantity === null ? (
-                    <span className="text-gray-400 italic">Hidden</span>
-                  ) : (
-                    selectedStock.quantity
-                  )}
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="history">History Log</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Product</Label>
+                  <div className="font-medium">{selectedStock.product?.name}</div>
+                  <div className="text-sm text-muted-foreground">{selectedStock.product?.sku}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Warehouse</Label>
+                  <div className="font-medium">{selectedStock.warehouse?.name}</div>
+                  <div className="text-sm text-muted-foreground">{selectedStock.warehouse?.code}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Quantity</Label>
+                  <div className="font-medium text-lg">
+                    {selectedStock.quantity === null ? (
+                      <span className="text-gray-400 italic">Hidden</span>
+                    ) : (
+                      selectedStock.quantity
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Reserved</Label>
+                  <div className="font-medium text-lg text-orange-600">
+                    {selectedStock.reserved_quantity === null ? (
+                      <span className="text-gray-400 italic">Hidden</span>
+                    ) : (
+                      selectedStock.reserved_quantity
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Available</Label>
+                  <div className="font-medium text-lg text-green-600">
+                    {selectedStock.available_quantity === null ? (
+                      <span className="text-gray-400 italic">Hidden</span>
+                    ) : (
+                      selectedStock.available_quantity
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Bin Location</Label>
+                  <div className="font-medium">{selectedStock.bin_location || '-'}</div>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Last Updated</Label>
+                  <div className="font-medium">
+                    {new Date(selectedStock.updated_at).toLocaleString('id-ID')}
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label className="text-muted-foreground">Reserved</Label>
-                <div className="font-medium text-lg text-orange-600">
-                  {selectedStock.reserved_quantity === null ? (
-                    <span className="text-gray-400 italic">Hidden</span>
-                  ) : (
-                    selectedStock.reserved_quantity
-                  )}
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Available</Label>
-                <div className="font-medium text-lg text-green-600">
-                  {selectedStock.available_quantity === null ? (
-                    <span className="text-gray-400 italic">Hidden</span>
-                  ) : (
-                    selectedStock.available_quantity
-                  )}
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Bin Location</Label>
-                <div className="font-medium">{selectedStock.bin_location || '-'}</div>
-              </div>
-              <div className="col-span-2">
-                <Label className="text-muted-foreground">Last Updated</Label>
-                <div className="font-medium">
-                  {new Date(selectedStock.updated_at).toLocaleString('id-ID')}
-                </div>
-              </div>
-            </div>
 
-            {/* Hide/Unhide Button for Super Admin - Only when specific warehouse is selected */}
-            {(user?.role === 'Super Admin' || user?.role?.name === 'Super Admin') && selectedWarehouse !== 'all' && (
-              <div className="pt-4 border-t flex justify-end">
-                <Button
-                  variant={selectedStock.is_hidden ? "default" : "secondary"}
-                  onClick={handleToggleVisibility}
-                  className="w-full sm:w-auto"
-                >
-                  {selectedStock.is_hidden ? (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Unhide Stock
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="mr-2 h-4 w-4" /> {/* Using Trash icon as placeholder for Hide, maybe EyeOff is better but not imported */}
-                      Hide Stock
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
+              {/* Hide/Unhide Button for Super Admin - Only when specific warehouse is selected */}
+              {(user?.role === 'Super Admin' || user?.role?.name === 'Super Admin') && selectedWarehouse !== 'all' && (
+                <div className="pt-4 border-t flex justify-end">
+                  <Button
+                    variant={selectedStock.is_hidden ? "default" : "secondary"}
+                    onClick={handleToggleVisibility}
+                    className="w-full sm:w-auto"
+                  >
+                    {selectedStock.is_hidden ? (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Unhide Stock
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Hide Stock
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent value="history" className="mt-4">
+              <StockHistory productStockId={selectedStock.id} />
+            </TabsContent>
+          </Tabs>
         )}
       </FormDialog>
 

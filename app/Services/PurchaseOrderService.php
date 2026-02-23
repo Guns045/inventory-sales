@@ -45,7 +45,7 @@ class PurchaseOrderService
                 'user_id' => auth()->id(),
                 'action' => 'Created Purchase Order',
                 'description' => "Created PO {$poNumber} for supplier {$purchaseOrder->supplier->name}",
-                'reference_type' => 'PurchaseOrder',
+                'reference_type' => \App\Models\PurchaseOrder::class,
                 'reference_id' => $purchaseOrder->id,
             ]);
 
@@ -91,7 +91,7 @@ class PurchaseOrderService
                 ActivityLog::create([
                     'user_id' => auth()->id(),
                     'action' => 'Updated Purchase Order Status',
-                    'reference_type' => 'PurchaseOrder',
+                    'reference_type' => \App\Models\PurchaseOrder::class,
                     'reference_id' => $purchaseOrder->id,
                     'description' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$purchaseOrder->status}",
                 ]);
@@ -125,7 +125,7 @@ class PurchaseOrderService
             ActivityLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'Updated Purchase Order Status',
-                'reference_type' => 'PurchaseOrder',
+                'reference_type' => \App\Models\PurchaseOrder::class,
                 'reference_id' => $purchaseOrder->id,
                 'description' => "Changed PO {$purchaseOrder->po_number} status from {$oldStatus} to {$status}",
             ]);
@@ -167,7 +167,7 @@ class PurchaseOrderService
                 'user_id' => auth()->id(),
                 'action' => 'Cancelled Purchase Order',
                 'description' => "Cancelled PO {$purchaseOrder->po_number}. Previous status: {$oldStatus}. Cancellation Reason: " . $reason,
-                'reference_type' => 'PurchaseOrder',
+                'reference_type' => \App\Models\PurchaseOrder::class,
                 'reference_id' => $purchaseOrder->id,
             ]);
 
@@ -223,7 +223,7 @@ class PurchaseOrderService
                 'user_id' => auth()->id(),
                 'action' => 'Sent Purchase Order',
                 'description' => "Sent PO {$purchaseOrder->po_number} to {$recipientEmail}",
-                'reference_type' => 'PurchaseOrder',
+                'reference_type' => \App\Models\PurchaseOrder::class,
                 'reference_id' => $purchaseOrder->id,
             ]);
 

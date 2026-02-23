@@ -50,6 +50,7 @@ const BankBook = React.lazy(() => import('@/pages/BankBook'));
 const Expenses = React.lazy(() => import('@/pages/Expenses'));
 const DamageReportPage = React.lazy(() => import('@/pages/DamageReportPage'));
 const CreateConsolidatedDO = React.lazy(() => import('@/pages/delivery-orders/CreateConsolidatedDO'));
+const StockMovements = React.lazy(() => import('@/pages/StockMovements'));
 
 // Import CSS
 import './index.css';
@@ -116,6 +117,7 @@ function App() {
                                                 <Route path="finance/accounts/:id" element={<BankBook />} />
                                                 <Route path="finance/expenses" element={<Expenses />} />
                                                 <Route path="damage-reports" element={<DamageReportPage />} />
+                                                <Route path="stock-movements" element={<StockMovements />} />
                                             </Route>
                                         </Routes>
                                     </Suspense>

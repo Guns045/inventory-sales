@@ -207,6 +207,86 @@ class QuotationService
      * @return SalesOrder
      * @throws \Exception
      */
+    /**
+     * Manually reserve stock for a quotation
+     *
+     * @param Quotation $quotation
+     * @return Quotation
+     * @throws \Exception
+     */
+    public function reserveStock(Quotation $quotation): Quotation
+    {
+        if ($quotation->is_reserved) {
+            throw new \Exception('Stock is already reserved for this quotation');
+        }
+
+        return DB::transaction(function () use ($quotation) {
+            $quotation = Quotation::where('id', $quotation->id)->lockForUpdate()->first();
+
+            if ($quotation->is_reserved) {
+                throw new \Exception('Stock is already reserved for this quotation');
+            }
+
+            foreach ($quotation->quotationItems as $item) {
+                $this->inventoryService->reserveStock($item->product_id, $item->quantity, $quotation);
+            }
+
+            $quotation->update(['is_reserved' => true]);
+
+            // Log activity
+            ActivityLog::log(
+                'RESERVE_QUOTATION_STOCK',
+                "Manually reserved stock for quotation {$quotation->quotation_number}",
+                $quotation
+            );
+
+            return $quotation;
+        });
+    }
+
+    /**
+     * Manually unreserve stock for a quotation
+     *
+     * @param Quotation $quotation
+     * @return Quotation
+     * @throws \Exception
+     */
+    public function unreserveStock(Quotation $quotation): Quotation
+    {
+        if (!$quotation->is_reserved) {
+            throw new \Exception('Stock is not reserved for this quotation');
+        }
+
+        return DB::transaction(function () use ($quotation) {
+            $quotation = Quotation::where('id', $quotation->id)->lockForUpdate()->first();
+
+            if (!$quotation->is_reserved) {
+                throw new \Exception('Stock is not reserved for this quotation');
+            }
+
+            $this->inventoryService->releaseReservedStockForQuotation($quotation);
+
+            $quotation->update(['is_reserved' => false]);
+
+            // Log activity
+            ActivityLog::log(
+                'UNRESERVE_QUOTATION_STOCK',
+                "Manually unreserved stock for quotation {$quotation->quotation_number}",
+                $quotation
+            );
+
+            return $quotation;
+        });
+    }
+
+    /**
+     * Convert quotation to sales order
+     *
+     * @param Quotation $quotation
+     * @param string|null $notes
+     * @return SalesOrder
+     * @throws \Exception
+     */
     public function convertToSalesOrder(Quotation $quotation, ?string $notes = null): SalesOrder
     {
         if (!$quotation->isApproved()) {
@@ -242,7 +322,7 @@ class QuotationService
                 'terms_of_payment' => $quotation->terms_of_payment,
             ]);
 
-            // Copy items and reserve stock
+            // Copy items
             foreach ($quotation->quotationItems as $quotationItem) {
                 SalesOrderItem::create([
                     'sales_order_id' => $salesOrder->id,
@@ -253,12 +333,17 @@ class QuotationService
                     'tax_rate' => $quotationItem->tax_rate,
                 ]);
 
-                // Reserve stock via InventoryService
-                $this->inventoryService->reserveStock($quotationItem->product_id, $quotationItem->quantity, $quotation);
+                // Reserve stock via InventoryService if NOT ALREADY reserved
+                if (!$quotation->is_reserved) {
+                    $this->inventoryService->reserveStock($quotationItem->product_id, $quotationItem->quantity, $quotation);
+                }
             }
 
             // Update quotation status
-            $quotation->update(['status' => 'CONVERTED']);
+            $quotation->update([
+                'status' => 'CONVERTED',
+                'is_reserved' => true // Always true after conversion
+            ]);
 
             // Log activity
             ActivityLog::log(

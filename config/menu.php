@@ -94,6 +94,12 @@ return [
                 'path' => '/damage-reports',
                 'icon' => 'bi-exclamation-triangle',
                 'permission' => 'damage-reports.read'
+            ],
+            [
+                'title' => 'Stock Movements',
+                'path' => '/stock-movements',
+                'icon' => 'bi-clipboard-data',
+                'permission' => 'view_stock_movements'
             ]
         ]
     ],

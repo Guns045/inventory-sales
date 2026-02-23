@@ -32,10 +32,12 @@ class Quotation extends Model
         'notes', // Tambah field notes
         'po_number',
         'terms_of_payment',
+        'is_reserved',
     ];
 
     protected $casts = [
         'valid_until' => 'date',
+        'is_reserved' => 'boolean',
     ];
 
     public function customer()

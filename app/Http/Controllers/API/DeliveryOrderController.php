@@ -168,10 +168,17 @@ class DeliveryOrderController extends Controller
      */
     public function destroy($id)
     {
-        $deliveryOrder = DeliveryOrder::findOrFail($id);
-        $deliveryOrder->delete();
+        try {
+            $deliveryOrder = DeliveryOrder::findOrFail($id);
+            $this->deliveryOrderService->deleteDeliveryOrder($deliveryOrder);
 
-        return response()->json(['message' => 'Delivery Order deleted successfully']);
+            return response()->json(['message' => 'Delivery Order uncreated/deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to uncreate delivery order',
+                'error' => $e->getMessage()
+            ], 422);
+        }
     }
 
     public function getDeliveryOrderItems($id)

@@ -8,7 +8,8 @@ import {
     Printer,
     Package,
     ClipboardCheck,
-    Box
+    Box,
+    Trash2
 } from 'lucide-react';
 
 const DeliveryOrderTable = ({
@@ -19,6 +20,7 @@ const DeliveryOrderTable = ({
     onPrint,
     onCreatePickingList,
     onPrintPickingList,
+    onDelete,
     type = 'sales' // 'sales' or 'transfer'
 }) => {
     const getStatusBadge = (status) => {
@@ -111,6 +113,12 @@ const DeliveryOrderTable = ({
                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onView(row); }} title="View Details">
                     <Eye className="h-4 w-4 text-gray-500" />
                 </Button>
+
+                {(row.status === 'PREPARING' || row.status === 'READY_TO_SHIP') && (
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(row); }} title="Uncreate / Delete DO">
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                )}
 
                 {row.status === 'PREPARING' && (
                     <>

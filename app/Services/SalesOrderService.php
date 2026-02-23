@@ -92,7 +92,7 @@ class SalesOrderService
                         $qItem->product_id,
                         $warehouseId,
                         $qItem->quantity,
-                        'App\Models\SalesOrder',
+                        SalesOrder::class,
                         $salesOrder->id
                     );
 
@@ -119,7 +119,7 @@ class SalesOrderService
                         $item['product_id'],
                         $warehouseId,
                         $item['quantity'],
-                        'App\Models\SalesOrder',
+                        SalesOrder::class,
                         $salesOrder->id
                     );
 
@@ -133,7 +133,7 @@ class SalesOrderService
                 'user_id' => auth()->id(),
                 'action' => 'Created Sales Order',
                 'description' => "Created SO {$salesOrderNumber}",
-                'reference_type' => 'SalesOrder',
+                'reference_type' => \App\Models\SalesOrder::class,
                 'reference_id' => $salesOrder->id,
             ]);
 
@@ -167,7 +167,7 @@ class SalesOrderService
                 'user_id' => auth()->id(),
                 'action' => 'Updated Sales Order',
                 'description' => "Updated SO {$salesOrder->sales_order_number}",
-                'reference_type' => 'SalesOrder',
+                'reference_type' => \App\Models\SalesOrder::class,
                 'reference_id' => $salesOrder->id,
             ]);
 
@@ -230,7 +230,7 @@ class SalesOrderService
                                 'user_id' => auth()->id(),
                                 'action' => 'Auto-Cancelled Delivery Order',
                                 'description' => "Auto-cancelled DO {$do->delivery_order_number} because SO {$salesOrder->sales_order_number} was cancelled.",
-                                'reference_type' => 'DeliveryOrder',
+                                'reference_type' => \App\Models\DeliveryOrder::class,
                                 'reference_id' => $do->id,
                             ]);
                         }
@@ -246,7 +246,7 @@ class SalesOrderService
                                 'user_id' => auth()->id(),
                                 'action' => 'Reverted Quotation Status',
                                 'description' => "Reverted Quotation {$quotation->quotation_number} status to APPROVED because SO {$salesOrder->sales_order_number} was cancelled.",
-                                'reference_type' => 'Quotation',
+                                'reference_type' => \App\Models\Quotation::class,
                                 'reference_id' => $quotation->id,
                             ]);
                         }
@@ -270,7 +270,7 @@ class SalesOrderService
                             'user_id' => auth()->id(),
                             'action' => 'Auto-Created Delivery Order',
                             'description' => "Auto-created DO for SO {$salesOrder->sales_order_number} upon status change to READY_TO_SHIP.",
-                            'reference_type' => 'SalesOrder',
+                            'reference_type' => \App\Models\SalesOrder::class,
                             'reference_id' => $salesOrder->id,
                         ]);
                     } catch (\Exception $e) {
@@ -287,7 +287,7 @@ class SalesOrderService
                 'user_id' => auth()->id(),
                 'action' => 'Updated SO Status',
                 'description' => "Changed SO {$salesOrder->sales_order_number} status to {$status}",
-                'reference_type' => 'SalesOrder',
+                'reference_type' => \App\Models\SalesOrder::class,
                 'reference_id' => $salesOrder->id,
             ]);
 

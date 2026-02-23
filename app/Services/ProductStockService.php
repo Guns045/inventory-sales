@@ -4,6 +4,12 @@ namespace App\Services;
 
 use App\Models\ProductStock;
 use App\Models\StockMovement;
+use App\Models\DeliveryOrder;
+use App\Models\GoodsReceipt;
+use App\Models\SalesOrder;
+use App\Models\Quotation;
+use App\Models\SalesReturn;
+use App\Models\WarehouseTransfer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -181,26 +187,46 @@ class ProductStockService
      */
     public function createStock(array $data): ProductStock
     {
-        // Check if combination already exists
-        $existing = ProductStock::where('product_id', $data['product_id'])
-            ->where('warehouse_id', $data['warehouse_id'])
-            ->first();
+        return DB::transaction(function () use ($data) {
+            // Check if combination already exists
+            $existing = ProductStock::where('product_id', $data['product_id'])
+                ->where('warehouse_id', $data['warehouse_id'])
+                ->first();
 
-        if ($existing) {
-            throw new \Exception('Product stock record already exists for this product and warehouse');
-        }
-
-        // Update product weight if provided
-        if (isset($data['weight'])) {
-            $product = \App\Models\Product::find($data['product_id']);
-            if ($product) {
-                $product->weight = $data['weight'];
-                $product->save();
+            if ($existing) {
+                throw new \Exception('Product stock record already exists for this product and warehouse');
             }
-            unset($data['weight']);
-        }
 
-        return ProductStock::create($data);
+            // Update product weight if provided
+            if (isset($data['weight'])) {
+                $product = \App\Models\Product::find($data['product_id']);
+                if ($product) {
+                    $product->weight = $data['weight'];
+                    $product->save();
+                }
+                unset($data['weight']);
+            }
+
+            $productStock = ProductStock::create($data);
+
+            // Log movement if initial quantity is set
+            if (isset($data['quantity']) && $data['quantity'] > 0) {
+                StockMovement::create([
+                    'product_id' => $productStock->product_id,
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'type' => 'IN',
+                    'quantity_change' => $data['quantity'],
+                    'reference_type' => ProductStock::class,
+                    'reference_id' => $productStock->id,
+                    'notes' => 'Initial stock creation',
+                    'user_id' => Auth::id(),
+                    'previous_quantity' => 0,
+                    'new_quantity' => $data['quantity']
+                ]);
+            }
+
+            return $productStock;
+        });
     }
 
     /**
@@ -213,28 +239,52 @@ class ProductStockService
      */
     public function updateStock(ProductStock $productStock, array $data): ProductStock
     {
-        // Ensure the combination doesn't already exist for a different record
-        $existing = ProductStock::where('product_id', $data['product_id'])
-            ->where('warehouse_id', $data['warehouse_id'])
-            ->where('id', '!=', $productStock->id)
-            ->first();
+        return DB::transaction(function () use ($productStock, $data) {
+            // Ensure the combination doesn't already exist for a different record
+            $existing = ProductStock::where('product_id', $data['product_id'] ?? $productStock->product_id)
+                ->where('warehouse_id', $data['warehouse_id'] ?? $productStock->warehouse_id)
+                ->where('id', '!=', $productStock->id)
+                ->first();
 
-        if ($existing) {
-            throw new \Exception('Product stock record already exists for this product and warehouse');
-        }
-
-        // Update product weight if provided
-        if (isset($data['weight'])) {
-            $product = $productStock->product;
-            if ($product) {
-                $product->weight = $data['weight'];
-                $product->save();
+            if ($existing) {
+                throw new \Exception('Product stock record already exists for this product and warehouse');
             }
-            unset($data['weight']);
-        }
 
-        $productStock->update($data);
-        return $productStock;
+            // Detect quantity change before update
+            $previousQuantity = $productStock->quantity;
+            $newQuantity = isset($data['quantity']) ? (int) $data['quantity'] : $previousQuantity;
+            $quantityChange = $newQuantity - $previousQuantity;
+
+            // Update product weight if provided
+            if (isset($data['weight'])) {
+                $product = $productStock->product;
+                if ($product) {
+                    $product->weight = $data['weight'];
+                    $product->save();
+                }
+                unset($data['weight']);
+            }
+
+            $productStock->update($data);
+
+            // Log movement if quantity changed
+            if ($quantityChange !== 0) {
+                StockMovement::create([
+                    'product_id' => $productStock->product_id,
+                    'warehouse_id' => $productStock->warehouse_id,
+                    'type' => $quantityChange > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+                    'quantity_change' => $quantityChange,
+                    'reference_type' => ProductStock::class,
+                    'reference_id' => $productStock->id,
+                    'notes' => 'Manual update via stock edit',
+                    'user_id' => Auth::id(),
+                    'previous_quantity' => $previousQuantity,
+                    'new_quantity' => $newQuantity
+                ]);
+            }
+
+            return $productStock;
+        });
     }
 
     /**
@@ -317,7 +367,7 @@ class ProductStockService
                 'warehouse_id' => $productStock->warehouse_id,
                 'type' => $data['adjustment_type'] === 'increase' ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
                 'quantity_change' => $quantityChange,
-                'reference_type' => 'App\Models\ProductStock',
+                'reference_type' => ProductStock::class,
                 'reference_id' => $productStock->id,
                 'notes' => ($data['reason'] ?? '') . ' - ' . ($data['notes'] ?? ''),
                 'created_by' => Auth::id(),
@@ -351,15 +401,81 @@ class ProductStockService
      * @param int $perPage
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
+    /**
+     * Get stock movement history for a product stock
+     *
+     * @param int $productStockId
+     * @param int $perPage
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getMovementHistory(int $productStockId, int $perPage = 50)
     {
         $productStock = ProductStock::findOrFail($productStockId);
 
         return StockMovement::where('product_id', $productStock->product_id)
             ->where('warehouse_id', $productStock->warehouse_id)
-            ->with(['user'])
+            ->whereNotIn('type', ['RESERVATION', 'RELEASE_RESERVATION'])
+            ->with(['user', 'reference'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
+    }
+
+    /**
+     * Get all stock movements with filters
+     * 
+     * @param array $filters
+     * @param int $perPage
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function getAllMovements(array $filters, int $perPage = 50)
+    {
+        $query = StockMovement::with([
+            'product',
+            'warehouse',
+            'user',
+            'reference' => function ($morphTo) {
+                $morphTo->morphWith([
+                    DeliveryOrder::class => ['customer', 'salesOrder.customer', 'warehouseTransfer'],
+                    GoodsReceipt::class => ['purchaseOrder.supplier'],
+                    SalesOrder::class => ['customer'],
+                    Quotation::class => ['customer'],
+                    SalesReturn::class => ['salesOrder.customer'],
+                    WarehouseTransfer::class => [],
+                ]);
+            }
+        ]);
+
+        if (isset($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_number', 'like', "%{$search}%")
+                    ->orWhereHas('product', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('sku', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (isset($filters['warehouse_id']) && $filters['warehouse_id'] !== 'all') {
+            $query->where('warehouse_id', $filters['warehouse_id']);
+        }
+
+        if (isset($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
+
+        if (isset($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
+        }
+
+        if (isset($filters['type']) && $filters['type'] !== 'all') {
+            $query->where('type', $filters['type']);
+        } else {
+            // By default, exclude reservation-only logical movements for a cleaner trail
+            $query->whereNotIn('type', ['RESERVATION', 'RELEASE_RESERVATION']);
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
     /**
      * Reserve stock for a product
@@ -369,19 +485,25 @@ class ProductStockService
      * @param int $quantity
      * @param string $referenceType
      * @param int $referenceId
+     * @param string|null $referenceNumber
      * @return ProductStock
      * @throws \Exception
      */
-    public function reserveStock(int $productId, int $warehouseId, int $quantity, string $referenceType, int $referenceId): ProductStock
+    public function reserveStock(int $productId, int $warehouseId, int $quantity, string $referenceType, int $referenceId, ?string $referenceNumber = null): ProductStock
     {
-        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $referenceType, $referenceId) {
+        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $referenceType, $referenceId, $referenceNumber) {
             $productStock = ProductStock::where('product_id', $productId)
                 ->where('warehouse_id', $warehouseId)
                 ->lockForUpdate()
                 ->first();
 
             if (!$productStock) {
-                throw new \Exception("Stock record not found for product ID {$productId} in warehouse ID {$warehouseId}");
+                $productStock = ProductStock::create([
+                    'product_id' => $productId,
+                    'warehouse_id' => $warehouseId,
+                    'quantity' => 0,
+                    'reserved_quantity' => 0
+                ]);
             }
 
             // Check available stock (quantity - reserved_quantity)
@@ -393,9 +515,18 @@ class ProductStockService
             $productStock->reserved_quantity += $quantity;
             $productStock->save();
 
-            // Log movement (optional for reservation, but good for tracking)
-            // We might not want to create a StockMovement for reservation as it doesn't change physical stock,
-            // but we can log it if needed. For now, let's just log to ActivityLog via the calling service if needed.
+            // Create Stock Movement for trackable trail
+            StockMovement::create([
+                'product_id' => $productId,
+                'warehouse_id' => $warehouseId,
+                'type' => 'RESERVATION',
+                'quantity_change' => -$quantity,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'reference_number' => $referenceNumber,
+                'created_by' => Auth::id(),
+                'notes' => 'Stock reserved for transaction',
+            ]);
 
             return $productStock;
         });
@@ -449,54 +580,53 @@ class ProductStockService
      * @param string $referenceType
      * @param int $referenceId
      * @param string $notes
+     * @param string|null $referenceNumber
      * @return ProductStock
      * @throws \Exception
      */
-    public function deductStock(int $productId, int $warehouseId, int $quantity, string $referenceType, int $referenceId, string $notes = ''): ProductStock
+    public function deductStock(int $productId, int $warehouseId, int $quantity, string $referenceType, int $referenceId, string $notes = '', ?string $referenceNumber = null): ProductStock
     {
-        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $referenceType, $referenceId, $notes) {
+        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $referenceType, $referenceId, $notes, $referenceNumber) {
             $productStock = ProductStock::where('product_id', $productId)
                 ->where('warehouse_id', $warehouseId)
                 ->lockForUpdate()
                 ->first();
 
             if (!$productStock) {
-                // Treat missing record as 0 quantity
                 $product = \App\Models\Product::find($productId);
                 $productName = $product ? $product->name : "Product ID $productId";
                 throw new \Exception("Insufficient physical stock for '{$productName}' (Record not found). Quantity: 0, Requested: {$quantity}");
             }
 
-            // We assume the stock was already reserved, so we deduct from both.
-            // If it wasn't reserved (e.g. direct invoice), we might need different logic.
-            // But for the standard workflow SO -> DO, it should be reserved.
-
-            // Check if we have enough reserved stock to deduct
-            if ($productStock->reserved_quantity < $quantity) {
-                // Fallback: If not enough reserved, check if we have enough physical stock at least
-                // This handles cases where reservation might have been skipped or data is out of sync
-                if ($productStock->quantity < $quantity) {
-                    throw new \Exception("Insufficient physical stock for '{$productStock->product->name}'. Quantity: {$productStock->quantity}, Requested: {$quantity}");
-                }
-                // If we have physical stock but not reserved, we just deduct what we can from reserved
-                // and the rest from available (implicitly). 
-                // Actually, if reserved < quantity, it means we are shipping more than reserved.
-                // We should just deduct quantity from quantity, and deduct quantity from reserved (clamped to 0).
-                // But strictly speaking, for this workflow, we expect reserved >= quantity.
-
-                // Let's be strict for now to catch bugs, or lenient? 
-                // Given the user report "Reserved is 0", we might need to be careful.
-                // If we fix the workflow, reserved should be correct.
-                // Let's just deduct quantity from quantity, and quantity from reserved (min 0).
+            if ($productStock->quantity < $quantity) {
+                throw new \Exception("Insufficient physical stock for '{$productStock->product->name}'. Quantity: {$productStock->quantity}, Requested: {$quantity}");
             }
 
             $previousQuantity = $productStock->quantity;
+            $quantityFromReserved = min($productStock->reserved_quantity, $quantity);
 
+            // Update quantities
             $productStock->quantity -= $quantity;
-            $productStock->reserved_quantity = max(0, $productStock->reserved_quantity - $quantity);
+            $productStock->reserved_quantity -= $quantityFromReserved;
             $productStock->save();
 
-            // Create Stock Movement
+            // 1. Log "Balanced Release" if we are shipping items that were reserved
+            // This prevents "double counting" confusion in the audit trail sum.
+            if ($quantityFromReserved > 0) {
+                StockMovement::create([
+                    'product_id' => $productId,
+                    'warehouse_id' => $warehouseId,
+                    'type' => 'RELEASE_RESERVATION',
+                    'quantity_change' => $quantityFromReserved,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'reference_number' => $referenceNumber,
+                    'created_by' => Auth::id(),
+                    'notes' => 'Automatically releasing reserved stock for shipment',
+                ]);
+            }
+
+            // 2. Log Actual Physical Deduction
             StockMovement::create([
                 'product_id' => $productId,
                 'warehouse_id' => $warehouseId,
@@ -504,6 +634,7 @@ class ProductStockService
                 'quantity_change' => -$quantity,
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
+                'reference_number' => $referenceNumber,
                 'notes' => $notes,
                 'created_by' => Auth::id(),
                 'previous_quantity' => $previousQuantity,

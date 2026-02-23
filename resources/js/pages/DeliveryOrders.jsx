@@ -14,7 +14,8 @@ import {
   Truck,
   Search,
   RefreshCw,
-  Filter
+  Filter,
+  Trash2
 } from "lucide-react";
 import DeliveryOrderTable from '@/components/warehouse/DeliveryOrderTable';
 import Pagination from '@/components/common/Pagination';
@@ -256,6 +257,28 @@ const DeliveryOrders = () => {
     }
   };
 
+  const handleDeleteOrder = async (order) => {
+    if (!window.confirm(`Are you sure you want to uncreate (delete) ${order.delivery_order_number}? This will revert item quantities to pending in the Sales Order.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/delivery-orders/${order.id}`);
+      toast({
+        title: "Success",
+        description: "Delivery Order uncreated successfully",
+      });
+      fetchSalesDeliveryOrders();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete delivery order",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -309,6 +332,7 @@ const DeliveryOrders = () => {
           onPrint={handlePrintDeliveryOrder}
           onCreatePickingList={handleCreatePickingList}
           onPrintPickingList={handlePrintPickingList}
+          onDelete={handleDeleteOrder}
         />
 
         <div className="mt-4">

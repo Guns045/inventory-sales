@@ -47,9 +47,8 @@ class DamageReportService
                 'quantity_change' => -$quantity, // Negative because reducing available
                 'previous_quantity' => $previousAvailable,
                 'new_quantity' => $productStock->available_quantity,
-                'new_quantity' => $productStock->available_quantity,
                 // 'movement_date' => now(), // Removed: Column does not exist, use created_at
-                'reference_type' => 'DAMAGE_REPORT',
+                'reference_type' => null,
                 'reference_number' => $referenceNumber,
                 'created_by' => Auth::id(),
                 'notes' => "Damage Report: {$reason}. " . ($notes ?? ''),
@@ -99,9 +98,8 @@ class DamageReportService
                 'quantity_change' => $quantity, // Positive because adding back to available
                 'previous_quantity' => $previousAvailable,
                 'new_quantity' => $productStock->available_quantity,
-                'new_quantity' => $productStock->available_quantity,
                 // 'movement_date' => now(), // Removed: Column does not exist, use created_at
-                'reference_type' => 'DAMAGE_REVERSAL',
+                'reference_type' => null,
                 'created_by' => Auth::id(),
                 'notes' => "Damage Reversal: " . ($notes ?? 'Correction'),
             ]);
@@ -150,9 +148,8 @@ class DamageReportService
                 'quantity_change' => -$quantity,
                 'previous_quantity' => $previousTotal,
                 'new_quantity' => $productStock->quantity,
-                'new_quantity' => $productStock->quantity,
                 // 'movement_date' => now(), // Removed: Column does not exist, use created_at
-                'reference_type' => 'DAMAGE_DISPOSAL',
+                'reference_type' => null,
                 'reference_number' => $referenceNumber,
                 'created_by' => Auth::id(),
                 'notes' => "Damaged Stock Disposal: " . ($notes ?? ''),

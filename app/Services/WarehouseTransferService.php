@@ -50,7 +50,7 @@ class WarehouseTransferService
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_REQUESTED',
                 'description' => "User {$user->name} created warehouse transfer {$transfer->transfer_number} with " . count($data['items']) . " items",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 
@@ -100,7 +100,7 @@ class WarehouseTransferService
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_UPDATED',
                 'description' => "User {$user->name} updated warehouse transfer {$transfer->transfer_number}",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 
@@ -159,7 +159,7 @@ class WarehouseTransferService
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_APPROVED',
                 'description' => "User {$user->name} approved warehouse transfer {$transfer->transfer_number}",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 
@@ -262,7 +262,7 @@ class WarehouseTransferService
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_DELIVERED',
                 'description' => "User {$user->name} delivered items for transfer {$transfer->transfer_number}",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 
@@ -338,7 +338,7 @@ class WarehouseTransferService
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_RECEIVED',
                 'description' => "User {$user->name} received items for transfer {$transfer->transfer_number}",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 
@@ -373,7 +373,7 @@ class WarehouseTransferService
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_CANCELLED',
                 'description' => "User {$user->name} cancelled warehouse transfer {$transfer->transfer_number}. Reason: {$reason}",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 
@@ -403,13 +403,13 @@ class WarehouseTransferService
                         $transfer->id,
                         WarehouseTransfer::class
                     );
-                    
+
                     // Reset item delivered qty
                     $item->update(['quantity_delivered' => 0]);
                 }
 
                 // Cancel/Delete Delivery Order
-                 $deliveryOrder = DeliveryOrder::where('source_type', 'IT')
+                $deliveryOrder = DeliveryOrder::where('source_type', 'IT')
                     ->where('source_id', $transfer->id)
                     ->first();
                 if ($deliveryOrder) {
@@ -431,34 +431,34 @@ class WarehouseTransferService
                         $transfer->id,
                         WarehouseTransfer::class
                     );
-                     // Add back to source
+                    // Add back to source
                     $this->inventoryService->addStock(
                         $item->product_id,
                         $transfer->warehouse_from_id,
                         $item->quantity_delivered ?? $item->quantity_requested,
                         "Transfer Reset (God Mode): {$transfer->transfer_number} - Stock restored to source",
-                         $transfer->id,
+                        $transfer->id,
                         WarehouseTransfer::class
                     );
-                    
-                     // Reset item quantities
+
+                    // Reset item quantities
                     $item->update(['quantity_delivered' => 0, 'quantity_received' => 0]);
                 }
-                 // Cancel Delivery Order (and Picking List implied?)
-                 $deliveryOrder = DeliveryOrder::where('source_type', 'IT')
+                // Cancel Delivery Order (and Picking List implied?)
+                $deliveryOrder = DeliveryOrder::where('source_type', 'IT')
                     ->where('source_id', $transfer->id)
                     ->first();
                 if ($deliveryOrder) {
                     $deliveryOrder->update(['status' => 'CANCELLED']);
                 }
             } elseif ($originalStatus === 'APPROVED') {
-                 // No stock moved yet, just Picking List created.
-                 $pickingList = PickingList::where('warehouse_id', $transfer->warehouse_from_id)
+                // No stock moved yet, just Picking List created.
+                $pickingList = PickingList::where('warehouse_id', $transfer->warehouse_from_id)
                     ->where('notes', 'like', "%{$transfer->transfer_number}%") // Bit weak link, but okay for now
                     ->first();
-                 if ($pickingList) {
-                     $pickingList->update(['status' => 'CANCELLED']);
-                 }
+                if ($pickingList) {
+                    $pickingList->update(['status' => 'CANCELLED']);
+                }
             }
 
             // 2. Update Transfer Status
@@ -476,19 +476,19 @@ class WarehouseTransferService
                 $updateData['received_by'] = null;
                 $updateData['received_at'] = null;
             } elseif ($targetStatus === 'APPROVED') {
-                 $updateData['delivered_by'] = null;
-                 $updateData['delivered_at'] = null;
-                 $updateData['received_by'] = null;
-                 $updateData['received_at'] = null;
+                $updateData['delivered_by'] = null;
+                $updateData['delivered_at'] = null;
+                $updateData['received_by'] = null;
+                $updateData['received_at'] = null;
             }
-            
+
             $transfer->update($updateData);
 
             ActivityLog::create([
                 'user_id' => $user->id,
                 'action' => 'WAREHOUSE_TRANSFER_RESET',
                 'description' => "User {$user->name} reset transfer {$transfer->transfer_number} from {$originalStatus} to {$targetStatus} (God Mode)",
-                'reference_type' => 'WarehouseTransfer',
+                'reference_type' => \App\Models\WarehouseTransfer::class,
                 'reference_id' => $transfer->id,
             ]);
 

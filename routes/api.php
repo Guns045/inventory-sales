@@ -110,6 +110,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/product-stock/{id}/toggle-visibility', [ProductStockController::class, 'toggleVisibility'])->middleware('permission:product-stock.update');
     Route::get('/product-stock/{id}/movements', [ProductStockController::class, 'getMovementHistory'])->middleware('permission:product-stock.read');
 
+    // Global Stock Audit Trail
+    Route::get('/stock-movements', [App\Http\Controllers\API\StockMovementController::class, 'index'])->middleware('permission:view_stock_movements');
+
     // Sales management
     // Quotation specific routes (must be before apiResource)
     Route::get('/quotations/{id}/items', [QuotationController::class, 'getQuotationItems']);
@@ -120,6 +123,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/quotations/{id}/create-sales-order', [QuotationController::class, 'createSalesOrder']);
     Route::get('/quotations/{id}/check-convertibility', [QuotationController::class, 'checkConvertibility']);
     Route::post('/quotations/{id}/cancel', [QuotationController::class, 'cancel']);
+    Route::post('/quotations/{id}/reserve', [QuotationController::class, 'reserve']);
+    Route::post('/quotations/{id}/unreserve', [QuotationController::class, 'unreserve']);
 
     Route::apiResource('quotations', QuotationController::class);
 

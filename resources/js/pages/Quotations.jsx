@@ -301,15 +301,66 @@ const Quotations = () => {
 
     if (window.confirm('Are you sure you want to cancel this quotation?')) {
       try {
+        setFormLoading(true);
         await api.post(`/quotations/${quotation.id}/cancel`, { notes });
         showSuccess('Quotation cancelled successfully');
-        closeDetail();
+
+        // Refresh detail if open
+        const { data } = await getById(quotation.id);
+        setSelectedQuotation(data.data || data);
+
         fetchItems(pagination.current_page, {
           search,
           warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
         });
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to cancel quotation');
+      } finally {
+        setFormLoading(false);
+      }
+    }
+  };
+
+  const handleReserveStock = async (quotation) => {
+    if (window.confirm('Reserve physical stock for this quotation? This will lock available quantity.')) {
+      try {
+        setFormLoading(true);
+        const response = await api.post(`/quotations/${quotation.id}/reserve`);
+        showSuccess('Stock reserved successfully');
+
+        // Update selected quotation with new data
+        setSelectedQuotation(response.data.quotation.data || response.data.quotation);
+
+        fetchItems(pagination.current_page, {
+          search,
+          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+        });
+      } catch (err) {
+        showError(err.response?.data?.message || 'Failed to reserve stock');
+      } finally {
+        setFormLoading(false);
+      }
+    }
+  };
+
+  const handleUnreserveStock = async (quotation) => {
+    if (window.confirm('Release reserved stock? This will make the quantity available again.')) {
+      try {
+        setFormLoading(true);
+        const response = await api.post(`/quotations/${quotation.id}/unreserve`);
+        showSuccess('Stock reservation released successfully');
+
+        // Update selected quotation with new data
+        setSelectedQuotation(response.data.quotation.data || response.data.quotation);
+
+        fetchItems(pagination.current_page, {
+          search,
+          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
+        });
+      } catch (err) {
+        showError(err.response?.data?.message || 'Failed to release stock');
+      } finally {
+        setFormLoading(false);
       }
     }
   };
@@ -428,6 +479,9 @@ const Quotations = () => {
         onOpenChange={closeDetail}
         quotation={selectedQuotation}
         onCancel={handleCancelQuotation}
+        onReserve={handleReserveStock}
+        onUnreserve={handleUnreserveStock}
+        loading={formLoading}
       />
     </div>
   );

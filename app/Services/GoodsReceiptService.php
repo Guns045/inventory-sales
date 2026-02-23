@@ -182,6 +182,7 @@ class GoodsReceiptService
                         'type' => 'IN',
                         'reference_type' => 'GoodsReceipt',
                         'reference_id' => $goodsReceipt->id,
+                        'reference_number' => $goodsReceipt->receipt_number,
                         'notes' => "Received from PO {$goodsReceipt->purchaseOrder->po_number}",
                         'user_id' => $userId
                     ]);

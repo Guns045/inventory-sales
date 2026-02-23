@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 
-export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }) {
+export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel, onReserve, onUnreserve, loading }) {
     if (!quotation) return null;
 
     const formatCurrency = (value) => {
@@ -53,8 +53,13 @@ export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
+                <DialogHeader className="flex flex-row items-center justify-between">
                     <DialogTitle>Quotation Details</DialogTitle>
+                    {quotation.is_reserved && (
+                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold mr-8 text-center">
+                            RESERVED PHYSICAL STOCK
+                        </div>
+                    )}
                 </DialogHeader>
 
                 <div className="space-y-6">
@@ -155,7 +160,7 @@ export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }
                             )}
                             <div className="flex justify-between font-bold text-base border-t pt-2">
                                 <span>Grand Total</span>
-                                <span>{formatCurrency(grandTotal)}</span>
+                                <span>{formatCurrency(quotation.total_amount || grandTotal)}</span>
                             </div>
                         </div>
                     </div>
@@ -170,16 +175,37 @@ export function QuotationDetailModal({ open, onOpenChange, quotation, onCancel }
                 </div>
 
                 {/* Footer Actions */}
-                {quotation.status === 'APPROVED' && onCancel && (
-                    <div className="flex justify-end mt-6 pt-4 border-t">
+                <div className="flex flex-wrap items-center justify-end gap-2 mt-6 pt-4 border-t">
+                    {!quotation.is_reserved && quotation.status !== 'CONVERTED' && onReserve && (
+                        <button
+                            onClick={() => onReserve(quotation)}
+                            disabled={loading}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                            Reserve Physical Stock
+                        </button>
+                    )}
+
+                    {quotation.is_reserved && quotation.status !== 'CONVERTED' && onUnreserve && (
+                        <button
+                            onClick={() => onUnreserve(quotation)}
+                            disabled={loading}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                            Release Reserved Stock
+                        </button>
+                    )}
+
+                    {quotation.status === 'APPROVED' && onCancel && (
                         <button
                             onClick={() => onCancel(quotation)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                            disabled={loading}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
                         >
                             Cancel Quotation
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     );

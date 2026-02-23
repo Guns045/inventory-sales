@@ -295,9 +295,10 @@ class DeliveryOrderService
                         $item->product_id,
                         $deliveryOrder->warehouse_id,
                         $item->quantity_shipped,
-                        'App\Models\DeliveryOrder',
+                        'DeliveryOrder',
                         $deliveryOrder->id,
-                        "Shipped DO {$deliveryOrder->delivery_order_number}"
+                        "Shipped DO {$deliveryOrder->delivery_order_number}",
+                        $deliveryOrder->delivery_order_number
                     );
                 }
             }
@@ -379,9 +380,10 @@ class DeliveryOrderService
                     $item->product_id,
                     $deliveryOrder->warehouse_id,
                     $item->quantity_shipped,
-                    'App\Models\DeliveryOrder',
+                    'DeliveryOrder',
                     $deliveryOrder->id,
-                    "Shipped DO {$deliveryOrder->delivery_order_number}"
+                    "Shipped DO {$deliveryOrder->delivery_order_number}",
+                    $deliveryOrder->delivery_order_number
                 );
             }
 
@@ -725,5 +727,93 @@ class DeliveryOrderService
 
             $salesOrder->update(['status' => $newStatus]);
         }
+    }
+
+    /**
+     * Delete a delivery order and rollback sales order quantities
+     *
+     * @param DeliveryOrder $deliveryOrder
+     * @return bool
+     * @throws \Exception
+     */
+    public function deleteDeliveryOrder(DeliveryOrder $deliveryOrder): bool
+    {
+        // Check if status allows deletion
+        if (!in_array($deliveryOrder->status, ['PREPARING', 'READY', 'READY_TO_SHIP'])) {
+            throw new \Exception("Cannot delete Delivery Order with status: {$deliveryOrder->getStatusLabelAttribute()}. Only Preparations or Ready to Ship orders can be uncreated.");
+        }
+
+        return DB::transaction(function () use ($deliveryOrder) {
+            // 1. Collect related Sales Order IDs for status update later
+            $salesOrderIds = DeliveryOrderItem::where('delivery_order_id', $deliveryOrder->id)
+                ->whereNotNull('sales_order_item_id')
+                ->get()
+                ->pluck('sales_order_item_id')
+                ->map(fn($id) => \App\Models\SalesOrderItem::find($id)?->sales_order_id)
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($deliveryOrder->sales_order_id && !$salesOrderIds->contains($deliveryOrder->sales_order_id)) {
+                $salesOrderIds->push($deliveryOrder->sales_order_id);
+            }
+
+            // 2. Rollback Sales Order Item quantities
+            foreach ($deliveryOrder->deliveryOrderItems as $item) {
+                if ($item->salesOrderItem) {
+                    $item->salesOrderItem->decrement('quantity_shipped', $item->quantity_shipped);
+                }
+            }
+
+            // 3. Delete DO items and the DO itself
+            $deliveryOrder->deliveryOrderItems()->delete();
+            $deliveryOrder->delete();
+
+            // 4. Recalculate statuses for all affected Sales Orders
+            foreach ($salesOrderIds as $soId) {
+                $salesOrder = SalesOrder::with('items')->find($soId);
+                if (!$salesOrder)
+                    continue;
+
+                $totalOrdered = $salesOrder->items->sum('quantity');
+                $totalShippedInItems = $salesOrder->items->sum('quantity_shipped');
+
+                $totalDelivered = DeliveryOrderItem::whereIn('sales_order_item_id', $salesOrder->items->pluck('id'))
+                    ->whereHas('deliveryOrder', function ($q) {
+                        $q->where('status', 'DELIVERED');
+                    })
+                    ->sum('quantity_delivered');
+
+                $totalReadyOrShipped = DeliveryOrderItem::whereIn('sales_order_item_id', $salesOrder->items->pluck('id'))
+                    ->whereHas('deliveryOrder', function ($q) {
+                        $q->whereIn('status', ['READY_TO_SHIP', 'SHIPPED', 'DELIVERED']);
+                    })
+                    ->sum('quantity_shipped');
+
+                if ($totalDelivered >= $totalOrdered && $totalOrdered > 0) {
+                    $newStatus = 'COMPLETED';
+                } elseif ($totalShippedInItems >= $totalOrdered && $totalOrdered > 0) {
+                    $newStatus = ($totalReadyOrShipped >= $totalOrdered) ? 'SHIPPED' : 'PARTIAL';
+                } elseif ($totalReadyOrShipped >= $totalOrdered && $totalOrdered > 0) {
+                    $newStatus = 'READY_TO_SHIP';
+                } elseif ($totalShippedInItems > 0 || $totalReadyOrShipped > 0 || $totalDelivered > 0) {
+                    $newStatus = 'PARTIAL';
+                } else {
+                    $newStatus = 'PROCESSING';
+                }
+
+                $salesOrder->update(['status' => $newStatus]);
+            }
+
+            // 5. Log activity
+            ActivityLog::log(
+                'DELETE_DELIVERY_ORDER',
+                "User uncreated/deleted Delivery Order {$deliveryOrder->delivery_order_number}. Items rolled back to pending.",
+                null,
+                ['delivery_order_number' => $deliveryOrder->delivery_order_number]
+            );
+
+            return true;
+        });
     }
 }
