@@ -20,6 +20,7 @@ class StoreSalesOrderRequest extends FormRequest
             'status' => 'required|in:PENDING,PROCESSING,READY_TO_SHIP,SHIPPED,COMPLETED,CANCELLED',
             'terms_of_payment' => 'nullable|string|in:CASH,NET_15,NET_30,NET_45,NET_60',
             'notes' => 'nullable|string',
+            'po_number' => 'nullable|string|max:255',
         ];
 
         if (!$this->quotation_id) {

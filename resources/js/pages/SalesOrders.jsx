@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, CheckCircle, Clock, XCircle, Search, Download } from "lucide-react";
+import { ShoppingCart, CheckCircle, Clock, XCircle, Search, Download, Pencil, Check, X } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import SuperAdminActions from '@/components/admin/SuperAdminActions';
+
+import Pagination from '@/components/common/Pagination';
 
 const SalesOrders = () => {
   const { get, post, delete: deleteRequest } = useAPI();
@@ -27,12 +29,19 @@ const SalesOrders = () => {
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
-    per_page: 10,
-    total: 0
+    per_page: 20,
+    total: 0,
+    from: 0,
+    to: 0
   });
   const [search, setSearch] = useState('');
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState('all');
+
+  // Edit PO Number state
+  const [isEditingPo, setIsEditingPo] = useState(false);
+  const [newPoNumber, setNewPoNumber] = useState('');
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
     fetchWarehouses();
@@ -54,10 +63,13 @@ const SalesOrders = () => {
     }
   };
 
-  const fetchSalesOrders = async (page = 1) => {
+  const fetchSalesOrders = async (page = 1, perPage = pagination.per_page) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page });
+      const params = new URLSearchParams({
+        page: page,
+        per_page: perPage
+      });
       if (search) params.append('search', search);
       if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
 
@@ -66,10 +78,12 @@ const SalesOrders = () => {
         if (response.data.data) {
           setSalesOrders(response.data.data);
           setPagination({
-            current_page: response.data.current_page,
-            last_page: response.data.last_page,
-            per_page: response.data.per_page,
-            total: response.data.total
+            current_page: response.data.current_page || 1,
+            last_page: response.data.last_page || 1,
+            per_page: response.data.per_page || perPage,
+            total: response.data.total || 0,
+            from: response.data.from || 0,
+            to: response.data.to || 0
           });
         } else {
           const data = Array.isArray(response.data) ? response.data : [];
@@ -78,7 +92,9 @@ const SalesOrders = () => {
             current_page: 1,
             last_page: 1,
             per_page: data.length,
-            total: data.length
+            total: data.length,
+            from: data.length > 0 ? 1 : 0,
+            to: data.length
           });
         }
       }
@@ -132,6 +148,32 @@ const SalesOrders = () => {
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to delete sales order');
       }
+    }
+  };
+
+  const handleUpdatePo = async () => {
+    if (!selectedOrder) return;
+    try {
+      setUpdateLoading(true);
+      await post(`/sales-orders/${selectedOrder.id}`, {
+        ...selectedOrder,
+        po_number: newPoNumber,
+        _method: 'PUT' // Support for Laravel PUT via POST
+      });
+      showSuccess('PO Number updated successfully');
+      setIsEditingPo(false);
+
+      // Update local state to reflect change immediately
+      const updatedOrder = { ...selectedOrder, po_number: newPoNumber };
+      setSelectedOrder(updatedOrder);
+      setSalesOrders(salesOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+
+      // Refresh to be safe
+      await fetchSalesOrders(pagination.current_page);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to update PO Number');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -311,6 +353,52 @@ const SalesOrders = () => {
                     <p><span className="text-muted-foreground">Customer:</span> {selectedOrder.customer?.company_name}</p>
                     <p><span className="text-muted-foreground">Status:</span> {selectedOrder.status}</p>
                     <p><span className="text-muted-foreground">Date:</span> {new Date(selectedOrder.created_at).toLocaleDateString()}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">PO Number:</span>
+                      {isEditingPo ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={newPoNumber}
+                            onChange={(e) => setNewPoNumber(e.target.value)}
+                            className="h-7 w-32 text-sm"
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            disabled={updateLoading}
+                            onClick={handleUpdatePo}
+                          >
+                            <Check className="h-4 w-4 text-green-500" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => setIsEditingPo(false)}
+                          >
+                            <X className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-indigo-600">{selectedOrder.po_number || '-'}</span>
+                          {(user?.role === 'Super Admin' || user?.role === 'root') && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 opacity-50 hover:opacity-100"
+                              onClick={() => {
+                                setNewPoNumber(selectedOrder.po_number || '');
+                                setIsEditingPo(true);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div>

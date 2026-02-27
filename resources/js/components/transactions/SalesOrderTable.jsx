@@ -64,10 +64,19 @@ export function SalesOrderTable({
                 <div>
                     <div className="font-mono text-sm font-medium">{row.sales_order_number}</div>
                     {row.quotation && (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-[10px] text-muted-foreground">
                             From: {row.quotation.quotation_number}
                         </div>
                     )}
+                </div>
+            )
+        },
+        {
+            header: "PO Number",
+            accessorKey: "po_number",
+            cell: (row) => (
+                <div className="font-mono text-sm font-medium">
+                    {row.po_number || '-'}
                 </div>
             )
         },

@@ -91,11 +91,7 @@ const Products = () => {
 
   // Search effect
   useEffect(() => {
-    if (searchTerm) {
-      refresh({ search: searchTerm, per_page: 20 });
-    } else {
-      refresh({ per_page: 20 });
-    }
+    refresh({ search: searchTerm });
   }, [searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handlers
@@ -262,6 +258,8 @@ const Products = () => {
             from={pagination.from}
             to={pagination.to}
             total={pagination.total}
+            perPage={pagination.per_page}
+            onPerPageChange={setPerPage}
           />
         )}
       </Card>

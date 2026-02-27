@@ -67,12 +67,12 @@ const DamageReportPage = () => {
         }
     };
 
-    const fetchData = async (page = 1) => {
+    const fetchData = async (page = pagination.current_page, perPage = pagination.per_page) => {
         setLoading(true);
         try {
             const params = new URLSearchParams({
                 page,
-                per_page: 20
+                per_page: perPage
             });
 
             if (search) params.append('search', search);
@@ -87,7 +87,10 @@ const DamageReportPage = () => {
             setPagination({
                 current_page: response.data.movements.current_page,
                 last_page: response.data.movements.last_page,
-                total: response.data.movements.total
+                per_page: response.data.movements.per_page || perPage,
+                total: response.data.movements.total,
+                from: response.data.movements.from,
+                to: response.data.movements.to
             });
 
         } catch (error) {
@@ -96,6 +99,11 @@ const DamageReportPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePerPageChange = (newPerPage) => {
+        setPagination(prev => ({ ...prev, per_page: newPerPage, current_page: 1 }));
+        fetchData(1, newPerPage);
     };
 
     const handleReverse = (item) => {
@@ -322,10 +330,12 @@ const DamageReportPage = () => {
                         <Pagination
                             currentPage={pagination.current_page}
                             totalPages={pagination.last_page}
-                            onPageChange={fetchData}
-                            from={(pagination.current_page - 1) * 20 + 1}
-                            to={Math.min(pagination.current_page * 20, pagination.total)}
+                            onPageChange={(page) => fetchData(page)}
+                            from={pagination.from}
+                            to={pagination.to}
                             total={pagination.total}
+                            perPage={pagination.per_page}
+                            onPerPageChange={handlePerPageChange}
                         />
                     )}
                 </CardContent>

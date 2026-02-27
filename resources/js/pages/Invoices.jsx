@@ -113,7 +113,7 @@ const Invoices = () => {
     setIsCreateModalOpen(true);
   };
 
-  const handleCreateInvoice = async (order, poNumber, selectedSoIds = []) => {
+  const handleCreateInvoice = async (order, poNumber, selectedSoIds = [], items = []) => {
     try {
       setCreateLoading(true);
 
@@ -122,14 +122,15 @@ const Invoices = () => {
       dueDate.setDate(dueDate.getDate() + 30);
 
       const invoiceData = {
-        delivery_order_id: order.id, // Now passing DO ID
+        delivery_order_id: order.id,
         sales_order_id: order.sales_order_id,
         customer_id: order.customer_id,
         issue_date: today,
         due_date: dueDate.toISOString().split('T')[0],
         status: 'UNPAID',
         po_number: poNumber,
-        selected_so_ids: selectedSoIds
+        selected_so_ids: selectedSoIds,
+        items: items
       };
 
       const response = await api.post('/invoices', invoiceData);

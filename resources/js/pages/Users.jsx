@@ -247,6 +247,8 @@ const Users = () => {
             from={pagination.from}
             to={pagination.to}
             total={pagination.total}
+            perPage={pagination.per_page}
+            onPerPageChange={setPerPage}
           />
         )}
       </Card>

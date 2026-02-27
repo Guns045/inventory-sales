@@ -95,9 +95,60 @@ class SalesReturnService
             // Auto-create Credit Note
             $this->creditNoteService->createFromSalesReturn($salesReturn);
 
+            // Check if this is a full return to cancel document chain
+            $this->checkAndHandleFullReturn($salesReturn->salesOrder);
+
             return $salesReturn;
         });
 
+    }
+
+    private function checkAndHandleFullReturn($salesOrder)
+    {
+        $salesOrder->load(['items', 'deliveryOrders', 'invoice', 'quotation']);
+
+        // Calculate total SO quantity
+        $totalSoQuantity = $salesOrder->items->sum('quantity');
+
+        // Calculate total returned quantity (only for APPROVED or COMPLETED returns)
+        $totalReturnedQuantity = SalesReturnItem::whereHas('salesReturn', function ($query) use ($salesOrder) {
+            $query->where('sales_order_id', $salesOrder->id)
+                ->whereIn('status', ['APPROVED', 'COMPLETED']);
+        })->sum('quantity');
+
+        // If returned quantity equals or exceeds SO quantity (shouldn't exceed due to earlier validation)
+        if ($totalReturnedQuantity >= $totalSoQuantity) {
+            DB::transaction(function () use ($salesOrder) {
+                $notes = "\n[System] Automatically cancelled due to full return.";
+
+                // 1. Cancel Sales Order
+                $salesOrder->update([
+                    'status' => 'CANCELLED',
+                    'notes' => $salesOrder->notes . $notes
+                ]);
+
+                // 2. Cancel Linked Delivery Orders
+                foreach ($salesOrder->deliveryOrders as $do) {
+                    $do->update(['status' => 'CANCELLED']);
+                }
+
+                // 3. Cancel Linked Quotation
+                if ($salesOrder->quotation) {
+                    $salesOrder->quotation->update(['status' => 'CANCELLED']);
+                }
+
+                // 4. Cancel Linked Invoice (if unpaid)
+                if ($salesOrder->invoice) {
+                    $salesOrder->invoice->load('payments');
+                    $totalPaid = $salesOrder->invoice->payments->sum('amount_paid');
+
+                    // Only cancel if no payments or total_paid is 0
+                    if ($totalPaid <= 0) {
+                        $salesOrder->invoice->update(['status' => 'CANCELLED']);
+                    }
+                }
+            });
+        }
     }
 
     public function rejectReturn(SalesReturn $salesReturn, string $reason = null)

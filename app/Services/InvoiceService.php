@@ -163,6 +163,9 @@ class InvoiceService
             $totalAmount = 0;
             $invoiceItemsData = [];
 
+            $soUpdateNeeded = false;
+            $salesOrdersToUpdate = [];
+
             foreach ($deliveryOrder->deliveryOrderItems as $doItem) {
                 // Get SO item directly from the link (critical for consolidated DO)
                 $soItem = $doItem->salesOrderItem;
@@ -188,12 +191,21 @@ class InvoiceService
                 $unitPrice = $soItem->unit_price;
                 $discountPercentage = $soItem->discount_percentage;
 
-                // Check for tax override in input data
+                // Check for tax AND price override in input data
                 $taxRate = $soItem->tax_rate;
                 if (isset($data['items']) && is_array($data['items'])) {
                     foreach ($data['items'] as $itemData) {
-                        if ($itemData['id'] == $doItem->id && isset($itemData['tax_rate'])) {
-                            $taxRate = $itemData['tax_rate'];
+                        if ($itemData['id'] == $doItem->id) {
+                            if (isset($itemData['tax_rate'])) {
+                                $taxRate = $itemData['tax_rate'];
+                            }
+                            if (isset($itemData['unit_price']) && $itemData['unit_price'] != $unitPrice) {
+                                $unitPrice = $itemData['unit_price'];
+                                // Propagate back to SO Item
+                                $soItem->update(['unit_price' => $unitPrice]);
+                                $soUpdateNeeded = true;
+                                $salesOrdersToUpdate[$soItem->sales_order_id] = $soItem->salesOrder;
+                            }
                             break;
                         }
                     }
@@ -216,6 +228,21 @@ class InvoiceService
                     'tax_rate' => $taxRate,
                     'total_price' => $finalPrice,
                 ];
+            }
+
+            // Recalculate SO totals if prices were changed
+            if ($soUpdateNeeded) {
+                foreach ($salesOrdersToUpdate as $soId => $so) {
+                    $newSoTotal = \App\Models\SalesOrderItem::where('sales_order_id', $soId)
+                        ->get()
+                        ->reduce(function ($total, $si) {
+                            $st = $si->quantity * $si->unit_price;
+                            $sd = $st * ($si->discount_percentage / 100);
+                            $sx = ($st - $sd) * ($si->tax_rate / 100);
+                            return $total + ($st - $sd + $sx);
+                        }, 0);
+                    $so->update(['total_amount' => $newSoTotal]);
+                }
             }
 
             // Update PO Number if provided (on the primary SO)

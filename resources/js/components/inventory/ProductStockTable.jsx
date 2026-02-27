@@ -28,7 +28,9 @@ export function ProductStockTable({
     selectedIds = [],
     onSelectionChange = () => { },
     pagination,
-    onPageChange
+    onPageChange,
+    perPage = 20,
+    onPerPageChange
 }) {
     const getStockStatus = (stock) => {
         const available = stock.quantity - stock.reserved_quantity;
@@ -319,9 +321,11 @@ export function ProductStockTable({
                     currentPage={pagination.current_page}
                     totalPages={pagination.last_page}
                     onPageChange={onPageChange}
-                    from={(pagination.current_page - 1) * 20 + 1}
-                    to={Math.min(pagination.current_page * 20, pagination.total)}
+                    from={(pagination.current_page - 1) * perPage + 1}
+                    to={Math.min(pagination.current_page * perPage, pagination.total)}
                     total={pagination.total}
+                    perPage={perPage}
+                    onPerPageChange={onPerPageChange}
                 />
             )}
         </div>

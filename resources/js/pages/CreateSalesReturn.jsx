@@ -83,7 +83,7 @@ const CreateSalesReturn = () => {
                     product_id: item.product_id,
                     quantity: 1,
                     condition: 'GOOD',
-                    max_quantity: item.quantity,
+                    max_quantity: item.quantity - (item.returned_quantity || 0),
                     product_name: item.product?.name
                 }]
             }));
@@ -195,6 +195,8 @@ const CreateSalesReturn = () => {
                                                     <TableHead className="w-[50px]"></TableHead>
                                                     <TableHead>Product</TableHead>
                                                     <TableHead className="text-center">Shipped Qty</TableHead>
+                                                    <TableHead className="text-center">Returned Qty</TableHead>
+                                                    <TableHead className="text-center">Remaining Qty</TableHead>
                                                     <TableHead className="w-[100px]">Return Qty</TableHead>
                                                     <TableHead className="w-[150px]">Condition</TableHead>
                                                 </TableRow>
@@ -217,12 +219,14 @@ const CreateSalesReturn = () => {
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell className="text-center">{item.quantity}</TableCell>
+                                                            <TableCell className="text-center text-amber-600 font-medium">{item.returned_quantity || 0}</TableCell>
+                                                            <TableCell className="text-center font-bold text-green-600">{item.quantity - (item.returned_quantity || 0)}</TableCell>
                                                             <TableCell>
                                                                 {isSelected && (
                                                                     <Input
                                                                         type="number"
                                                                         min="1"
-                                                                        max={item.quantity}
+                                                                        max={item.quantity - (item.returned_quantity || 0)}
                                                                         value={isSelected.quantity}
                                                                         onChange={(e) => handleItemChange(item.product_id, 'quantity', e.target.value)}
                                                                         className="h-8"

@@ -21,6 +21,7 @@ class StoreInvoiceRequest extends FormRequest
             'items' => 'nullable|array',
             'items.*.id' => 'required_with:items|exists:delivery_order_items,id',
             'items.*.tax_rate' => 'required_with:items|numeric|min:0|max:100',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
             'customer_id' => 'required|exists:customers,id',
             'issue_date' => 'required|date',
             'due_date' => 'required|date',

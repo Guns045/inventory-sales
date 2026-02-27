@@ -12,6 +12,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { useAPI } from '@/contexts/APIContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
+import Pagination from '@/components/common/Pagination';
 import {
   Upload,
   Trash2,
@@ -53,7 +54,9 @@ const MasterDataProducts = () => {
     current_page: 1,
     last_page: 1,
     per_page: 100,
-    total: 0
+    total: 0,
+    from: 0,
+    to: 0
   });
 
   const [formData, setFormData] = useState({
@@ -63,7 +66,7 @@ const MasterDataProducts = () => {
   useEffect(() => {
     fetchRawProducts();
     fetchStatistics();
-  }, [searchTerm, filters, pagination.current_page]);
+  }, [searchTerm, filters, pagination.current_page, pagination.per_page]);
 
   const fetchStatistics = async () => {
     try {
@@ -76,12 +79,12 @@ const MasterDataProducts = () => {
     }
   };
 
-  const fetchRawProducts = async () => {
+  const fetchRawProducts = async (page = pagination.current_page, perPage = pagination.per_page) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        page: pagination.current_page,
-        per_page: pagination.per_page,
+        page: page,
+        per_page: perPage,
         search: searchTerm,
       });
 
@@ -91,13 +94,28 @@ const MasterDataProducts = () => {
 
       const response = await api.get(`/settings/raw-products?${params}`);
       setRawProducts(response.data.data);
-      setPagination(response.data.pagination);
+      setPagination({
+        current_page: response.data.pagination?.current_page || 1,
+        last_page: response.data.pagination?.last_page || 1,
+        per_page: response.data.pagination?.per_page || perPage,
+        total: response.data.pagination?.total || 0,
+        from: response.data.pagination?.from || 0,
+        to: response.data.pagination?.to || 0
+      });
     } catch (error) {
       console.error('Error fetching raw products:', error);
       showError('Failed to fetch products');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page) => {
+    setPagination(prev => ({ ...prev, current_page: page }));
+  };
+
+  const handlePerPageChange = (newPerPage) => {
+    setPagination(prev => ({ ...prev, per_page: newPerPage, current_page: 1 }));
   };
 
   const handleFileUpload = (e) => {
@@ -426,6 +444,20 @@ const MasterDataProducts = () => {
               </div>
             }
           />
+          {pagination.total > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <Pagination
+                currentPage={pagination.current_page}
+                totalPages={pagination.last_page}
+                onPageChange={handlePageChange}
+                perPage={pagination.per_page}
+                onPerPageChange={handlePerPageChange}
+                from={pagination.from}
+                to={pagination.to}
+                total={pagination.total}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

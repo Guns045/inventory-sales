@@ -42,7 +42,8 @@ const DeliveryOrders = () => {
   const [targetStatus, setTargetStatus] = useState('SHIPPED');
 
   // Pagination state
-  const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [salesPagination, setSalesPagination] = useState({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 });
+  const [perPage, setPerPage] = useState(20);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -50,11 +51,12 @@ const DeliveryOrders = () => {
     fetchSalesDeliveryOrders();
   }, [salesPagination.current_page, search, statusFilter]);
 
-  const fetchSalesDeliveryOrders = async (page = salesPagination.current_page) => {
+  const fetchSalesDeliveryOrders = async (page = salesPagination.current_page, currentPerPage = perPage) => {
     setLoading(true);
     try {
       const params = {
         page,
+        per_page: currentPerPage,
         source_type: 'SO',
         search: search,
       };
@@ -80,6 +82,12 @@ const DeliveryOrders = () => {
 
   const handlePageChange = (page) => {
     setSalesPagination(prev => ({ ...prev, current_page: page }));
+  };
+
+  const handlePerPageChange = (newPerPage) => {
+    setPerPage(newPerPage);
+    setSalesPagination(prev => ({ ...prev, current_page: 1 }));
+    fetchSalesDeliveryOrders(1, newPerPage);
   };
 
   const handleSearch = (e) => {
@@ -338,8 +346,13 @@ const DeliveryOrders = () => {
         <div className="mt-4">
           <Pagination
             currentPage={salesPagination.current_page}
-            lastPage={salesPagination.last_page}
+            totalPages={salesPagination.last_page}
             onPageChange={handlePageChange}
+            perPage={perPage}
+            onPerPageChange={handlePerPageChange}
+            from={salesPagination.from}
+            to={salesPagination.to}
+            total={salesPagination.total}
           />
         </div>
       </div>

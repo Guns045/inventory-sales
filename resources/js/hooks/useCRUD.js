@@ -27,9 +27,13 @@ export function useCRUD(endpoint, options = {}) {
             setLoading(true);
             setError(null);
 
+            // Access latest state via functional update logic or local variables if needed
+            // But here we can use searchParams to override per_page
+            const itemsPerPage = searchParams.per_page || pagination.per_page;
+
             const queryParams = {
                 page: page,
-                per_page: pagination.per_page,
+                per_page: itemsPerPage,
                 ...searchParams
             };
 
@@ -52,7 +56,7 @@ export function useCRUD(endpoint, options = {}) {
                 setPagination({
                     current_page: meta.current_page || 1,
                     last_page: meta.last_page || 1,
-                    per_page: meta.per_page || pagination.per_page,
+                    per_page: meta.per_page || itemsPerPage,
                     total: meta.total || 0,
                     from: meta.from || 0,
                     to: meta.to || 0
@@ -140,6 +144,12 @@ export function useCRUD(endpoint, options = {}) {
         fetchItems(page);
     }, [fetchItems]);
 
+    // Set per page
+    const setPerPage = useCallback((newPerPage) => {
+        setPagination(prev => ({ ...prev, per_page: newPerPage }));
+        fetchItems(1, { per_page: newPerPage });
+    }, [fetchItems]);
+
     // Initial fetch
     useEffect(() => {
         if (options.autoFetch !== false) {
@@ -158,6 +168,7 @@ export function useCRUD(endpoint, options = {}) {
         remove,
         getById,
         setPage,
+        setPerPage,
         refresh: (params = {}) => fetchItems(pagination.current_page, params)
     };
 }

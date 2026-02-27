@@ -62,6 +62,7 @@ class SalesOrderService
                 'warehouse_id' => $warehouseId,
                 'status' => $data['status'] ?? 'PENDING',
                 'notes' => $data['notes'] ?? null,
+                'po_number' => $data['po_number'] ?? null,
                 'terms_of_payment' => $data['terms_of_payment'] ?? null,
                 'total_amount' => 0, // Will be calculated
             ]);
@@ -156,6 +157,7 @@ class SalesOrderService
                 'customer_id' => $data['customer_id'] ?? $salesOrder->customer_id,
                 'status' => $data['status'] ?? $salesOrder->status,
                 'notes' => $data['notes'] ?? $salesOrder->notes,
+                'po_number' => $data['po_number'] ?? $salesOrder->po_number,
                 'terms_of_payment' => $data['terms_of_payment'] ?? $salesOrder->terms_of_payment,
             ]);
 

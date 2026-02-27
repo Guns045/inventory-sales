@@ -135,7 +135,21 @@ class SalesOrderController extends Controller
     {
         try {
             $salesOrder = SalesOrder::with('items.product')->findOrFail($id);
-            return response()->json($salesOrder->items);
+
+            // Get already returned quantities for this SO
+            $returnedQuantities = \App\Models\SalesReturnItem::whereHas('salesReturn', function ($query) use ($id) {
+                $query->where('sales_order_id', $id)
+                    ->where('status', '!=', 'REJECTED');
+            })->select('product_id', \DB::raw('SUM(quantity) as total_returned'))
+                ->groupBy('product_id')
+                ->pluck('total_returned', 'product_id');
+
+            $items = $salesOrder->items->map(function ($item) use ($returnedQuantities) {
+                $item->returned_quantity = $returnedQuantities[$item->product_id] ?? 0;
+                return $item;
+            });
+
+            return response()->json($items);
         } catch (\Exception $e) {
             Log::error('getSalesOrderItems: Error - ' . $e->getMessage());
             return response()->json([

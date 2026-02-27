@@ -18,8 +18,9 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     const [selectedSoIds, setSelectedSoIds] = useState([]);
     const [expandedSoIds, setExpandedSoIds] = useState([]);
 
-    // Tax Correction State
+    // Tax & Price Correction State
     const [taxOverrides, setTaxOverrides] = useState({}); // { [itemId]: taxRate }
+    const [priceOverrides, setPriceOverrides] = useState({}); // { [itemId]: unitPrice }
     const [globalTaxEnabled, setGlobalTaxEnabled] = useState(false);
     const [globalTaxRate, setGlobalTaxRate] = useState(11);
 
@@ -35,8 +36,9 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
             setSelectedSoIds(soIds);
             setExpandedSoIds(soIds); // Expand all by default
 
-            // Initialize tax overrides with existing SO tax rates
+            // Initialize overrides
             const initialTaxOverrides = {};
+            const initialPriceOverrides = {};
             order.delivery_order_items?.forEach(item => {
                 const soItem = item.sales_order_item ||
                     order.sales_order?.sales_order_items?.find(si =>
@@ -46,9 +48,11 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
 
                 if (soItem) {
                     initialTaxOverrides[item.id] = parseFloat(soItem.tax_rate || 0);
+                    initialPriceOverrides[item.id] = parseFloat(soItem.unit_price || 0);
                 }
             });
             setTaxOverrides(initialTaxOverrides);
+            setPriceOverrides(initialPriceOverrides);
         }
     }, [order]);
 
@@ -77,6 +81,13 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
         setTaxOverrides(prev => ({
             ...prev,
             [itemId]: parseFloat(newRate) || 0
+        }));
+    };
+
+    const handlePriceChange = (itemId, newPrice) => {
+        setPriceOverrides(prev => ({
+            ...prev,
+            [itemId]: parseFloat(newPrice) || 0
         }));
     };
 
@@ -110,7 +121,10 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
             if (!soItem) return total;
 
             const quantity = item.quantity_delivered;
-            const unitPrice = parseFloat(soItem.unit_price);
+            // Use overridden price if available
+            const unitPrice = priceOverrides[item.id] !== undefined
+                ? priceOverrides[item.id]
+                : parseFloat(soItem.unit_price);
             const discount = parseFloat(soItem.discount_percentage || 0);
 
             // Use overridden tax rate if available, otherwise fallback to SO rate
@@ -136,8 +150,8 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     };
 
     const handleConfirm = () => {
-        // Prepare items with overridden tax rates
-        const itemsWithTax = order.delivery_order_items
+        // Prepare items with overridden tax rates and unit prices
+        const itemsWithOverrides = order.delivery_order_items
             .filter(item => {
                 const soId = item.sales_order_item?.sales_order_id || order.sales_order_id;
                 return selectedSoIds.includes(soId);
@@ -145,10 +159,11 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
             .map(item => ({
                 id: item.id, // delivery_order_item_id
                 sales_order_item_id: item.sales_order_item_id,
-                tax_rate: taxOverrides[item.id]
+                tax_rate: taxOverrides[item.id],
+                unit_price: priceOverrides[item.id]
             }));
 
-        onConfirm(order, poNumber, selectedSoIds, itemsWithTax);
+        onConfirm(order, poNumber, selectedSoIds, itemsWithOverrides);
     };
 
     const toggleSoSelection = (soId, e) => {
@@ -314,7 +329,9 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                         }
 
                                                         const quantity = item.quantity_delivered;
-                                                        const unitPrice = parseFloat(soItem.unit_price);
+                                                        const unitPrice = priceOverrides[item.id] !== undefined
+                                                            ? priceOverrides[item.id]
+                                                            : parseFloat(soItem.unit_price);
                                                         const discount = parseFloat(soItem.discount_percentage || 0);
 
                                                         // Tax calculation with override support
@@ -334,7 +351,18 @@ const CreateInvoiceModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                                                                     <div className="text-[10px] text-muted-foreground leading-tight">{item.product?.name}</div>
                                                                 </td>
                                                                 <td className="px-4 py-2 text-center font-medium">{quantity}</td>
-                                                                <td className="px-4 py-2 text-right text-muted-foreground">{formatRupiah(unitPrice)}</td>
+                                                                <td className="px-4 py-2 text-right">
+                                                                    <div className="flex items-center justify-end gap-2">
+                                                                        <span className="text-xs text-muted-foreground whitespace-nowrap">Rp</span>
+                                                                        <Input
+                                                                            type="number"
+                                                                            className="h-7 w-28 text-right font-medium"
+                                                                            value={priceOverrides[item.id] !== undefined ? priceOverrides[item.id] : unitPrice}
+                                                                            onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        />
+                                                                    </div>
+                                                                </td>
                                                                 <td className="px-4 py-2 text-center">
                                                                     <Input
                                                                         type="number"

@@ -10,6 +10,7 @@ use App\Models\SalesOrder;
 use App\Models\Quotation;
 use App\Models\SalesReturn;
 use App\Models\WarehouseTransfer;
+use App\Models\PurchaseOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -437,6 +438,7 @@ class ProductStockService
                 $morphTo->morphWith([
                     DeliveryOrder::class => ['customer', 'salesOrder.customer', 'warehouseTransfer'],
                     GoodsReceipt::class => ['purchaseOrder.supplier'],
+                    PurchaseOrder::class => ['supplier'],
                     SalesOrder::class => ['customer'],
                     Quotation::class => ['customer'],
                     SalesReturn::class => ['salesOrder.customer'],

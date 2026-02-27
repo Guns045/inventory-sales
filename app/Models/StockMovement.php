@@ -62,11 +62,17 @@ class StockMovement extends Model
         // 1. Check for specific model types with custom logic
         if ($ref instanceof \App\Models\DeliveryOrder) {
             // Priority 1: Direct Customer
+            if ($ref->customer?->company_name)
+                return $ref->customer->company_name;
             if ($ref->customer?->name)
                 return $ref->customer->name;
+
             // Priority 2: Customer from linked Sales Order
+            if ($ref->salesOrder?->customer?->company_name)
+                return $ref->salesOrder->customer->company_name;
             if ($ref->salesOrder?->customer?->name)
                 return $ref->salesOrder->customer->name;
+
             // Priority 3: Internal Transfer Info
             if ($ref->source_type === 'IT' && $ref->warehouseTransfer) {
                 return "Transfer: {$ref->warehouseTransfer->transfer_number}";
@@ -81,6 +87,12 @@ class StockMovement extends Model
             return '-';
         }
 
+        if ($ref instanceof \App\Models\PurchaseOrder) {
+            if ($ref->supplier?->name)
+                return $ref->supplier->name;
+            return '-';
+        }
+
         if ($ref instanceof \App\Models\WarehouseTransfer) {
             return "Transfer: {$ref->transfer_number}";
         }
@@ -91,8 +103,8 @@ class StockMovement extends Model
 
         // 2. Generic check for common relationships across different models
         // Many models use 'customer' or 'supplier' relationships
-        if (isset($ref->customer) && $ref->customer && isset($ref->customer->name)) {
-            return $ref->customer->name;
+        if (isset($ref->customer) && $ref->customer) {
+            return $ref->customer->company_name ?? $ref->customer->name ?? '-';
         }
 
         if (isset($ref->supplier) && $ref->supplier && isset($ref->supplier->name)) {
@@ -101,23 +113,26 @@ class StockMovement extends Model
 
         // 3. Check for specific item-level references
         if ($ref instanceof \App\Models\DeliveryOrderItem) {
-            return $ref->deliveryOrder?->customer?->name ?? $ref->deliveryOrder?->salesOrder?->customer?->name ?? '-';
+            $do = $ref->deliveryOrder;
+            if (!$do)
+                return '-';
+            return $do->customer?->company_name ?? $do->customer?->name ?? $do->salesOrder?->customer?->company_name ?? $do->salesOrder?->customer?->name ?? '-';
         }
 
         if ($ref instanceof \App\Models\SalesReturn) {
-            return $ref->salesOrder?->customer?->name ?? '-';
+            return $ref->salesOrder?->customer?->company_name ?? $ref->salesOrder?->customer?->name ?? '-';
         }
 
         if ($ref instanceof \App\Models\SalesOrderItem) {
-            return $ref->salesOrder?->customer?->name ?? '-';
+            return $ref->salesOrder?->customer?->company_name ?? $ref->salesOrder?->customer?->name ?? '-';
         }
 
         if ($ref instanceof \App\Models\Quotation) {
-            return $ref->customer?->name ?? '-';
+            return $ref->customer?->company_name ?? $ref->customer?->name ?? '-';
         }
 
         if ($ref instanceof \App\Models\QuotationItem) {
-            return $ref->quotation?->customer?->name ?? '-';
+            return $ref->quotation?->customer?->company_name ?? $ref->quotation?->customer?->name ?? '-';
         }
 
         return '-';

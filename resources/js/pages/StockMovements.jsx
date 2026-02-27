@@ -35,6 +35,8 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 
+import Pagination from '@/components/common/Pagination';
+
 const StockMovements = () => {
     const { api } = useAPI();
     const { user } = useAuth();
@@ -58,6 +60,9 @@ const StockMovements = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [perPage, setPerPage] = useState(20);
+    const [total, setTotal] = useState(0);
+    const [from, setFrom] = useState(0);
+    const [to, setTo] = useState(0);
 
     useEffect(() => {
         fetchWarehouses();
@@ -80,12 +85,12 @@ const StockMovements = () => {
         }
     };
 
-    const fetchMovements = async () => {
+    const fetchMovements = async (page = currentPage, currentPerPage = perPage) => {
         setLoading(true);
         try {
             const params = {
-                page: currentPage,
-                per_page: perPage,
+                page: page,
+                per_page: currentPerPage,
                 search: searchTerm,
                 warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined,
                 type: selectedType !== 'all' ? selectedType : undefined,
@@ -96,6 +101,9 @@ const StockMovements = () => {
             const response = await api.get('/stock-movements', { params });
             setMovements(response.data.data || []);
             setTotalPages(response.data.last_page || 1);
+            setTotal(response.data.total || 0);
+            setFrom(response.data.from || 0);
+            setTo(response.data.to || 0);
         } catch (error) {
             console.error('Error fetching movements:', error);
             toast({
@@ -106,6 +114,16 @@ const StockMovements = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
+
+    const handlePerPageChange = (newPerPage) => {
+        setPerPage(newPerPage);
+        setCurrentPage(1);
+        fetchMovements(1, newPerPage);
     };
 
     const handleSearch = (e) => {
@@ -293,29 +311,18 @@ const StockMovements = () => {
                     </Table>
 
                     {/* Pagination */}
-                    <div className="flex items-center justify-between px-4 py-4 border-t">
-                        <div className="text-sm text-muted-foreground">
-                            Page {currentPage} of {totalPages}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1 || loading}
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages || loading}
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
+                    {total > 0 && (
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={handlePageChange}
+                            from={from}
+                            to={to}
+                            total={total}
+                            perPage={perPage}
+                            onPerPageChange={handlePerPageChange}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>

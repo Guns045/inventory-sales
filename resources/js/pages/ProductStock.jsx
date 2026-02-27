@@ -33,6 +33,7 @@ const ProductStock = () => {
   const [selectedWarehouse, setSelectedWarehouse] = useState('all');
 
   // Pagination
+  const [perPage, setPerPage] = useState(20);
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
@@ -115,13 +116,13 @@ const ProductStock = () => {
     }
   };
 
-  const fetchProductStock = async (page = 1) => {
+  const fetchProductStock = async (page = 1, currentPerPage = perPage) => {
     try {
       setLoading(true);
 
       const params = new URLSearchParams({
         page: page,
-        per_page: 20
+        per_page: currentPerPage
       });
 
       if (searchTerm) params.append('search', searchTerm);
@@ -147,6 +148,11 @@ const ProductStock = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePerPageChange = (newPerPage) => {
+    setPerPage(newPerPage);
+    fetchProductStock(1, newPerPage);
   };
 
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -428,6 +434,8 @@ const ProductStock = () => {
             onSelectionChange={setSelectedIds}
             pagination={pagination}
             onPageChange={(page) => fetchProductStock(page)}
+            perPage={perPage}
+            onPerPageChange={handlePerPageChange}
           />
         </CardContent>
       </Card>
