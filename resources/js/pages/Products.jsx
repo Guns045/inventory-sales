@@ -29,6 +29,7 @@ const Products = () => {
     update,
     remove,
     setPage,
+    setPerPage,
     refresh
   } = useCRUD('/products');
 
