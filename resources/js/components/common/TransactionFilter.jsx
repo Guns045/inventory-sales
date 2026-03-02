@@ -242,29 +242,6 @@ export const TransactionFilter = ({
                         </Select>
                     </div>
 
-                    <Separator className="bg-slate-100" />
-
-                    {/* Keyword search */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Keyword search</Label>
-                            <button
-                                className="text-[10px] text-indigo-600 font-medium hover:underline"
-                                onClick={() => handleResetSection('search', '')}
-                            >
-                                Reset
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
-                            <Input
-                                className="pl-8 h-8 text-xs"
-                                placeholder="Search..."
-                                value={localFilters.search}
-                                onChange={(e) => setLocalFilters(prev => ({ ...prev, search: e.target.value }))}
-                            />
-                        </div>
-                    </div>
                 </div>
 
                 <div className="p-3 bg-slate-50 border-t flex items-center justify-between gap-3">

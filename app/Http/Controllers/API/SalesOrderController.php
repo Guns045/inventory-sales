@@ -71,7 +71,7 @@ class SalesOrderController extends Controller
                     ->orWhere('po_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', function ($customerQuery) use ($search) {
                         $customerQuery->where('company_name', 'like', "%{$search}%")
-                            ->orWhere('name', 'like', "%{$search}%");
+                            ->orWhere('contact_person', 'like', "%{$search}%");
                     });
             });
         }

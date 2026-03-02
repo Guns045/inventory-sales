@@ -35,7 +35,6 @@ const SalesOrders = () => {
     from: 0,
     to: 0
   });
-  const [search, setSearch] = useState('');
   const [warehouses, setWarehouses] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [activeFilters, setActiveFilters] = useState({
@@ -46,6 +45,9 @@ const SalesOrders = () => {
     status: [],
     search: '',
   });
+
+  const [searchInput, setSearchInput] = useState('');
+  const isFirstRender = React.useRef(true);
 
   // Edit PO Number state
   const [isEditingPo, setIsEditingPo] = useState(false);
@@ -60,6 +62,24 @@ const SalesOrders = () => {
   useEffect(() => {
     fetchSalesOrders(1);
   }, [activeFilters]);
+
+  const handleFilter = (filters) => {
+    const newFilters = { ...activeFilters, ...filters };
+    setActiveFilters(newFilters);
+  };
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleFilter({ search: searchInput });
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const fetchWarehouses = async () => {
     try {
@@ -328,16 +348,29 @@ const SalesOrders = () => {
           Export to Excel
         </Button>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="pl-8 h-8 w-[150px] lg:w-[250px] text-xs"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
           <TransactionFilter
-            onFilter={setActiveFilters}
-            onReset={() => setActiveFilters({
-              startDate: '',
-              endDate: '',
-              warehouseId: 'all',
-              customerId: 'all',
-              status: 'all',
-              search: '',
-            })}
+            onFilter={handleFilter}
+            onReset={() => {
+              const defaultFilters = {
+                startDate: '',
+                endDate: '',
+                warehouseId: 'all',
+                customerId: 'all',
+                status: [],
+                search: '',
+              };
+              setActiveFilters(defaultFilters);
+              setSearchInput('');
+            }}
             warehouses={warehouses}
             customers={customers}
             statusOptions={[

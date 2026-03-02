@@ -48,9 +48,6 @@ const Quotations = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
-  const [dependenciesLoading, setDependenciesLoading] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-
   const [activeFilters, setActiveFilters] = useState({
     startDate: '',
     endDate: '',
@@ -59,6 +56,11 @@ const Quotations = () => {
     status: [],
     search: '',
   });
+  const [dependenciesLoading, setDependenciesLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+
+  const [searchInput, setSearchInput] = useState('');
+  const isFirstRender = React.useRef(true);
 
   const quotationStatusOptions = [
     { value: 'DRAFT', label: 'Draft' },
@@ -71,16 +73,30 @@ const Quotations = () => {
 
   // Search and Filter handler
   const handleFilter = (filters) => {
-    setActiveFilters(filters);
+    const newFilters = { ...activeFilters, ...filters };
+    setActiveFilters(newFilters);
     fetchItems(1, {
-      search: filters.search,
-      warehouse_id: filters.warehouseId !== 'all' ? filters.warehouseId : undefined,
-      customer_id: filters.customerId !== 'all' ? filters.customerId : undefined,
-      status: (Array.isArray(filters.status) && filters.status.length > 0) ? filters.status.join(',') : undefined,
-      start_date: filters.startDate || undefined,
-      end_date: filters.endDate || undefined,
+      search: newFilters.search,
+      warehouse_id: newFilters.warehouseId !== 'all' ? newFilters.warehouseId : undefined,
+      customer_id: newFilters.customerId !== 'all' ? newFilters.customerId : undefined,
+      status: (Array.isArray(newFilters.status) && newFilters.status.length > 0) ? newFilters.status.join(',') : undefined,
+      start_date: newFilters.startDate || undefined,
+      end_date: newFilters.endDate || undefined,
     });
   };
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleFilter({ search: searchInput });
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const handleResetFilters = () => {
     const defaultFilters = {
@@ -92,6 +108,7 @@ const Quotations = () => {
       search: '',
     };
     setActiveFilters(defaultFilters);
+    setSearchInput('');
     fetchItems(1, {});
   };
 
@@ -443,9 +460,18 @@ const Quotations = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    className="pl-8 h-8 w-[150px] lg:w-[250px] text-xs"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                  />
+                </div>
                 <TransactionFilter
                   onFilter={handleFilter}
-                  onReset={() => handleFilter({})}
+                  onReset={handleResetFilters}
                   warehouses={warehouses}
                   customers={customers}
                   statusOptions={quotationStatusOptions}
