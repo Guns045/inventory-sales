@@ -43,7 +43,7 @@ const SalesOrders = () => {
     endDate: '',
     warehouseId: 'all',
     customerId: 'all',
-    status: 'all',
+    status: [],
     search: '',
   });
 
@@ -90,7 +90,9 @@ const SalesOrders = () => {
       if (activeFilters.search) params.append('search', activeFilters.search);
       if (activeFilters.warehouseId && activeFilters.warehouseId !== 'all') params.append('warehouse_id', activeFilters.warehouseId);
       if (activeFilters.customerId && activeFilters.customerId !== 'all') params.append('customer_id', activeFilters.customerId);
-      if (activeFilters.status && activeFilters.status !== 'all') params.append('status', activeFilters.status);
+      if (activeFilters.status && (Array.isArray(activeFilters.status) ? activeFilters.status.length > 0 : activeFilters.status !== 'all')) {
+        params.append('status', Array.isArray(activeFilters.status) ? activeFilters.status.join(',') : activeFilters.status);
+      }
       if (activeFilters.startDate) params.append('start_date', activeFilters.startDate);
       if (activeFilters.endDate) params.append('end_date', activeFilters.endDate);
 

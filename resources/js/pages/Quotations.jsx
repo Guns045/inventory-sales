@@ -56,7 +56,7 @@ const Quotations = () => {
     endDate: '',
     warehouseId: 'all',
     customerId: 'all',
-    status: 'all',
+    status: [],
     search: '',
   });
 
@@ -76,7 +76,7 @@ const Quotations = () => {
       search: filters.search,
       warehouse_id: filters.warehouseId !== 'all' ? filters.warehouseId : undefined,
       customer_id: filters.customerId !== 'all' ? filters.customerId : undefined,
-      status: filters.status !== 'all' ? filters.status : undefined,
+      status: (Array.isArray(filters.status) && filters.status.length > 0) ? filters.status.join(',') : undefined,
       start_date: filters.startDate || undefined,
       end_date: filters.endDate || undefined,
     });
@@ -88,7 +88,7 @@ const Quotations = () => {
       endDate: '',
       warehouseId: 'all',
       customerId: 'all',
-      status: 'all',
+      status: [],
       search: '',
     };
     setActiveFilters(defaultFilters);
@@ -100,7 +100,7 @@ const Quotations = () => {
       search: activeFilters.search,
       warehouse_id: activeFilters.warehouseId !== 'all' ? activeFilters.warehouseId : undefined,
       customer_id: activeFilters.customerId !== 'all' ? activeFilters.customerId : undefined,
-      status: activeFilters.status !== 'all' ? activeFilters.status : undefined,
+      status: (Array.isArray(activeFilters.status) && activeFilters.status.length > 0) ? activeFilters.status.join(',') : undefined,
       start_date: activeFilters.startDate || undefined,
       end_date: activeFilters.endDate || undefined,
     });

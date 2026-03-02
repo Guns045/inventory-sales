@@ -47,8 +47,14 @@ class QuotationController extends Controller
             ->orderBy('created_at', 'desc');
 
         // Filter by status if provided
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
+        if ($request->has('status') && !empty($request->status) && $request->status !== 'all') {
+            $requestedStatus = $request->status;
+            if (str_contains($requestedStatus, ',')) {
+                $statuses = explode(',', $requestedStatus);
+                $query->whereIn('status', $statuses);
+            } else {
+                $query->where('status', $requestedStatus);
+            }
         }
 
         // Filter by warehouse if provided

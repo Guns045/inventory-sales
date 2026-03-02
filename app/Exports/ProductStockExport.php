@@ -50,7 +50,7 @@ class ProductStockExport implements FromCollection, WithHeadings, WithMapping
             $stock->product->category->name ?? 'Uncategorized',
             $stock->quantity,
             $stock->reserved_quantity,
-            $stock->available_quantity,
+            $stock->quantity - $stock->reserved_quantity - ($stock->damaged_quantity ?? 0),
             $stock->product->weight ?? 0,
             $buyPrice,
             $totalAssetValue

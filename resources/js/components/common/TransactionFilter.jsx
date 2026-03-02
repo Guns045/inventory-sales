@@ -14,7 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Filter, Search, X } from "lucide-react";
+import { Filter, Search, X, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export const TransactionFilter = ({
@@ -31,7 +31,7 @@ export const TransactionFilter = ({
         endDate: '',
         warehouseId: 'all',
         customerId: 'all',
-        status: 'all',
+        status: [], // Changed to array
         search: '',
         ...initialFilters
     });
@@ -39,11 +39,20 @@ export const TransactionFilter = ({
     const [localFilters, setLocalFilters] = useState(filters);
 
     useEffect(() => {
-        setLocalFilters(filters);
+        // Ensure status is always an array
+        const normalizedFilters = {
+            ...filters,
+            status: Array.isArray(filters.status) ? filters.status : (filters.status === 'all' ? [] : [filters.status])
+        };
+        setLocalFilters(normalizedFilters);
     }, [filters]);
 
     const handleResetSection = (key, defaultValue = 'all') => {
         setLocalFilters(prev => ({ ...prev, [key]: defaultValue }));
+    };
+
+    const handleResetSectionStatus = () => {
+        setLocalFilters(prev => ({ ...prev, status: [] }));
     };
 
     const handleResetSectionDate = () => {
@@ -56,7 +65,7 @@ export const TransactionFilter = ({
             endDate: '',
             warehouseId: 'all',
             customerId: 'all',
-            status: 'all',
+            status: [],
             search: '',
         };
         setLocalFilters(resetValues);
@@ -71,12 +80,23 @@ export const TransactionFilter = ({
         setIsOpen(false);
     };
 
+    const toggleStatus = (value) => {
+        setLocalFilters(prev => {
+            const current = prev.status || [];
+            if (current.includes(value)) {
+                return { ...prev, status: current.filter(v => v !== value) };
+            } else {
+                return { ...prev, status: [...current, value] };
+            }
+        });
+    };
+
     const hasActiveFilters =
         filters.startDate ||
         filters.endDate ||
         filters.warehouseId !== 'all' ||
         filters.customerId !== 'all' ||
-        filters.status !== 'all' ||
+        (Array.isArray(filters.status) ? filters.status.length > 0 : filters.status !== 'all') ||
         filters.search;
 
     return (
@@ -170,31 +190,27 @@ export const TransactionFilter = ({
 
                     <Separator className="bg-slate-100" />
 
-                    {/* Status */}
+                    {/* Status (Multi-select) */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                             <button
                                 className="text-[10px] text-indigo-600 font-medium hover:underline"
-                                onClick={() => handleResetSection('status')}
+                                onClick={handleResetSectionStatus}
                             >
                                 Reset
                             </button>
                         </div>
-                        <Select
-                            value={localFilters.status}
-                            onValueChange={(val) => setLocalFilters(prev => ({ ...prev, status: val }))}
-                        >
-                            <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="All Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all" className="text-xs">All Status</SelectItem>
-                                {statusOptions.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                            {statusOptions.map(opt => (
+                                <div key={opt.value} className="flex items-center space-x-2 cursor-pointer group" onClick={() => toggleStatus(opt.value)}>
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${localFilters.status.includes(opt.value) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white group-hover:border-indigo-400'}`}>
+                                        {localFilters.status.includes(opt.value) && <Check className="h-3 w-3 text-white" />}
+                                    </div>
+                                    <span className="text-xs text-slate-600 group-hover:text-indigo-600 transition-colors capitalize">{opt.label.toLowerCase()}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <Separator className="bg-slate-100" />
