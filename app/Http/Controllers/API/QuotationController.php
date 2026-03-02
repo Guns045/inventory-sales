@@ -9,6 +9,8 @@ use App\Http\Resources\QuotationResource;
 use App\Models\Quotation;
 use App\Services\QuotationService;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 
 class QuotationController extends Controller
 {
@@ -54,13 +56,27 @@ class QuotationController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
+        // Filter by customer if provided
+        if ($request->has('customer_id') && !empty($request->customer_id) && $request->customer_id !== 'all') {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // Date range filtering
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
         // Search functionality
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('quotation_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                        $customerQuery->where('company_name', 'like', "%{$search}%");
+                        $customerQuery->where('company_name', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
                     });
             });
         }
@@ -438,10 +454,10 @@ class QuotationController extends Controller
         }
 
         return response()->json([
-            'can_convert' => $quotation->canBeConverted() && $inventoryService->checkStockAvailability($quotation->quotationItems),
+            'can_convert' => $quotation->canBeConverted() && $inventoryService->checkStockAvailability($quotation->quotationItems->toArray()),
             'is_approved' => $quotation->isApproved(),
             'has_sales_order' => $quotation->salesOrder !== null,
-            'has_available_stock' => $inventoryService->checkStockAvailability($quotation->quotationItems),
+            'has_available_stock' => $inventoryService->checkStockAvailability($quotation->quotationItems->toArray()),
             'status' => $quotation->status,
             'stock_details' => $stockDetails
         ]);
@@ -451,7 +467,7 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::with(['customer', 'user', 'quotationItems.product'])->findOrFail($id);
 
-        $pdf = \PDF::loadView('pdf.quotation', compact('quotation'));
+        $pdf = Pdf::loadView('pdf.quotation', compact('quotation'));
 
         // Log activity
         \App\Models\ActivityLog::log(
@@ -490,7 +506,7 @@ class QuotationController extends Controller
         );
 
         // Generate PDF dengan template baru
-        $pdf = \PDF::loadView('pdf.quotation', [
+        $pdf = Pdf::loadView('pdf.quotation', [
             'company' => $companyData,
             'quotation' => $quotationData
         ])->setPaper('a4', 'portrait');
@@ -511,7 +527,7 @@ class QuotationController extends Controller
             $quotation
         );
 
-        return \Excel::download(new \App\Exports\QuotationExport($quotation), "quotation-{$quotation->quotation_number}.xlsx");
+        return Excel::download(new \App\Exports\QuotationExport($quotation), "quotation-{$quotation->quotation_number}.xlsx");
     }
     public function reserve($id)
     {

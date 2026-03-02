@@ -436,13 +436,14 @@ class ProductStockService
             'user',
             'reference' => function ($morphTo) {
                 $morphTo->morphWith([
-                    DeliveryOrder::class => ['customer', 'salesOrder.customer', 'warehouseTransfer'],
-                    GoodsReceipt::class => ['purchaseOrder.supplier'],
-                    PurchaseOrder::class => ['supplier'],
-                    SalesOrder::class => ['customer'],
-                    Quotation::class => ['customer'],
-                    SalesReturn::class => ['salesOrder.customer'],
-                    WarehouseTransfer::class => [],
+                    'DeliveryOrder' => ['customer', 'salesOrder.customer', 'warehouseTransfer'],
+                    'GoodsReceipt' => ['purchaseOrder.supplier'],
+                    'PurchaseOrder' => ['supplier'],
+                    'SalesOrder' => ['customer'],
+                    'Quotation' => ['customer'],
+                    'SalesReturn' => ['salesOrder.customer'],
+                    'WarehouseTransfer' => [],
+                    'ProductStock' => [],
                 ]);
             }
         ]);

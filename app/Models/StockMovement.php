@@ -37,7 +37,7 @@ class StockMovement extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
@@ -84,7 +84,7 @@ class StockMovement extends Model
             // Priority 1: Supplier from PO
             if ($ref->purchaseOrder?->supplier?->name)
                 return $ref->purchaseOrder->supplier->name;
-            return '-';
+            return $ref->supplier?->name ?? '-';
         }
 
         if ($ref instanceof \App\Models\PurchaseOrder) {

@@ -10,11 +10,14 @@ import { QuotationForm } from '@/components/transactions/QuotationForm';
 import { RejectModal } from '@/components/transactions/RejectModal';
 import { QuotationDetailModal } from '@/components/transactions/QuotationDetailModal';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import Pagination from '@/components/common/Pagination';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search } from "lucide-react";
+import { QuotationFilter } from '@/components/transactions/QuotationFilter';
+
 
 const Quotations = () => {
   const { api } = useAPI();
@@ -47,19 +50,52 @@ const Quotations = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [dependenciesLoading, setDependenciesLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('all');
+
+  const [activeFilters, setActiveFilters] = useState({
+    startDate: '',
+    endDate: '',
+    warehouseId: 'all',
+    customerId: 'all',
+    status: 'all',
+    search: '',
+  });
 
   // Search and Filter handler
+  const handleFilter = (filters) => {
+    setActiveFilters(filters);
+    fetchItems(1, {
+      search: filters.search,
+      warehouse_id: filters.warehouseId !== 'all' ? filters.warehouseId : undefined,
+      customer_id: filters.customerId !== 'all' ? filters.customerId : undefined,
+      status: filters.status !== 'all' ? filters.status : undefined,
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
+    });
+  };
+
+  const handleResetFilters = () => {
+    const defaultFilters = {
+      startDate: '',
+      endDate: '',
+      warehouseId: 'all',
+      customerId: 'all',
+      status: 'all',
+      search: '',
+    };
+    setActiveFilters(defaultFilters);
+    fetchItems(1, {});
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchItems(1, {
-        search,
-        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-      });
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, selectedWarehouse]);
+    fetchItems(1, {
+      search: activeFilters.search,
+      warehouse_id: activeFilters.warehouseId !== 'all' ? activeFilters.warehouseId : undefined,
+      customer_id: activeFilters.customerId !== 'all' ? activeFilters.customerId : undefined,
+      status: activeFilters.status !== 'all' ? activeFilters.status : undefined,
+      start_date: activeFilters.startDate || undefined,
+      end_date: activeFilters.endDate || undefined,
+    });
+  }, []);
 
   // Fetch dependencies
   useEffect(() => {
@@ -136,13 +172,19 @@ const Quotations = () => {
     }
   };
 
+  const getCurrentFilterParams = () => ({
+    search: activeFilters.search,
+    warehouse_id: activeFilters.warehouseId !== 'all' ? activeFilters.warehouseId : undefined,
+    customer_id: activeFilters.customerId !== 'all' ? activeFilters.customerId : undefined,
+    status: activeFilters.status !== 'all' ? activeFilters.status : undefined,
+    start_date: activeFilters.startDate || undefined,
+    end_date: activeFilters.endDate || undefined,
+  });
+
   const handleFormSubmit = async (formData) => {
     try {
       setFormLoading(true);
-      const filterParams = {
-        search,
-        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-      };
+      const filterParams = getCurrentFilterParams();
 
       let result;
       if (selectedQuotation) {
@@ -171,10 +213,7 @@ const Quotations = () => {
 
   const handleDeleteConfirm = async () => {
     if (!selectedQuotation) return;
-    const filterParams = {
-      search,
-      warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-    };
+    const filterParams = getCurrentFilterParams();
     const result = await remove(selectedQuotation.id, filterParams);
     if (result.success) {
       showSuccess('Quotation deleted successfully');
@@ -189,10 +228,7 @@ const Quotations = () => {
       try {
         await api.post(`/quotations/${quotation.id}/approve`, { notes: '' });
         showSuccess('Quotation approved successfully');
-        fetchItems(pagination.current_page, {
-          search,
-          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-        });
+        fetchItems(pagination.current_page, getCurrentFilterParams());
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to approve quotation');
       }
@@ -213,10 +249,7 @@ const Quotations = () => {
       });
       showSuccess('Quotation rejected successfully');
       closeReject();
-      fetchItems(pagination.current_page, {
-        search,
-        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-      });
+      fetchItems(pagination.current_page, getCurrentFilterParams());
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to reject quotation');
     }
@@ -229,10 +262,7 @@ const Quotations = () => {
           notes: 'Please review this quotation for approval'
         });
         showSuccess('Quotation submitted for approval');
-        fetchItems(pagination.current_page, {
-          search,
-          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-        });
+        fetchItems(pagination.current_page, getCurrentFilterParams());
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to submit quotation');
       }
@@ -246,10 +276,7 @@ const Quotations = () => {
           notes: `Converted from Quotation ${quotation.quotation_number}`
         });
         showSuccess(response.data.stock_reserved ? 'Converted and stock reserved!' : 'Converted successfully!');
-        fetchItems(pagination.current_page, {
-          search,
-          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-        });
+        fetchItems(pagination.current_page, getCurrentFilterParams());
       } catch (err) {
         let msg = err.response?.data?.message || 'Failed to convert';
         if (err.response?.data?.can_convert === false) {
@@ -309,10 +336,7 @@ const Quotations = () => {
         const { data } = await getById(quotation.id);
         setSelectedQuotation(data.data || data);
 
-        fetchItems(pagination.current_page, {
-          search,
-          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-        });
+        fetchItems(pagination.current_page, getCurrentFilterParams());
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to cancel quotation');
       } finally {
@@ -331,10 +355,7 @@ const Quotations = () => {
         // Update selected quotation with new data
         setSelectedQuotation(response.data.quotation.data || response.data.quotation);
 
-        fetchItems(pagination.current_page, {
-          search,
-          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-        });
+        fetchItems(pagination.current_page, getCurrentFilterParams());
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to reserve stock');
       } finally {
@@ -353,10 +374,7 @@ const Quotations = () => {
         // Update selected quotation with new data
         setSelectedQuotation(response.data.quotation.data || response.data.quotation);
 
-        fetchItems(pagination.current_page, {
-          search,
-          warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined
-        });
+        fetchItems(pagination.current_page, getCurrentFilterParams());
       } catch (err) {
         showError(err.response?.data?.message || 'Failed to release stock');
       } finally {
@@ -408,37 +426,21 @@ const Quotations = () => {
       <div className="h-full flex-1 flex-col space-y-8 flex">
         <Card>
           <CardHeader>
-            <CardTitle>Manage Quotations</CardTitle>
             <div className="flex flex-col md:flex-row justify-between gap-4">
-              <p className="text-sm text-muted-foreground">
-                Create, view, and manage customer quotations.
-              </p>
-              <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                <Select
-                  value={selectedWarehouse}
-                  onValueChange={(value) => setSelectedWarehouse(value)}
-                >
-                  <SelectTrigger className="w-full md:w-[200px]">
-                    <SelectValue placeholder="All Warehouses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Warehouses</SelectItem>
-                    {warehouses.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                        {warehouse.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search quotations..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
+              <div>
+                <CardTitle>Manage Quotations</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Create, view, and manage customer quotations.
+                </p>
+              </div>
+              <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-end">
+                <QuotationFilter
+                  onFilter={handleFilter}
+                  onReset={handleResetFilters}
+                  warehouses={warehouses}
+                  customers={customers}
+                  initialFilters={activeFilters}
+                />
               </div>
             </div>
           </CardHeader>
@@ -455,6 +457,14 @@ const Quotations = () => {
               onPrint={handlePrint}
               onView={handleView}
             />
+            <div className="mt-4">
+              <Pagination
+                currentPage={pagination.current_page}
+                totalPages={pagination.last_page}
+                onPageChange={setPage}
+                totalItems={pagination.total}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
