@@ -29,7 +29,8 @@ import {
     ArrowDownLeft,
     ArrowRightLeft,
     RefreshCw,
-    Download
+    Download,
+    Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -140,6 +141,12 @@ const StockMovements = () => {
                 return <ArrowUpRight className="h-4 w-4 text-red-600" />;
             case 'adjustment':
                 return <ArrowRightLeft className="h-4 w-4 text-orange-600" />;
+            case 'reservation':
+            case 'RESERVATION':
+                return <Clock className="h-4 w-4 text-indigo-600" />;
+            case 'release_reservation':
+            case 'RELEASE_RESERVATION':
+                return <RefreshCw className="h-4 w-4 text-purple-600" />;
             default:
                 return <RefreshCw className="h-4 w-4 text-gray-600" />;
         }
@@ -153,6 +160,12 @@ const StockMovements = () => {
                 return 'bg-red-100 text-red-800 border-red-200';
             case 'adjustment':
                 return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'reservation':
+            case 'RESERVATION':
+                return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+            case 'release_reservation':
+            case 'RELEASE_RESERVATION':
+                return 'bg-purple-100 text-purple-800 border-purple-200';
             default:
                 return 'bg-gray-100 text-gray-800 border-gray-200';
         }
@@ -210,6 +223,8 @@ const StockMovements = () => {
                                     <SelectItem value="in">Inbound (In)</SelectItem>
                                     <SelectItem value="out">Outbound (Out)</SelectItem>
                                     <SelectItem value="adjustment">Adjustment</SelectItem>
+                                    <SelectItem value="reservation">Reservation</SelectItem>
+                                    <SelectItem value="release_reservation">Release</SelectItem>
                                 </SelectContent>
                             </Select>
 

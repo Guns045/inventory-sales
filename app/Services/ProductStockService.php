@@ -472,9 +472,10 @@ class ProductStockService
         }
 
         if (isset($filters['type']) && $filters['type'] !== 'all') {
-            $query->where('type', $filters['type']);
+            $query->where('type', strtoupper($filters['type']));
         } else {
             // By default, exclude reservation-only logical movements for a cleaner trail
+            // UNLESS specifically requested via filters
             $query->whereNotIn('type', ['RESERVATION', 'RELEASE_RESERVATION']);
         }
 
