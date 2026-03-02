@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import { PageHeader } from '@/components/common/PageHeader';
 import { QuotationTable } from '@/components/transactions/QuotationTable';
 import { QuotationForm } from '@/components/transactions/QuotationForm';
+import { TransactionFilter } from '@/components/common/TransactionFilter';
 import { RejectModal } from '@/components/transactions/RejectModal';
 import { QuotationDetailModal } from '@/components/transactions/QuotationDetailModal';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -16,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search } from "lucide-react";
-import { QuotationFilter } from '@/components/transactions/QuotationFilter';
 
 
 const Quotations = () => {
@@ -59,6 +59,15 @@ const Quotations = () => {
     status: 'all',
     search: '',
   });
+
+  const quotationStatusOptions = [
+    { value: 'DRAFT', label: 'Draft' },
+    { value: 'SUBMITTED', label: 'Submitted' },
+    { value: 'APPROVED', label: 'Approved' },
+    { value: 'REJECTED', label: 'Rejected' },
+    { value: 'CONVERTED', label: 'Converted' },
+    { value: 'CANCELLED', label: 'Cancelled' }
+  ];
 
   // Search and Filter handler
   const handleFilter = (filters) => {
@@ -394,7 +403,7 @@ const Quotations = () => {
 
   if (isFormOpen) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 space-y-6">
         <QuotationForm
           initialData={selectedQuotation}
           customers={customers}
@@ -433,12 +442,13 @@ const Quotations = () => {
                   Create, view, and manage customer quotations.
                 </p>
               </div>
-              <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-end">
-                <QuotationFilter
+              <div className="flex items-center gap-2">
+                <TransactionFilter
                   onFilter={handleFilter}
-                  onReset={handleResetFilters}
+                  onReset={() => handleFilter({})}
                   warehouses={warehouses}
                   customers={customers}
+                  statusOptions={quotationStatusOptions}
                   initialFilters={activeFilters}
                 />
               </div>

@@ -45,13 +45,33 @@ class SalesOrderController extends Controller
             }
         }
 
+        // Filter by warehouse if provided
+        if ($request->has('warehouse_id') && !empty($request->warehouse_id) && $request->warehouse_id !== 'all') {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
+
+        // Filter by customer if provided
+        if ($request->has('customer_id') && !empty($request->customer_id) && $request->customer_id !== 'all') {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // Date range filtering
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
         // Search functionality
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('sales_order_number', 'like', "%{$search}%")
+                    ->orWhere('po_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                        $customerQuery->where('company_name', 'like', "%{$search}%");
+                        $customerQuery->where('company_name', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
                     });
             });
         }

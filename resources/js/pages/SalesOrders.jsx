@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, CheckCircle, Clock, XCircle, Search, Download, Pencil, Check, X } from "lucide-react";
+import { ShoppingCart, CheckCircle, Clock, XCircle, Search, Download, Pencil, Check, X, Plus } from "lucide-react";
 import { useToast } from '@/hooks/useToast';
 import SuperAdminActions from '@/components/admin/SuperAdminActions';
+import { TransactionFilter } from '@/components/common/TransactionFilter';
 
 import Pagination from '@/components/common/Pagination';
 
@@ -36,7 +37,15 @@ const SalesOrders = () => {
   });
   const [search, setSearch] = useState('');
   const [warehouses, setWarehouses] = useState([]);
-  const [selectedWarehouse, setSelectedWarehouse] = useState('all');
+  const [customers, setCustomers] = useState([]);
+  const [activeFilters, setActiveFilters] = useState({
+    startDate: '',
+    endDate: '',
+    warehouseId: 'all',
+    customerId: 'all',
+    status: 'all',
+    search: '',
+  });
 
   // Edit PO Number state
   const [isEditingPo, setIsEditingPo] = useState(false);
@@ -45,14 +54,12 @@ const SalesOrders = () => {
 
   useEffect(() => {
     fetchWarehouses();
+    fetchCustomers();
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchSalesOrders(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, selectedWarehouse]);
+    fetchSalesOrders(1);
+  }, [activeFilters]);
 
   const fetchWarehouses = async () => {
     try {
@@ -63,6 +70,15 @@ const SalesOrders = () => {
     }
   };
 
+  const fetchCustomers = async () => {
+    try {
+      const response = await get('/customers');
+      setCustomers(response.data.data || response.data);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
+
   const fetchSalesOrders = async (page = 1, perPage = pagination.per_page) => {
     try {
       setLoading(true);
@@ -70,8 +86,13 @@ const SalesOrders = () => {
         page: page,
         per_page: perPage
       });
-      if (search) params.append('search', search);
-      if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
+
+      if (activeFilters.search) params.append('search', activeFilters.search);
+      if (activeFilters.warehouseId && activeFilters.warehouseId !== 'all') params.append('warehouse_id', activeFilters.warehouseId);
+      if (activeFilters.customerId && activeFilters.customerId !== 'all') params.append('customer_id', activeFilters.customerId);
+      if (activeFilters.status && activeFilters.status !== 'all') params.append('status', activeFilters.status);
+      if (activeFilters.startDate) params.append('start_date', activeFilters.startDate);
+      if (activeFilters.endDate) params.append('end_date', activeFilters.endDate);
 
       const response = await get(`/sales-orders?${params.toString()}`);
       if (response && response.data) {
@@ -226,8 +247,12 @@ const SalesOrders = () => {
   const handleExport = async () => {
     try {
       const params = new URLSearchParams();
-      if (search) params.append('search', search);
-      if (selectedWarehouse && selectedWarehouse !== 'all') params.append('warehouse_id', selectedWarehouse);
+      if (activeFilters.search) params.append('search', activeFilters.search);
+      if (activeFilters.warehouseId && activeFilters.warehouseId !== 'all') params.append('warehouse_id', activeFilters.warehouseId);
+      if (activeFilters.customerId && activeFilters.customerId !== 'all') params.append('customer_id', activeFilters.customerId);
+      if (activeFilters.status && activeFilters.status !== 'all') params.append('status', activeFilters.status);
+      if (activeFilters.startDate) params.append('start_date', activeFilters.startDate);
+      if (activeFilters.endDate) params.append('end_date', activeFilters.endDate);
       // Add other filters if they exist in state (e.g. status)
       // Currently only search is in state, but if we add status filter dropdown later, append it here.
 
@@ -301,28 +326,28 @@ const SalesOrders = () => {
           Export to Excel
         </Button>
         <div className="flex items-center gap-2">
-          <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Warehouse" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Warehouses</SelectItem>
-              {warehouses.map((w) => (
-                <SelectItem key={w.id} value={w.id.toString()}>
-                  {w.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search sales orders..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
-            />
-          </div>
+          <TransactionFilter
+            onFilter={setActiveFilters}
+            onReset={() => setActiveFilters({
+              startDate: '',
+              endDate: '',
+              warehouseId: 'all',
+              customerId: 'all',
+              status: 'all',
+              search: '',
+            })}
+            warehouses={warehouses}
+            customers={customers}
+            statusOptions={[
+              { value: 'PENDING', label: 'Pending' },
+              { value: 'PROCESSING', label: 'Processing' },
+              { value: 'READY_TO_SHIP', label: 'Ready to Ship' },
+              { value: 'SHIPPED', label: 'Shipped' },
+              { value: 'COMPLETED', label: 'Completed' },
+              { value: 'CANCELLED', label: 'Cancelled' }
+            ]}
+            initialFilters={activeFilters}
+          />
         </div>
       </div>
 
