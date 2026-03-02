@@ -88,10 +88,24 @@ class QuotationService
                 'po_number' => $data['po_number'] ?? null,
             ]);
 
+            // If already reserved, release old reservation first
+            $wasReserved = $quotation->is_reserved;
+            if ($wasReserved) {
+                $this->inventoryService->releaseReservedStockForQuotation($quotation);
+            }
+
             // Replace items
             $quotation->quotationItems()->delete();
             $this->createQuotationItems($quotation, $data['items']);
             $this->calculateTotals($quotation);
+
+            // Re-reserve if it was previously reserved
+            if ($wasReserved) {
+                foreach ($quotation->quotationItems as $item) {
+                    $this->inventoryService->reserveStock($item->product_id, $item->quantity, $quotation);
+                }
+                $quotation->update(['is_reserved' => true]);
+            }
 
             return $quotation->refresh();
         });
