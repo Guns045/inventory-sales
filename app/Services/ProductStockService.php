@@ -515,7 +515,9 @@ class ProductStockService
             // Check available stock (quantity - reserved_quantity)
             $availableQuantity = $productStock->quantity - $productStock->reserved_quantity;
             if ($availableQuantity < $quantity) {
-                throw new \Exception("Insufficient available stock for product {$productStock->product->name}. Requested: {$quantity}, Available: {$availableQuantity}");
+                $product = $productStock->product;
+                $details = $product ? "{$product->sku} - {$product->name}" : "ID {$productId}";
+                throw new \Exception("Insufficient available stock for {$details}. Available: {$availableQuantity}, Requested: {$quantity}");
             }
 
             $productStock->reserved_quantity += $quantity;
@@ -605,7 +607,9 @@ class ProductStockService
             }
 
             if ($productStock->quantity < $quantity) {
-                throw new \Exception("Insufficient physical stock for '{$productStock->product->name}'. Quantity: {$productStock->quantity}, Requested: {$quantity}");
+                $product = $productStock->product;
+                $details = $product ? "{$product->sku} - {$product->name}" : "ID {$productId}";
+                throw new \Exception("Insufficient physical stock for {$details}. Physical Quantity: {$productStock->quantity}, Requested: {$quantity}");
             }
 
             $previousQuantity = $productStock->quantity;

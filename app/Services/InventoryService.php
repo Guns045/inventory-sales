@@ -393,7 +393,9 @@ class InventoryService
         }
 
         if (($stock->quantity - $stock->reserved_quantity) < $quantity) {
-            throw new \Exception("Insufficient available stock. Available: " . ($stock->quantity - $stock->reserved_quantity));
+            $product = $stock->product;
+            $details = $product ? "for {$product->sku} - {$product->name}" : "for product ID {$productId}";
+            throw new \Exception("Insufficient available stock {$details}. Available: " . ($stock->quantity - $stock->reserved_quantity) . ", Requested: {$quantity}");
         }
 
         $previousQuantity = $stock->quantity;
