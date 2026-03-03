@@ -29,6 +29,13 @@ class InvoiceController extends Controller
     {
         $query = Invoice::with(['customer', 'salesOrder', 'invoiceItems.product', 'warehouse', 'payments']);
 
+        // Sales role isolation: only see own data (via SalesOrder)
+        if (auth()->user()->hasRole('Sales')) {
+            $query->whereHas('salesOrder', function ($q) {
+                $q->where('user_id', auth()->id());
+            });
+        }
+
         // Filter by status if provided
         if ($request->has('status') && !empty($request->status)) {
             $query->where('status', $request->status);
@@ -200,6 +207,13 @@ class InvoiceController extends Controller
                             });
                     });
             });
+
+        // Sales role isolation: only see own data (via SalesOrder)
+        if (auth()->user()->hasRole('Sales')) {
+            $query->whereHas('salesOrder', function ($q) {
+                $q->where('user_id', auth()->id());
+            });
+        }
 
         // Search functionality
         if ($request->has('search') && !empty($request->search)) {

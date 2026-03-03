@@ -167,6 +167,8 @@ class ProductStockService
             $item->stocks = $productStocks->values();
             $item->quantity = $productStocks->sum('quantity');
             $item->reserved_quantity = $productStocks->sum('reserved_quantity');
+            $item->damaged_quantity = $productStocks->sum('damaged_quantity');
+            $item->available_quantity = $item->quantity - $item->reserved_quantity - $item->damaged_quantity;
             $item->view_mode = 'all-warehouses';
 
             // Set a dummy ID to avoid issues if resource expects unique ID

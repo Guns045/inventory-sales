@@ -21,6 +21,11 @@ class SalesReturnController extends Controller
     {
         $query = SalesReturn::with(['salesOrder.customer', 'createdBy']);
 
+        // Sales role isolation: only see own data
+        if (auth()->user()->hasRole('Sales')) {
+            $query->where('created_by', auth()->id());
+        }
+
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }

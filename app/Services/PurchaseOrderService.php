@@ -246,7 +246,7 @@ class PurchaseOrderService
             $lineTotal = $item['quantity'] * $item['unit_price'];
             $totalAmount += $lineTotal;
 
-            PurchaseOrderItem::create([
+            $purchaseOrderItem = PurchaseOrderItem::create([
                 'purchase_order_id' => $purchaseOrder->id,
                 'product_id' => $item['product_id'],
                 'quantity_ordered' => $item['quantity'],
@@ -254,6 +254,12 @@ class PurchaseOrderService
                 'warehouse_id' => $purchaseOrder->warehouse_id,
                 'notes' => $item['notes'] ?? null,
             ]);
+
+            // Sync buy_price to product master data
+            $product = \App\Models\Product::find($item['product_id']);
+            if ($product) {
+                $product->update(['buy_price' => $item['unit_price']]);
+            }
         }
 
         $purchaseOrder->update(['total_amount' => $totalAmount]);

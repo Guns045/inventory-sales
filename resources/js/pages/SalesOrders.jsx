@@ -525,20 +525,24 @@ const SalesOrders = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowItemsModal(false)}>Close</Button>
-            {selectedOrder?.status === 'PENDING' && (
-              <Button onClick={() => handleStatusUpdate(selectedOrder, 'PROCESSING')}>
-                Start Processing
-              </Button>
-            )}
-            {selectedOrder?.status === 'PROCESSING' && (
-              <Button onClick={() => handleStatusUpdate(selectedOrder, 'READY_TO_SHIP')}>
-                Ready to Ship
-              </Button>
-            )}
-            {['PENDING', 'PROCESSING', 'READY_TO_SHIP'].includes(selectedOrder?.status) && (
-              <Button variant="destructive" onClick={() => handleCancel(selectedOrder)}>
-                Cancel Order
-              </Button>
+            {user?.role !== 'Sales' && (
+              <>
+                {selectedOrder?.status === 'PENDING' && (
+                  <Button onClick={() => handleStatusUpdate(selectedOrder, 'PROCESSING')}>
+                    Start Processing
+                  </Button>
+                )}
+                {selectedOrder?.status === 'PROCESSING' && (
+                  <Button onClick={() => handleStatusUpdate(selectedOrder, 'READY_TO_SHIP')}>
+                    Ready to Ship
+                  </Button>
+                )}
+                {['PENDING', 'PROCESSING', 'READY_TO_SHIP'].includes(selectedOrder?.status) && (
+                  <Button variant="destructive" onClick={() => handleCancel(selectedOrder)}>
+                    Cancel Order
+                  </Button>
+                )}
+              </>
             )}
             <SuperAdminActions
               type="sales_order"

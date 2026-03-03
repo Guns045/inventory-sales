@@ -152,15 +152,16 @@ export function ProductStockTable({
             });
         });
 
-        // Add Total Stock column
+        // Add Total Stock column (Showing Available Stock as per user request)
         columns.push({
             header: "Total Stock",
-            accessorKey: "quantity",
+            accessorKey: "available_quantity",
             headerClassName: "text-center",
             cellClassName: "text-center",
             cell: (row) => {
+                const val = row.available_quantity !== null ? row.available_quantity : 0;
                 if (row.quantity === null) return <span className="text-gray-400 italic">Hidden</span>;
-                return <span className="font-bold text-blue-600">{row.quantity}</span>;
+                return <span className={`font-bold ${val > 0 ? 'text-blue-600' : 'text-red-500'}`}>{val}</span>;
             }
         });
 

@@ -32,6 +32,11 @@ class SalesOrderController extends Controller
     {
         $query = SalesOrder::with(['customer', 'user', 'items.product', 'quotation', 'warehouse']);
 
+        // Sales role isolation: only see own data
+        if (auth()->user()->hasRole('Sales')) {
+            $query->where('user_id', auth()->id());
+        }
+
         // Filter by status if provided
         if ($request->has('status')) {
             $requestedStatus = $request->status;

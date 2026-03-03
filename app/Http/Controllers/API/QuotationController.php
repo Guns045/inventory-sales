@@ -46,6 +46,11 @@ class QuotationController extends Controller
         $query = Quotation::with(['customer', 'user', 'warehouse', 'quotationItems.product', 'approvals'])
             ->orderBy('created_at', 'desc');
 
+        // Sales role isolation: only see own data
+        if (auth()->user()->hasRole('Sales')) {
+            $query->where('user_id', auth()->id());
+        }
+
         // Filter by status if provided
         if ($request->has('status') && !empty($request->status) && $request->status !== 'all') {
             $requestedStatus = $request->status;

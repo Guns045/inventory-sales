@@ -32,6 +32,11 @@ class PaymentController extends Controller
                 ->join('customers', 'invoices.customer_id', '=', 'customers.id')
                 ->with(['invoice', 'invoice.customer']);
 
+            // Sales role isolation: only see own data
+            if (auth()->user()->hasRole('Sales')) {
+                $query->where('invoices.user_id', auth()->id());
+            }
+
             // Filter by invoice_id if provided
             if ($request->has('invoice_id') && !empty($request->invoice_id)) {
                 $query->where('payments.invoice_id', $request->invoice_id);
