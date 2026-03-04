@@ -7,96 +7,112 @@
 
     @if(isset($source_type) && $source_type === 'IT')
         {{-- INTERNAL TRANSFER DELIVERY --}}
-        <table class="info-table">
+        <table style="width: 100%; border-collapse: collapse;">
             <tr>
-                <td>Transfer Number</td>
-                <td>: {{ $delivery['transfer_no'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td>Delivery Note No.</td>
-                <td>: {{ $delivery['delivery_no'] }}</td>
-            </tr>
-            <tr>
-                <td>Transfer Type</td>
-                <td>: Internal Transfer</td>
-            </tr>
-            <tr>
-                <td>From Warehouse</td>
-                <td>: {{ $delivery['from_warehouse'] }}</td>
-            </tr>
-            <tr>
-                <td>To Warehouse</td>
-                <td>: {{ $delivery['to_warehouse'] }}</td>
-            </tr>
-            <tr>
-                <td>Delivery Date</td>
-                <td>: {{ $delivery['date'] }}</td>
-            </tr>
-            <tr>
-                <td>Driver Name</td>
-                <td>: {{ $delivery['driver_name'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td>Vehicle Plate</td>
-                <td>: {{ $delivery['vehicle_plate'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td>Contact Person</td>
-                <td>: {{ $delivery['contact_person'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td>Notes</td>
-                <td>: {{ $delivery['notes'] ?? '-' }}</td>
+                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
+                    <table class="info-table" style="margin-bottom: 0;">
+                        <tr>
+                            <td style="width: 130px;">Transfer Number</td>
+                            <td>: {{ $delivery['transfer_no'] ?? 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">Delivery Note No.</td>
+                            <td>: {{ $delivery['delivery_no'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">Transfer Type</td>
+                            <td>: Internal Transfer</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">From Warehouse</td>
+                            <td>: {{ $delivery['from_warehouse'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">To Warehouse</td>
+                            <td>: {{ $delivery['to_warehouse'] }}</td>
+                        </tr>
+                    </table>
+                </td>
+                <td style="width: 50%; vertical-align: top;">
+                    <table class="info-table" style="margin-bottom: 0;">
+                        <tr>
+                            <td style="width: 110px;">Delivery Date</td>
+                            <td>: {{ $delivery['date'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 110px;">Driver Name</td>
+                            <td>: {{ $delivery['driver_name'] ?? 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 110px;">Vehicle Plate</td>
+                            <td>: {{ $delivery['vehicle_plate'] ?? 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 110px;">Contact Person</td>
+                            <td>: {{ $delivery['contact_person'] ?? 'N/A' }}</td>
+                        </tr>
+                    </table>
+                </td>
             </tr>
         </table>
     @else
         {{-- SALES ORDER DELIVERY (Original) --}}
-        <table class="info-table">
+        <table style="width: 100%; border-collapse: collapse;">
             <tr>
-                <td>Customer Name</td>
-                <td>: {{ $delivery['customer_name'] }}</td>
-            </tr>
-            <tr>
-                <td>Customer ID</td>
-                <td>: {{ $delivery['customer_id'] }}</td>
-            </tr>
-            <tr>
-                <td>Customer Address</td>
-                <td>: {{ $delivery['customer_address'] }}</td>
-            </tr>
-            <tr>
-                <td>Sales Order No.</td>
-                <td>: {{ $delivery['sales_order_no'] }}</td>
-            </tr>
-            <tr>
-                <td>Delivery Note No.</td>
-                <td>: {{ $delivery['delivery_no'] }}</td>
-            </tr>
-            <tr>
-                <td>Delivery Date</td>
-                <td>: {{ $delivery['date'] }}</td>
-            </tr>
-            <tr>
-                <td>Delivery Method</td>
-                <td>: {{ $delivery['delivery_method'] }} ({{ $delivery['delivery_vendor'] }})</td>
-            </tr>
-            @if($delivery['tracking_number'] && $delivery['tracking_number'] !== '-')
-                <tr>
-                    <td>Tracking No</td>
-                    <td>: {{ $delivery['tracking_number'] }}</td>
-                </tr>
-            @endif
-            <tr>
-                <td>Driver</td>
-                <td>: {{ $delivery['driver_name'] }}</td>
-            </tr>
-            <tr>
-                <td>Vehicle</td>
-                <td>: {{ $delivery['vehicle_plate'] }}</td>
-            </tr>
-            <tr>
-                <td>Contact Person</td>
-                <td>: {{ $delivery['contact_person'] }}</td>
+                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
+                    <table class="info-table" style="margin-bottom: 0;">
+                        <tr>
+                            <td style="width: 130px;">Customer Name</td>
+                            <td>: {{ $delivery['customer_name'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">Customer ID</td>
+                            <td>: {{ $delivery['customer_id'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">Customer Address</td>
+                            <td>: {{ $delivery['customer_address'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">Sales Order No.</td>
+                            <td>: {{ $delivery['sales_order_no'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 130px;">Delivery Note No.</td>
+                            <td>: {{ $delivery['delivery_no'] }}</td>
+                        </tr>
+                    </table>
+                </td>
+                <td style="width: 50%; vertical-align: top;">
+                    <table class="info-table" style="margin-bottom: 0;">
+                        <tr>
+                            <td style="width: 110px;">Delivery Date</td>
+                            <td>: {{ $delivery['date'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 110px;">Delivery Method</td>
+                            <td>: {{ $delivery['delivery_method'] }} ({{ $delivery['delivery_vendor'] }})</td>
+                        </tr>
+                        @if($delivery['tracking_number'] && $delivery['tracking_number'] !== '-')
+                            <tr>
+                                <td style="width: 110px;">Tracking No</td>
+                                <td>: {{ $delivery['tracking_number'] }}</td>
+                            </tr>
+                        @endif
+                        <tr>
+                            <td style="width: 110px;">Driver</td>
+                            <td>: {{ $delivery['driver_name'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 110px;">Vehicle</td>
+                            <td>: {{ $delivery['vehicle_plate'] }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 110px;">Contact Person</td>
+                            <td>: {{ $delivery['contact_person'] }}</td>
+                        </tr>
+                    </table>
+                </td>
             </tr>
         </table>
     @endif
