@@ -28,6 +28,7 @@ const Users = () => {
     update,
     remove,
     setPage,
+    setPerPage,
     refresh
   } = useCRUD('/users');
 

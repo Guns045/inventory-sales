@@ -26,6 +26,7 @@ const Roles = () => {
         update,
         remove,
         setPage,
+        setPerPage,
         refresh
     } = useCRUD('/roles');
 
