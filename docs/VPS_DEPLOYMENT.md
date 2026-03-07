@@ -84,6 +84,8 @@ Update the following in `.env`:
 - `DB_DATABASE=inventory_sales`
 - `DB_USERNAME=inventory_user`
 - `DB_PASSWORD=your_secure_password`
+- `FONNTE_TOKEN=your_token_here`
+- `QUEUE_CONNECTION=database`
 
 Install Dependencies:
 ```bash
@@ -169,7 +171,48 @@ chmod +x deploy.sh
 
 This script will pull the latest code, install dependencies, build assets, and clear caches automatically.
 
-## 7. Troubleshooting
+## 7. Queue Management (Supervisor)
+
+To ensure WhatsApp notifications are sent reliably and automatically, we need to run a background process called a Queue Worker. On a VPS, we use **Supervisor** to keep this process running 24/7.
+
+### Install Supervisor
+```bash
+sudo apt install supervisor -y
+```
+
+### Create Worker Configuration
+Create a new configuration file:
+```bash
+sudo nano /etc/supervisor/conf.d/laravel-worker.conf
+```
+
+Paste the following content (adjust paths if necessary):
+```ini
+[program:laravel-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/inventory-app/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/www/inventory-app/storage/logs/worker.log
+stopwaitsecs=3600
+```
+
+### Start Supervisor
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start laravel-worker:*
+```
+
+> [!TIP]
+> Every time you update the code (specifically the Jobs or Services), you should run `sudo supervisorctl restart laravel-worker:*` to apply the changes.
+
+## 8. Troubleshooting
 
 ### Build Errors (esbuild/vite OOM)
 If you encounter `failureErrorWithLog` or "Out of Memory" errors during `npm run build`:

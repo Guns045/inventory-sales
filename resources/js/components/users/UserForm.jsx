@@ -69,6 +69,16 @@ export function UserForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
+                    <Label htmlFor="phone_number">Phone Number</Label>
+                    <Input
+                        id="phone_number"
+                        type="text"
+                        value={formData.phone_number || ''}
+                        onChange={(e) => handleChange('phone_number', e.target.value)}
+                        placeholder="e.g. 62812345678"
+                    />
+                </div>
+                <div className="space-y-2">
                     <Label htmlFor="role">Role *</Label>
                     <Select
                         value={formData.role_id?.toString() || ''}
@@ -165,13 +175,24 @@ export function UserForm({
                 </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-                <Checkbox
-                    id="can_access_multiple_warehouses"
-                    checked={!!formData.can_access_multiple_warehouses}
-                    onCheckedChange={(checked) => handleChange('can_access_multiple_warehouses', checked)}
-                />
-                <Label htmlFor="can_access_multiple_warehouses">Can access multiple warehouses</Label>
+            <div className="flex flex-col space-y-4 pt-2">
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="can_access_multiple_warehouses"
+                        checked={!!formData.can_access_multiple_warehouses}
+                        onCheckedChange={(checked) => handleChange('can_access_multiple_warehouses', checked)}
+                    />
+                    <Label htmlFor="can_access_multiple_warehouses">Can access multiple warehouses</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="wa_notification_enabled"
+                        checked={formData.wa_notification_enabled !== false} // Default true
+                        onCheckedChange={(checked) => handleChange('wa_notification_enabled', checked)}
+                    />
+                    <Label htmlFor="wa_notification_enabled">Receive WhatsApp Notifications</Label>
+                </div>
             </div>
         </div>
     )

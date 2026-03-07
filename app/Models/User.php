@@ -25,6 +25,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'phone_number',
+        'wa_notification_enabled',
         'warehouse_id',
         'can_access_multiple_warehouses',
         'is_active',

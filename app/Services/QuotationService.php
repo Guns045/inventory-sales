@@ -366,6 +366,9 @@ class QuotationService
                 $salesOrder
             );
 
+            // Dispatch WhatsApp Notification Job
+            \App\Jobs\SendSalesOrderWAJob::dispatch($salesOrder);
+
             return $salesOrder;
         });
     }

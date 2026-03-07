@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        'endpoint' => env('WA_API_ENDPOINT', 'https://api.fonnte.com/send'),
+        'token' => env('WA_API_KEY'),
+        'group_id' => env('FONNTE_GROUP_ID'),
+        'enabled' => env('WA_NOTIF_ENABLED', true),
+    ],
+
 ];

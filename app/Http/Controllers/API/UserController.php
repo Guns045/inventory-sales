@@ -53,6 +53,8 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
+            'phone_number' => 'nullable|string|max:20',
+            'wa_notification_enabled' => 'boolean',
             'password' => 'required|string|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
@@ -62,6 +64,8 @@ class UserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone_number' => $request->phone_number,
+            'wa_notification_enabled' => $request->boolean('wa_notification_enabled', true),
             'password' => Hash::make($request->password),
             'warehouse_id' => $request->warehouse_id,
             'can_access_multiple_warehouses' => $request->boolean('can_access_multiple_warehouses', false),
@@ -112,6 +116,8 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'phone_number' => 'nullable|string|max:20',
+            'wa_notification_enabled' => 'boolean',
             'password' => 'nullable|string|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
@@ -121,6 +127,8 @@ class UserController extends Controller
         $updateData = [
             'name' => $request->name,
             'email' => $request->email,
+            'phone_number' => $request->phone_number,
+            'wa_notification_enabled' => $request->boolean('wa_notification_enabled', true),
             'warehouse_id' => $request->warehouse_id,
             'can_access_multiple_warehouses' => $request->boolean('can_access_multiple_warehouses', false)
         ];
